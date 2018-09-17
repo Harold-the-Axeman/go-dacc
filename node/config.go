@@ -1,18 +1,18 @@
-// Copyright 2014 The go-ethereum Authors
-// This file is part of the go-ethereum library.
+// Copyright 2014 The go-dacc Authors
+// This file is part of the go-dacc library.
 //
-// The go-ethereum library is free software: you can redistribute it and/or modify
+// The go-dacc library is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// The go-ethereum library is distributed in the hope that it will be useful,
+// The go-dacc library is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU Lesser General Public License for more details.
 //
 // You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+// along with the go-dacc library. If not, see <http://www.gnu.org/licenses/>.
 
 package node
 
@@ -25,15 +25,15 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/ethereum/go-ethereum/accounts/keystore"
-	"github.com/ethereum/go-ethereum/accounts/usbwallet"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/p2p/discover"
-	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/daccproject/go-dacc/accounts"
+	"github.com/daccproject/go-dacc/accounts/keystore"
+	"github.com/daccproject/go-dacc/accounts/usbwallet"
+	"github.com/daccproject/go-dacc/common"
+	"github.com/daccproject/go-dacc/crypto"
+	"github.com/daccproject/go-dacc/log"
+	"github.com/daccproject/go-dacc/p2p"
+	"github.com/daccproject/go-dacc/p2p/discover"
+	"github.com/daccproject/go-dacc/rpc"
 )
 
 const (
@@ -410,7 +410,7 @@ func makeAccountManager(conf *Config) (*accounts.Manager, string, error) {
 	var ephemeral string
 	if keydir == "" {
 		// There is no datadir.
-		keydir, err = ioutil.TempDir("", "go-ethereum-keystore")
+		keydir, err = ioutil.TempDir("", "go-dacc-keystore")
 		ephemeral = keydir
 	}
 

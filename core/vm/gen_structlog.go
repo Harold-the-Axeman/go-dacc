@@ -6,9 +6,9 @@ import (
 	"encoding/json"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/common/math"
+	"github.com/daccproject/go-dacc/common"
+	"github.com/daccproject/go-dacc/common/hexutil"
+	"github.com/daccproject/go-dacc/common/math"
 )
 
 var _ = (*structLogMarshaling)(nil)

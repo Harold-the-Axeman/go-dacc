@@ -1,18 +1,18 @@
-// Copyright 2015 The go-ethereum Authors
-// This file is part of the go-ethereum library.
+// Copyright 2015 The go-dacc Authors
+// This file is part of the go-dacc library.
 //
-// The go-ethereum library is free software: you can redistribute it and/or modify
+// The go-dacc library is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// The go-ethereum library is distributed in the hope that it will be useful,
+// The go-dacc library is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU Lesser General Public License for more details.
 //
 // You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+// along with the go-dacc library. If not, see <http://www.gnu.org/licenses/>.
 
 package tests
 
@@ -23,22 +23,22 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/common/math"
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/state"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/crypto/sha3"
-	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/daccproject/go-dacc/common"
+	"github.com/daccproject/go-dacc/common/hexutil"
+	"github.com/daccproject/go-dacc/common/math"
+	"github.com/daccproject/go-dacc/core"
+	"github.com/daccproject/go-dacc/core/state"
+	"github.com/daccproject/go-dacc/core/types"
+	"github.com/daccproject/go-dacc/core/vm"
+	"github.com/daccproject/go-dacc/crypto"
+	"github.com/daccproject/go-dacc/crypto/sha3"
+	"github.com/daccproject/go-dacc/ethdb"
+	"github.com/daccproject/go-dacc/params"
+	"github.com/daccproject/go-dacc/rlp"
 )
 
 // StateTest checks transaction processing without block context.
-// See https://github.com/ethereum/EIPs/issues/176 for the test format specification.
+// See https://github.com/daccproject/EIPs/issues/176 for the test format specification.
 type StateTest struct {
 	json stJSON
 }
@@ -229,7 +229,7 @@ func (tx *stTransaction) toMessage(ps stPostState) (core.Message, error) {
 	dataHex := tx.Data[ps.Indexes.Data]
 	valueHex := tx.Value[ps.Indexes.Value]
 	gasLimit := tx.GasLimit[ps.Indexes.Gas]
-	// Value, Data hex encoding is messy: https://github.com/ethereum/tests/issues/203
+	// Value, Data hex encoding is messy: https://github.com/daccproject/tests/issues/203
 	value := new(big.Int)
 	if valueHex != "0x" {
 		v, ok := math.ParseBig256(valueHex)

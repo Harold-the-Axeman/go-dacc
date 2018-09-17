@@ -1,18 +1,18 @@
-// Copyright 2015 The go-ethereum Authors
-// This file is part of the go-ethereum library.
+// Copyright 2015 The go-dacc Authors
+// This file is part of the go-dacc library.
 //
-// The go-ethereum library is free software: you can redistribute it and/or modify
+// The go-dacc library is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// The go-ethereum library is distributed in the hope that it will be useful,
+// The go-dacc library is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU Lesser General Public License for more details.
 //
 // You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+// along with the go-dacc library. If not, see <http://www.gnu.org/licenses/>.
 
 package node
 
@@ -26,13 +26,13 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/internal/debug"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/daccproject/go-dacc/accounts"
+	"github.com/daccproject/go-dacc/ethdb"
+	"github.com/daccproject/go-dacc/event"
+	"github.com/daccproject/go-dacc/internal/debug"
+	"github.com/daccproject/go-dacc/log"
+	"github.com/daccproject/go-dacc/p2p"
+	"github.com/daccproject/go-dacc/rpc"
 	"github.com/prometheus/prometheus/util/flock"
 )
 

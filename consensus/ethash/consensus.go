@@ -1,18 +1,18 @@
-// Copyright 2017 The go-ethereum Authors
-// This file is part of the go-ethereum library.
+// Copyright 2017 The go-dacc Authors
+// This file is part of the go-dacc library.
 //
-// The go-ethereum library is free software: you can redistribute it and/or modify
+// The go-dacc library is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// The go-ethereum library is distributed in the hope that it will be useful,
+// The go-dacc library is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU Lesser General Public License for more details.
 //
 // You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+// along with the go-dacc library. If not, see <http://www.gnu.org/licenses/>.
 
 package ethash
 
@@ -24,16 +24,16 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/daccproject/go-dacc/common"
+	"github.com/daccproject/go-dacc/common/math"
+	"github.com/daccproject/go-dacc/consensus"
+	"github.com/daccproject/go-dacc/consensus/misc"
+	"github.com/daccproject/go-dacc/core/state"
+	"github.com/daccproject/go-dacc/core/types"
+	"github.com/daccproject/go-dacc/crypto/sha3"
+	"github.com/daccproject/go-dacc/params"
+	"github.com/daccproject/go-dacc/rlp"
 	mapset "github.com/deckarep/golang-set"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/math"
-	"github.com/ethereum/go-ethereum/consensus"
-	"github.com/ethereum/go-ethereum/consensus/misc"
-	"github.com/ethereum/go-ethereum/core/state"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto/sha3"
-	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/rlp"
 )
 
 // Ethash proof-of-work protocol constants.
@@ -323,7 +323,7 @@ var (
 // the difficulty that a new block should have when created at time given the
 // parent block's time and difficulty. The calculation uses the Byzantium rules.
 func calcDifficultyByzantium(time uint64, parent *types.Header) *big.Int {
-	// https://github.com/ethereum/EIPs/issues/100.
+	// https://github.com/daccproject/EIPs/issues/100.
 	// algorithm:
 	// diff = (parent_diff +
 	//         (parent_diff / 2048 * max((2 if len(parent.uncles) else 1) - ((timestamp - parent.timestamp) // 9), -99))
@@ -358,7 +358,7 @@ func calcDifficultyByzantium(time uint64, parent *types.Header) *big.Int {
 		x.Set(params.MinimumDifficulty)
 	}
 	// calculate a fake block number for the ice-age delay:
-	// https://github.com/ethereum/EIPs/pull/669
+	// https://github.com/daccproject/EIPs/pull/669
 	// fake_block_number = max(0, block.number - 3_000_000)
 	fakeBlockNumber := new(big.Int)
 	if parent.Number.Cmp(big2999999) >= 0 {
@@ -382,7 +382,7 @@ func calcDifficultyByzantium(time uint64, parent *types.Header) *big.Int {
 // the difficulty that a new block should have when created at time given the
 // parent block's time and difficulty. The calculation uses the Homestead rules.
 func calcDifficultyHomestead(time uint64, parent *types.Header) *big.Int {
-	// https://github.com/ethereum/EIPs/blob/master/EIPS/eip-2.md
+	// https://github.com/daccproject/EIPs/blob/master/EIPS/eip-2.md
 	// algorithm:
 	// diff = (parent_diff +
 	//         (parent_diff / 2048 * max(1 - (block_timestamp - parent_timestamp) // 10, -99))

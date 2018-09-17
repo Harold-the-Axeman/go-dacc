@@ -1,8 +1,8 @@
 package log
 
 import (
-	l "github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/metrics"
+	l "github.com/daccproject/go-dacc/log"
+	"github.com/daccproject/go-dacc/metrics"
 )
 
 const (

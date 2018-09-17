@@ -1,18 +1,18 @@
-// Copyright 2018 The go-ethereum Authors
-// This file is part of the go-ethereum library.
+// Copyright 2018 The go-dacc Authors
+// This file is part of the go-dacc library.
 //
-// The go-ethereum library is free software: you can redistribute it and/or modify
+// The go-dacc library is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// The go-ethereum library is distributed in the hope that it will be useful,
+// The go-dacc library is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU Lesser General Public License for more details.
 //
 // You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+// along with the go-dacc library. If not, see <http://www.gnu.org/licenses/>.
 
 // simple abstraction for implementing pss functionality
 //
@@ -28,11 +28,11 @@
 //  	"context"
 //  	"fmt"
 //  	"os"
-//  	pss "github.com/ethereum/go-ethereum/swarm/pss/client"
-//  	"github.com/ethereum/go-ethereum/p2p/protocols"
-//  	"github.com/ethereum/go-ethereum/p2p"
-//  	"github.com/ethereum/go-ethereum/swarm/pot"
-//  	"github.com/ethereum/go-ethereum/swarm/log"
+//  	pss "github.com/daccproject/go-dacc/swarm/pss/client"
+//  	"github.com/daccproject/go-dacc/p2p/protocols"
+//  	"github.com/daccproject/go-dacc/p2p"
+//  	"github.com/daccproject/go-dacc/swarm/pot"
+//  	"github.com/daccproject/go-dacc/swarm/log"
 //  )
 //
 //  type FooMsg struct {
