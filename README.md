@@ -1,6 +1,7 @@
 ## Go DACC
 
 Official golang implementation of the DACC Core.
+DACC Core is based on Ethereum with DPOS consensus.
 
 
 Automated builds are available for stable releases and the unstable master branch.
