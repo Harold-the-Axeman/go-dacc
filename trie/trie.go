@@ -114,7 +114,7 @@ func New(root common.Hash, db *Database) (*Trie, error) {
 	return trie, nil
 }
 
-// NewTrieWithPrefix creates a trie with an existing root node with specified prefix from db.
+// NewTrieWithPrefix creates a trie with an existing root node and a specified prefix from db.
 func NewTrieWithPrefix(root common.Hash, prefix []byte, db *Database) (*Trie, error) {
 	trie, err := New(root, db)
 	if err != nil {
@@ -127,7 +127,19 @@ func NewTrieWithPrefix(root common.Hash, prefix []byte, db *Database) (*Trie, er
 // NodeIterator returns an iterator that returns nodes of the trie. Iteration starts at
 // the key after the given start key.
 func (t *Trie) NodeIterator(start []byte) NodeIterator {
+	if t.prefix != nil {
+		start = append(t.prefix, start...)
+	}
 	return newNodeIterator(t, start)
+}
+
+// PrefixIterator returns an iterator that returns nodes of the trie which has the prefix path specificed
+// Iteration starts at the key after the given start key.
+func (t *Trie) PrefixIterator(prefix []byte) NodeIterator {
+	if t.prefix != nil {
+		prefix = append(t.prefix, prefix...)
+	}
+	return newPrefixIterator(t, prefix)
 }
 
 // Get returns the value for key stored in the trie.
