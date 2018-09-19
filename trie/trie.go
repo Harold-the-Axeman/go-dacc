@@ -68,6 +68,7 @@ type Trie struct {
 	db           *Database
 	root         node
 	originalRoot common.Hash
+
 	// add `prefix` for candidate list in dpos consensus.
 	prefix []byte
 
@@ -114,7 +115,7 @@ func New(root common.Hash, db *Database) (*Trie, error) {
 }
 
 // NewTrieWithPrefix creates a trie with an existing root node with specified prefix from db.
-func NewTrieWithPrefix(root common.Hash, prefix []byte, db Database) (*Trie, error) {
+func NewTrieWithPrefix(root common.Hash, prefix []byte, db *Database) (*Trie, error) {
 	trie, err := New(root, db)
 	if err != nil {
 		return nil, err
