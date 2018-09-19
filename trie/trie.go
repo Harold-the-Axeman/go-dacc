@@ -68,6 +68,8 @@ type Trie struct {
 	db           *Database
 	root         node
 	originalRoot common.Hash
+	// add `prefix` for candidate list in dpos consensus.
+	prefix []byte
 
 	// Cache generation values.
 	// cachegen increases by one with each commit operation.
@@ -108,6 +110,16 @@ func New(root common.Hash, db *Database) (*Trie, error) {
 		}
 		trie.root = rootnode
 	}
+	return trie, nil
+}
+
+// NewTrieWithPrefix creates a trie with an existing root node with specified prefix from db.
+func NewTrieWithPrefix(root common.Hash, prefix []byte, db Database) (*Trie, error) {
+	trie, err := New(root, db)
+	if err != nil {
+		return nil, err
+	}
+	trie.prefix = prefix
 	return trie, nil
 }
 
