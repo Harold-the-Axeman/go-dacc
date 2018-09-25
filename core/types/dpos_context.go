@@ -7,10 +7,8 @@ import (
 
 	"github.com/daccproject/go-dacc/common"
 	"github.com/daccproject/go-dacc/crypto/sha3"
-	"github.com/daccproject/go-dacc/ethdb"
 	"github.com/daccproject/go-dacc/rlp"
 	"github.com/daccproject/go-dacc/trie"
-	"github.com/yyh1102/tinychain/db"
 )
 
 type DposContext struct {
@@ -20,7 +18,8 @@ type DposContext struct {
 	candidateTrie *trie.Trie
 	mintCntTrie   *trie.Trie
 
-	db ethdb.Database
+	//db ethdb.Database
+	db *trie.Database
 }
 
 var (
@@ -35,23 +34,23 @@ func NewEpochTrie(root common.Hash, db *trie.Database) (*trie.Trie, error) {
 	return trie.NewTrieWithPrefix(root, epochPrefix, db)
 }
 
-func NewDelegateTrie(root common.Hash, db ethdb.Database) (*trie.Trie, error) {
+func NewDelegateTrie(root common.Hash, db *trie.Database) (*trie.Trie, error) {
 	return trie.NewTrieWithPrefix(root, delegatePrefix, db)
 }
 
-func NewVoteTrie(root common.Hash, db ethdb.Database) (*trie.Trie, error) {
+func NewVoteTrie(root common.Hash, db *trie.Database) (*trie.Trie, error) {
 	return trie.NewTrieWithPrefix(root, votePrefix, db)
 }
 
-func NewCandidateTrie(root common.Hash, db ethdb.Database) (*trie.Trie, error) {
+func NewCandidateTrie(root common.Hash, db *trie.Database) (*trie.Trie, error) {
 	return trie.NewTrieWithPrefix(root, candidatePrefix, db)
 }
 
-func NewMintCntTrie(root common.Hash, db ethdb.Database) (*trie.Trie, error) {
+func NewMintCntTrie(root common.Hash, db *trie.Database) (*trie.Trie, error) {
 	return trie.NewTrieWithPrefix(root, mintCntPrefix, db)
 }
 
-func NewDposContext(db ethdb.Database) (*DposContext, error) {
+func NewDposContext(db *trie.Database) (*DposContext, error) {
 	epochTrie, err := NewEpochTrie(common.Hash{}, db)
 	if err != nil {
 		return nil, err
@@ -82,7 +81,7 @@ func NewDposContext(db ethdb.Database) (*DposContext, error) {
 	}, nil
 }
 
-func NewDposContextFromProto(db ethdb.Database, ctxProto *DposContextProto) (*DposContext, error) {
+func NewDposContextFromProto(db *trie.Database, ctxProto *DposContextProto) (*DposContext, error) {
 	epochTrie, err := NewEpochTrie(ctxProto.EpochHash, db)
 	if err != nil {
 		return nil, err
@@ -332,7 +331,7 @@ func (d *DposContext) DelegateTrie() *trie.Trie           { return d.delegateTri
 func (d *DposContext) VoteTrie() *trie.Trie               { return d.voteTrie }
 func (d *DposContext) EpochTrie() *trie.Trie              { return d.epochTrie }
 func (d *DposContext) MintCntTrie() *trie.Trie            { return d.mintCntTrie }
-func (d *DposContext) DB() ethdb.Database                 { return d.db }
+func (d *DposContext) DB() *trie.Database                 { return d.db }
 func (dc *DposContext) SetEpoch(epoch *trie.Trie)         { dc.epochTrie = epoch }
 func (dc *DposContext) SetDelegate(delegate *trie.Trie)   { dc.delegateTrie = delegate }
 func (dc *DposContext) SetVote(vote *trie.Trie)           { dc.voteTrie = vote }
