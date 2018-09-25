@@ -24,9 +24,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	mapset "github.com/deckarep/golang-set"
 	"github.com/daccproject/go-dacc/common"
 	"github.com/daccproject/go-dacc/consensus"
+	"github.com/daccproject/go-dacc/consensus/dpos"
 	"github.com/daccproject/go-dacc/consensus/misc"
 	"github.com/daccproject/go-dacc/core"
 	"github.com/daccproject/go-dacc/core/state"
@@ -35,6 +35,7 @@ import (
 	"github.com/daccproject/go-dacc/event"
 	"github.com/daccproject/go-dacc/log"
 	"github.com/daccproject/go-dacc/params"
+	mapset "github.com/deckarep/golang-set"
 )
 
 const (
