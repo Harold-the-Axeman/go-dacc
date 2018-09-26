@@ -107,7 +107,8 @@ func (m *Miner) update() {
 
 func (m *Miner) Start(coinbase common.Address) {
 	atomic.StoreInt32(&m.shouldStart, 1)
-	m.SetEtherbase(coinbase)
+	//m.SetEtherbase(coinbase)
+	m.SetCoinbase(coinbase)
 
 	if atomic.LoadInt32(&m.canStart) == 0 {
 		log.Info("Network syncing, will start miner afterwards")
@@ -164,7 +165,7 @@ func (m *Miner) PendingBlock() *types.Block {
 	return m.worker.pendingBlock()
 }
 
-func (m *Miner) SetEtherbase(addr common.Address) {
+func (m *Miner) SetCoinbase(addr common.Address) {
 	m.coinbase = addr
-	m.worker.setEtherbase(addr)
+	m.worker.setCoinbase(addr)
 }
