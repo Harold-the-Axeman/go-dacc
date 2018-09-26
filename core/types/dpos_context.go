@@ -5,11 +5,11 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/meitu/go-ethereum/common"
-	"github.com/meitu/go-ethereum/crypto/sha3"
-	"github.com/meitu/go-ethereum/ethdb"
-	"github.com/meitu/go-ethereum/rlp"
-	"github.com/meitu/go-ethereum/trie"
+	"github.com/daccproject/go-dacc/common"
+	"github.com/daccproject/go-dacc/crypto/sha3"
+	"github.com/daccproject/go-dacc/ethdb"
+	"github.com/daccproject/go-dacc/rlp"
+	"github.com/daccproject/go-dacc/trie"
 )
 
 type DposContext struct {
@@ -19,7 +19,7 @@ type DposContext struct {
 	candidateTrie *trie.Trie
 	mintCntTrie   *trie.Trie
 
-	db ethdb.Database
+	db *trie.Database
 }
 
 var (
@@ -30,27 +30,27 @@ var (
 	mintCntPrefix   = []byte("mintCnt-")
 )
 
-func NewEpochTrie(root common.Hash, db ethdb.Database) (*trie.Trie, error) {
+func NewEpochTrie(root common.Hash, db *trie.Database) (*trie.Trie, error) {
 	return trie.NewTrieWithPrefix(root, epochPrefix, db)
 }
 
-func NewDelegateTrie(root common.Hash, db ethdb.Database) (*trie.Trie, error) {
+func NewDelegateTrie(root common.Hash, db *trie.Database) (*trie.Trie, error) {
 	return trie.NewTrieWithPrefix(root, delegatePrefix, db)
 }
 
-func NewVoteTrie(root common.Hash, db ethdb.Database) (*trie.Trie, error) {
+func NewVoteTrie(root common.Hash, db *trie.Database) (*trie.Trie, error) {
 	return trie.NewTrieWithPrefix(root, votePrefix, db)
 }
 
-func NewCandidateTrie(root common.Hash, db ethdb.Database) (*trie.Trie, error) {
+func NewCandidateTrie(root common.Hash, db *trie.Database) (*trie.Trie, error) {
 	return trie.NewTrieWithPrefix(root, candidatePrefix, db)
 }
 
-func NewMintCntTrie(root common.Hash, db ethdb.Database) (*trie.Trie, error) {
+func NewMintCntTrie(root common.Hash, db *trie.Database) (*trie.Trie, error) {
 	return trie.NewTrieWithPrefix(root, mintCntPrefix, db)
 }
 
-func NewDposContext(db ethdb.Database) (*DposContext, error) {
+func NewDposContext(db *trie.Database) (*DposContext, error) {
 	epochTrie, err := NewEpochTrie(common.Hash{}, db)
 	if err != nil {
 		return nil, err
@@ -81,7 +81,7 @@ func NewDposContext(db ethdb.Database) (*DposContext, error) {
 	}, nil
 }
 
-func NewDposContextFromProto(db ethdb.Database, ctxProto *DposContextProto) (*DposContext, error) {
+func NewDposContextFromProto(db *trie.Database, ctxProto *DposContextProto) (*DposContext, error) {
 	epochTrie, err := NewEpochTrie(ctxProto.EpochHash, db)
 	if err != nil {
 		return nil, err

@@ -6,11 +6,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/meitu/go-ethereum/common"
-	"github.com/meitu/go-ethereum/core/state"
-	"github.com/meitu/go-ethereum/core/types"
-	"github.com/meitu/go-ethereum/ethdb"
-	"github.com/meitu/go-ethereum/trie"
+	"github.com/daccproject/go-dacc/common"
+	"github.com/daccproject/go-dacc/core/state"
+	"github.com/daccproject/go-dacc/core/types"
+	"github.com/daccproject/go-dacc/ethdb"
+	"github.com/daccproject/go-dacc/trie"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -110,7 +110,7 @@ func TestEpochContextKickoutValidator(t *testing.T) {
 	assert.Nil(t, dposContext.BecomeCandidate(common.StringToAddress("addr")))
 	assert.Nil(t, epochContext.kickoutValidator(testEpoch))
 	candidateMap := getCandidates(dposContext.CandidateTrie())
-	assert.Equal(t, maxValidatorSize +1, len(candidateMap))
+	assert.Equal(t, maxValidatorSize+1, len(candidateMap))
 
 	// atLeast a safeSize count candidate will reserve
 	dposContext, err = types.NewDposContext(db)
@@ -150,7 +150,7 @@ func TestEpochContextKickoutValidator(t *testing.T) {
 		assert.Nil(t, dposContext.BecomeCandidate(validator))
 		setTestMintCnt(dposContext, testEpoch, validator, atLeastMintCnt-1)
 	}
-	for i := maxValidatorSize; i < maxValidatorSize *2; i++ {
+	for i := maxValidatorSize; i < maxValidatorSize*2; i++ {
 		candidate := common.StringToAddress("addr" + strconv.Itoa(i))
 		assert.Nil(t, dposContext.BecomeCandidate(candidate))
 	}
@@ -200,14 +200,14 @@ func TestEpochContextKickoutValidator(t *testing.T) {
 		assert.Nil(t, dposContext.BecomeCandidate(validator))
 		setTestMintCnt(dposContext, testEpoch, validator, atLeastMintCnt/2)
 	}
-	for i := maxValidatorSize; i < maxValidatorSize *2; i++ {
+	for i := maxValidatorSize; i < maxValidatorSize*2; i++ {
 		candidate := common.StringToAddress("addr" + strconv.Itoa(i))
 		assert.Nil(t, dposContext.BecomeCandidate(candidate))
 	}
 	assert.Nil(t, dposContext.SetValidators(validators))
 	assert.Nil(t, epochContext.kickoutValidator(testEpoch))
 	candidateMap = getCandidates(dposContext.CandidateTrie())
-	assert.Equal(t, maxValidatorSize *2, len(candidateMap))
+	assert.Equal(t, maxValidatorSize*2, len(candidateMap))
 
 	// epochTime is not complete, all validators didn't mint enough block at least
 	dposContext, err = types.NewDposContext(db)
@@ -224,7 +224,7 @@ func TestEpochContextKickoutValidator(t *testing.T) {
 		assert.Nil(t, dposContext.BecomeCandidate(validator))
 		setTestMintCnt(dposContext, testEpoch, validator, atLeastMintCnt/2-1)
 	}
-	for i := maxValidatorSize; i < maxValidatorSize *2; i++ {
+	for i := maxValidatorSize; i < maxValidatorSize*2; i++ {
 		candidate := common.StringToAddress("addr" + strconv.Itoa(i))
 		assert.Nil(t, dposContext.BecomeCandidate(candidate))
 	}

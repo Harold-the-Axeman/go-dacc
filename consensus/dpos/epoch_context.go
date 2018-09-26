@@ -8,12 +8,12 @@ import (
 	"math/rand"
 	"sort"
 
-	"github.com/meitu/go-ethereum/common"
-	"github.com/meitu/go-ethereum/core/state"
-	"github.com/meitu/go-ethereum/core/types"
-	"github.com/meitu/go-ethereum/crypto"
-	"github.com/meitu/go-ethereum/log"
-	"github.com/meitu/go-ethereum/trie"
+	"github.com/daccproject/go-dacc/common"
+	"github.com/daccproject/go-dacc/core/state"
+	"github.com/daccproject/go-dacc/core/types"
+	"github.com/daccproject/go-dacc/crypto"
+	"github.com/daccproject/go-dacc/log"
+	"github.com/daccproject/go-dacc/trie"
 )
 
 type EpochContext struct {
@@ -88,7 +88,7 @@ func (ec *EpochContext) kickoutValidator(epoch int64) error {
 		if cntBytes := ec.DposContext.MintCntTrie().Get(key); cntBytes != nil {
 			cnt = int64(binary.BigEndian.Uint64(cntBytes))
 		}
-		if cnt < epochDuration/blockInterval/ maxValidatorSize /2 {
+		if cnt < epochDuration/blockInterval/maxValidatorSize/2 {
 			// not active validators need kickout
 			needKickoutValidators = append(needKickoutValidators, &sortableAddress{validator, big.NewInt(cnt)})
 		}

@@ -17,10 +17,10 @@
 package dpos
 
 import (
-	"github.com/meitu/go-ethereum/common"
-	"github.com/meitu/go-ethereum/consensus"
-	"github.com/meitu/go-ethereum/core/types"
-	"github.com/meitu/go-ethereum/rpc"
+	"github.com/daccproject/go-dacc/common"
+	"github.com/daccproject/go-dacc/consensus"
+	"github.com/daccproject/go-dacc/core/types"
+	"github.com/daccproject/go-dacc/rpc"
 
 	"math/big"
 )

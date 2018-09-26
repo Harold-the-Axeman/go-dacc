@@ -3,9 +3,9 @@ package types
 import (
 	"testing"
 
-	"github.com/meitu/go-ethereum/common"
-	"github.com/meitu/go-ethereum/ethdb"
-	"github.com/meitu/go-ethereum/trie"
+	"github.com/daccproject/go-dacc/common"
+	"github.com/daccproject/go-dacc/ethdb"
+	"github.com/daccproject/go-dacc/trie"
 	"github.com/stretchr/testify/assert"
 )
 
