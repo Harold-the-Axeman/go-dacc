@@ -33,7 +33,9 @@ func TestHeaderStorage(t *testing.T) {
 	db := ethdb.NewMemDatabase()
 
 	// Create a test header to move around the database and make sure it's really new
-	header := &types.Header{Number: big.NewInt(42), Extra: []byte("test header")}
+	//header := &types.Header{Number: big.NewInt(42), Extra: []byte("test header")}
+	dposCtx, _ := types.NewDposContext(db)
+	header := &types.Header{Number: big.NewInt(42), Extra: []byte("test header"), DposContext: dposCtx.ToProto()}
 	if entry := ReadHeader(db, header.Hash(), header.Number.Uint64()); entry != nil {
 		t.Fatalf("Non existent header returned: %v", entry)
 	}
@@ -66,7 +68,9 @@ func TestBodyStorage(t *testing.T) {
 	db := ethdb.NewMemDatabase()
 
 	// Create a test body to move around the database and make sure it's really new
-	body := &types.Body{Uncles: []*types.Header{{Extra: []byte("test header")}}}
+	//body := &types.Body{Uncles: []*types.Header{{Extra: []byte("test header")}}}
+	dposCtx, _ := types.NewDposContext(db)
+	body := &types.Body{Uncles: []*types.Header{{Extra: []byte("test header"), DposContext: dposCtx.ToProto()}}}
 
 	hasher := sha3.NewKeccak256()
 	rlp.Encode(hasher, body)
