@@ -41,8 +41,8 @@ type ChainEvent struct {
 	Logs  []*types.Log
 }
 
-type ChainSideEvent struct {
-	Block *types.Block
-}
+//type ChainSideEvent struct {
+//	Block *types.Block
+//}
 
 type ChainHeadEvent struct{ Block *types.Block }
