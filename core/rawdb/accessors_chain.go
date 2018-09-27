@@ -330,7 +330,25 @@ func ReadBlock(db DatabaseReader, hash common.Hash, number uint64) *types.Block 
 	if body == nil {
 		return nil
 	}
-	return types.NewBlockWithHeader(header).WithBody(body.Transactions, body.Uncles)
+	//return types.NewBlockWithHeader(header).WithBody(body.Transactions, body.Uncles)
+	// Reassemble the block and return
+	block := types.NewBlockWithHeader(header).WithBody(body.Transactions, body.Uncles)
+
+	// add dposContext to block
+	block.DposContext = readDposContextTrie(db.(ethdb.Database), header)
+	return block
+}
+
+func readDposContextTrie(db ethdb.Database, header *types.Header) *types.DposContext {
+	dposContestProto := header.DposContext
+	if dposContestProto != nil {
+		dposContext, err := types.NewDposContextFromProto(db, dposContestProto)
+		if err != nil {
+			return nil
+		}
+		return dposContext
+	}
+	return nil
 }
 
 // WriteBlock serializes a block into the database, header and body separately.
