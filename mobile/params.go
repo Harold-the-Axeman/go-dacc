@@ -19,9 +19,9 @@
 package geth
 
 import (
-	"encoding/json"
+	//"encoding/json"
 
-	"github.com/daccproject/go-dacc/core"
+	//"github.com/daccproject/go-dacc/core"
 	"github.com/daccproject/go-dacc/p2p/discv5"
 	"github.com/daccproject/go-dacc/params"
 )
@@ -33,22 +33,22 @@ func MainnetGenesis() string {
 }
 
 // TestnetGenesis returns the JSON spec to use for the Ethereum test network.
-func TestnetGenesis() string {
-	enc, err := json.Marshal(core.DefaultTestnetGenesisBlock())
-	if err != nil {
-		panic(err)
-	}
-	return string(enc)
-}
+//func TestnetGenesis() string {
+//	enc, err := json.Marshal(core.DefaultTestnetGenesisBlock())
+//	if err != nil {
+//		panic(err)
+//	}
+//	return string(enc)
+//}
 
 // RinkebyGenesis returns the JSON spec to use for the Rinkeby test network
-func RinkebyGenesis() string {
-	enc, err := json.Marshal(core.DefaultRinkebyGenesisBlock())
-	if err != nil {
-		panic(err)
-	}
-	return string(enc)
-}
+//func RinkebyGenesis() string {
+//	enc, err := json.Marshal(core.DefaultRinkebyGenesisBlock())
+//	if err != nil {
+//		panic(err)
+//	}
+//	return string(enc)
+//}
 
 // FoundationBootnodes returns the enode URLs of the P2P bootstrap nodes operated
 // by the foundation running the V5 discovery protocol.
