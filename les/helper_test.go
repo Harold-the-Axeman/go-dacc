@@ -84,7 +84,8 @@ func testChainGen(i int, block *core.BlockGen) {
 	switch i {
 	case 0:
 		// In block 1, the test bank sends account #1 some ether.
-		tx, _ := types.SignTx(types.NewTransaction(block.TxNonce(testBankAddress), acc1Addr, big.NewInt(10000), params.TxGas, nil, nil), signer, testBankKey)
+		//tx, _ := types.SignTx(types.NewTransaction(block.TxNonce(testBankAddress), acc1Addr, big.NewInt(10000), params.TxGas, nil, nil), signer, testBankKey)
+		tx, _ := types.SignTx(types.NewTransaction(types.Binary, block.TxNonce(testBankAddress), acc1Addr, big.NewInt(10000), bigTxGas, nil, nil), signer, testBankKey)
 		block.AddTx(tx)
 	case 1:
 		// In block 2, the test bank sends some more ether to account #1.
@@ -93,8 +94,10 @@ func testChainGen(i int, block *core.BlockGen) {
 		// acc1Addr creates a test event.
 		nonce := block.TxNonce(acc1Addr)
 
-		tx1, _ := types.SignTx(types.NewTransaction(block.TxNonce(testBankAddress), acc1Addr, big.NewInt(1000), params.TxGas, nil, nil), signer, testBankKey)
-		tx2, _ := types.SignTx(types.NewTransaction(nonce, acc2Addr, big.NewInt(1000), params.TxGas, nil, nil), signer, acc1Key)
+		//tx1, _ := types.SignTx(types.NewTransaction(block.TxNonce(testBankAddress), acc1Addr, big.NewInt(1000), params.TxGas, nil, nil), signer, testBankKey)
+		tx1, _ := types.SignTx(types.NewTransaction(types.Binary, block.TxNonce(testBankAddress), acc1Addr, big.NewInt(1000), bigTxGas, nil, nil), signer, testBankKey)
+		//tx2, _ := types.SignTx(types.NewTransaction(nonce, acc2Addr, big.NewInt(1000), params.TxGas, nil, nil), signer, acc1Key)
+		tx2, _ := types.SignTx(types.NewTransaction(types.Binary, nonce, acc2Addr, big.NewInt(1000), bigTxGas, nil, nil), signer, acc1Key)
 		tx3, _ := types.SignTx(types.NewContractCreation(nonce+1, big.NewInt(0), 200000, big.NewInt(0), testContractCode), signer, acc1Key)
 		testContractAddr = crypto.CreateAddress(acc1Addr, nonce+1)
 		tx4, _ := types.SignTx(types.NewContractCreation(nonce+2, big.NewInt(0), 200000, big.NewInt(0), testEventEmitterCode), signer, acc1Key)
@@ -108,7 +111,8 @@ func testChainGen(i int, block *core.BlockGen) {
 		block.SetCoinbase(acc2Addr)
 		block.SetExtra([]byte("yeehaw"))
 		data := common.Hex2Bytes("C16431B900000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000001")
-		tx, _ := types.SignTx(types.NewTransaction(block.TxNonce(testBankAddress), testContractAddr, big.NewInt(0), 100000, nil, data), signer, testBankKey)
+		//tx, _ := types.SignTx(types.NewTransaction(block.TxNonce(testBankAddress), testContractAddr, big.NewInt(0), 100000, nil, data), signer, testBankKey)
+		tx, _ := types.SignTx(types.NewTransaction(types.Binary, block.TxNonce(testBankAddress), testContractAddr, big.NewInt(0), big.NewInt(100000), nil, data), signer, testBankKey)
 		block.AddTx(tx)
 	case 3:
 		// Block 4 includes blocks 2 and 3 as uncle headers (with modified extra data).
@@ -119,7 +123,8 @@ func testChainGen(i int, block *core.BlockGen) {
 		b3.Extra = []byte("foo")
 		block.AddUncle(b3)
 		data := common.Hex2Bytes("C16431B900000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000002")
-		tx, _ := types.SignTx(types.NewTransaction(block.TxNonce(testBankAddress), testContractAddr, big.NewInt(0), 100000, nil, data), signer, testBankKey)
+		//tx, _ := types.SignTx(types.NewTransaction(block.TxNonce(testBankAddress), testContractAddr, big.NewInt(0), 100000, nil, data), signer, testBankKey)
+		tx, _ := types.SignTx(types.NewTransaction(types.Binary, block.TxNonce(testBankAddress), testContractAddr, big.NewInt(0), big.NewInt(100000), nil, data), signer, testBankKey)
 		block.AddTx(tx)
 	}
 }
