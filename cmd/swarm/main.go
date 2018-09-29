@@ -91,11 +91,11 @@ var (
 		Usage:  "Swarm local http api port",
 		EnvVar: SWARM_ENV_PORT,
 	}
-	SwarmNetworkIdFlag = cli.IntFlag{
-		Name:   "bzznetworkid",
-		Usage:  "Network identifier (integer, default 3=swarm testnet)",
-		EnvVar: SWARM_ENV_NETWORK_ID,
-	}
+	//SwarmNetworkIdFlag = cli.IntFlag{
+	//	Name:   "bzznetworkid",
+	//	Usage:  "Network identifier (integer, default 3=swarm testnet)",
+	//	EnvVar: SWARM_ENV_NETWORK_ID,
+	//}
 	SwarmSwapEnabledFlag = cli.BoolFlag{
 		Name:   "swap",
 		Usage:  "Swarm SWAP enabled (default false)",
@@ -547,7 +547,7 @@ pv(1) tool to get a progress bar:
 		SwarmListenAddrFlag,
 		SwarmPortFlag,
 		SwarmAccountFlag,
-		SwarmNetworkIdFlag,
+		//SwarmNetworkIdFlag,
 		ChequebookAddrFlag,
 		// upload flags
 		SwarmApiFlag,
