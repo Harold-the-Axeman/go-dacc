@@ -26,8 +26,7 @@ import (
 
 	"github.com/daccproject/go-dacc/common"
 	"github.com/daccproject/go-dacc/consensus"
-	"github.com/daccproject/go-dacc/consensus/dpos"
-	"github.com/daccproject/go-dacc/consensus/misc"
+		"github.com/daccproject/go-dacc/consensus/misc"
 	"github.com/daccproject/go-dacc/core"
 	"github.com/daccproject/go-dacc/core/state"
 	"github.com/daccproject/go-dacc/core/types"
@@ -35,7 +34,7 @@ import (
 	"github.com/daccproject/go-dacc/event"
 	"github.com/daccproject/go-dacc/log"
 	"github.com/daccproject/go-dacc/params"
-	mapset "github.com/deckarep/golang-set"
+	"github.com/deckarep/golang-set"
 )
 
 const (
@@ -223,7 +222,7 @@ func newWorker(config *params.ChainConfig, engine consensus.Engine, eth Backend,
 }
 
 // setEtherbase sets the etherbase used to initialize the block coinbase field.
-func (w *worker) setEtherbase(addr common.Address) {
+func (w *worker) setCoinbase(addr common.Address) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	w.coinbase = addr

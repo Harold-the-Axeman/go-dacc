@@ -66,12 +66,12 @@ var (
 		utils.DashboardAddrFlag,
 		utils.DashboardPortFlag,
 		utils.DashboardRefreshFlag,
-		utils.EthashCacheDirFlag,
-		utils.EthashCachesInMemoryFlag,
-		utils.EthashCachesOnDiskFlag,
-		utils.EthashDatasetDirFlag,
-		utils.EthashDatasetsInMemoryFlag,
-		utils.EthashDatasetsOnDiskFlag,
+		//utils.EthashCacheDirFlag,
+		//utils.EthashCachesInMemoryFlag,
+		//utils.EthashCachesOnDiskFlag,
+		//utils.EthashDatasetDirFlag,
+		//utils.EthashDatasetsInMemoryFlag,
+		//utils.EthashDatasetsOnDiskFlag,
 		utils.TxPoolLocalsFlag,
 		utils.TxPoolNoLocalsFlag,
 		utils.TxPoolJournalFlag,
@@ -95,8 +95,10 @@ var (
 		utils.ListenPortFlag,
 		utils.MaxPeersFlag,
 		utils.MaxPendingPeersFlag,
+		utils.ValidatorFlag,
+		utils.CoinbaseFlag,
 		utils.MiningEnabledFlag,
-		utils.MinerThreadsFlag,
+		//utils.MinerThreadsFlag,
 		utils.MinerLegacyThreadsFlag,
 		utils.MinerNotifyFlag,
 		utils.MinerGasTargetFlag,
@@ -104,7 +106,7 @@ var (
 		utils.MinerGasLimitFlag,
 		utils.MinerGasPriceFlag,
 		utils.MinerLegacyGasPriceFlag,
-		utils.MinerEtherbaseFlag,
+		//utils.MinerEtherbaseFlag,
 		utils.MinerLegacyEtherbaseFlag,
 		utils.MinerExtraDataFlag,
 		utils.MinerLegacyExtraDataFlag,
@@ -116,17 +118,17 @@ var (
 		utils.NetrestrictFlag,
 		utils.NodeKeyFileFlag,
 		utils.NodeKeyHexFlag,
-		utils.DeveloperFlag,
-		utils.DeveloperPeriodFlag,
-		utils.TestnetFlag,
-		utils.RinkebyFlag,
+		//utils.DeveloperFlag,
+		//utils.DeveloperPeriodFlag,
+		//utils.TestnetFlag,
+		//utils.RinkebyFlag,
 		utils.VMEnableDebugFlag,
 		utils.NetworkIdFlag,
 		utils.RPCCORSDomainFlag,
 		utils.RPCVirtualHostsFlag,
 		utils.EthStatsURLFlag,
 		utils.MetricsEnabledFlag,
-		utils.FakePoWFlag,
+		//utils.FakePoWFlag,
 		utils.NoCompactionFlag,
 		utils.GpoBlocksFlag,
 		utils.GpoPercentileFlag,
@@ -189,8 +191,8 @@ func init() {
 		attachCommand,
 		javascriptCommand,
 		// See misccmd.go:
-		makecacheCommand,
-		makedagCommand,
+		//makecacheCommand,
+		//makedagCommand,
 		versionCommand,
 		bugCommand,
 		licenseCommand,
@@ -329,7 +331,8 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 		}
 	}()
 	// Start auxiliary services if enabled
-	if ctx.GlobalBool(utils.MiningEnabledFlag.Name) || ctx.GlobalBool(utils.DeveloperFlag.Name) {
+	//if ctx.GlobalBool(utils.MiningEnabledFlag.Name) || ctx.GlobalBool(utils.DeveloperFlag.Name) {
+	if ctx.GlobalBool(utils.MiningEnabledFlag.Name) {
 		// Mining only makes sense if a full Ethereum node is running
 		if ctx.GlobalString(utils.SyncModeFlag.Name) == "light" {
 			utils.Fatalf("Light clients do not support mining")

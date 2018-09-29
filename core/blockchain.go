@@ -31,6 +31,7 @@ import (
 	"github.com/daccproject/go-dacc/common/mclock"
 	"github.com/daccproject/go-dacc/common/prque"
 	"github.com/daccproject/go-dacc/consensus"
+	"github.com/daccproject/go-dacc/consensus/dpos"
 	"github.com/daccproject/go-dacc/core/rawdb"
 	"github.com/daccproject/go-dacc/core/state"
 	"github.com/daccproject/go-dacc/core/types"
@@ -901,6 +902,10 @@ func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.
 	}
 	rawdb.WriteBlock(bc.db, block)
 
+	if _, err := block.DposContext.CommitTo(batch); err != nil {
+		return NonStatTy, err
+	}
+
 	root, err := state.Commit(bc.chainConfig.IsEIP158(block.Number()))
 	if err != nil {
 		return NonStatTy, err
@@ -1144,6 +1149,10 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 		} else {
 			parent = chain[i-1]
 		}
+		block.DposContext, err = types.NewDposContextFromProto(bc.chainDb, parent.Header().DposContext)
+		if err != nil {
+			return i, events, coalescedLogs, err
+		}
 		state, err := state.New(parent.Root(), bc.stateCache)
 		if err != nil {
 			return i, events, coalescedLogs, err
@@ -1159,6 +1168,21 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 		if err != nil {
 			bc.reportBlock(block, receipts, err)
 			return i, events, coalescedLogs, err
+		}
+		// Validate the dpos state using the default validator
+		err = bc.Validator().ValidateDposState(block)
+		if err != nil {
+			bc.reportBlock(block, receipts, err)
+			return i, events, coalescedLogs, err
+		}
+		// Validate validator
+		dposEngine, isDpos := bc.engine.(*dpos.Dpos)
+		if isDpos {
+			err = dposEngine.VerifySeal(bc, block.Header())
+			if err != nil {
+				bc.reportBlock(block, receipts, err)
+				return i, events, coalescedLogs, err
+			}
 		}
 		proctime := time.Since(bstart)
 
@@ -1185,7 +1209,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 				common.PrettyDuration(time.Since(bstart)), "txs", len(block.Transactions()), "gas", block.GasUsed(), "uncles", len(block.Uncles()))
 
 			blockInsertTimer.UpdateSince(bstart)
-			events = append(events, ChainSideEvent{block})
+			//events = append(events, ChainSideEvent{block})
 		}
 		stats.processed++
 		stats.usedGas += usedGas
@@ -1354,13 +1378,13 @@ func (bc *BlockChain) reorg(oldBlock, newBlock *types.Block) error {
 	if len(deletedLogs) > 0 {
 		go bc.rmLogsFeed.Send(RemovedLogsEvent{deletedLogs})
 	}
-	if len(oldChain) > 0 {
-		go func() {
-			for _, block := range oldChain {
-				bc.chainSideFeed.Send(ChainSideEvent{Block: block})
-			}
-		}()
-	}
+	//if len(oldChain) > 0 {
+	//	go func() {
+	//		for _, block := range oldChain {
+	//			bc.chainSideFeed.Send(ChainSideEvent{Block: block})
+	//		}
+	//	}()
+	//}
 
 	return nil
 }
@@ -1381,8 +1405,8 @@ func (bc *BlockChain) PostChainEvents(events []interface{}, logs []*types.Log) {
 		case ChainHeadEvent:
 			bc.chainHeadFeed.Send(ev)
 
-		case ChainSideEvent:
-			bc.chainSideFeed.Send(ev)
+			//case ChainSideEvent:
+			//	bc.chainSideFeed.Send(ev)
 		}
 	}
 }
@@ -1572,9 +1596,9 @@ func (bc *BlockChain) SubscribeChainHeadEvent(ch chan<- ChainHeadEvent) event.Su
 }
 
 // SubscribeChainSideEvent registers a subscription of ChainSideEvent.
-func (bc *BlockChain) SubscribeChainSideEvent(ch chan<- ChainSideEvent) event.Subscription {
-	return bc.scope.Track(bc.chainSideFeed.Subscribe(ch))
-}
+//func (bc *BlockChain) SubscribeChainSideEvent(ch chan<- ChainSideEvent) event.Subscription {
+//	return bc.scope.Track(bc.chainSideFeed.Subscribe(ch))
+//}
 
 // SubscribeLogsEvent registers a subscription of []*types.Log.
 func (bc *BlockChain) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription {

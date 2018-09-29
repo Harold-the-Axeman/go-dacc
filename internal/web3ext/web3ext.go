@@ -31,6 +31,7 @@ var Modules = map[string]string{
 	"shh":        Shh_JS,
 	"swarmfs":    SWARMFS_JS,
 	"txpool":     TxPool_JS,
+	"dpos":       Dpos_JS,
 }
 
 const Chequebook_JS = `
@@ -59,6 +60,26 @@ web3._extend({
 			call: 'chequebook_issue',
 			params: 2,
 			inputFormatter: [null, null]
+		}),
+	]
+});
+`
+
+const Dpos_JS = `
+web3._extend({
+	property: 'dpos',
+	methods: [
+		new web3._extend.Method({
+			name: 'getValidators',
+			call: 'dpos_getValidators',
+			params: 1,
+			inputFormatter: [web3._extend.formatters.inputBlockNumberFormatter]
+		}),
+		new web3._extend.Method({
+			name: 'getConfirmedBlockNumber',
+			call: 'dpos_getConfirmedBlockNumber',
+			params: 0,
+			outputFormatter: web3._extend.utils.toBigNumber
 		}),
 	]
 });
@@ -503,8 +524,14 @@ web3._extend({
 			call: 'miner_stop'
 		}),
 		new web3._extend.Method({
-			name: 'setEtherbase',
-			call: 'miner_setEtherbase',
+			name: 'setValidator',
+			call: 'miner_setValidator',
+			params: 1,
+			inputFormatter: [web3._extend.formatters.inputAddressFormatter]
+		}),
+		new web3._extend.Method({
+			name: 'setCoinbase',
+			call: 'miner_setCoinbase',
 			params: 1,
 			inputFormatter: [web3._extend.formatters.inputAddressFormatter]
 		}),

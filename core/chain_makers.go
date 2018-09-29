@@ -22,6 +22,7 @@ import (
 
 	"github.com/daccproject/go-dacc/common"
 	"github.com/daccproject/go-dacc/consensus"
+	"github.com/daccproject/go-dacc/consensus/dpos"
 	"github.com/daccproject/go-dacc/consensus/misc"
 	"github.com/daccproject/go-dacc/core/state"
 	"github.com/daccproject/go-dacc/core/types"
@@ -92,7 +93,8 @@ func (b *BlockGen) AddTxWithChain(bc *BlockChain, tx *types.Transaction) {
 		b.SetCoinbase(common.Address{})
 	}
 	b.statedb.Prepare(tx.Hash(), common.Hash{}, len(b.txs))
-	receipt, _, err := ApplyTransaction(b.config, bc, &b.header.Coinbase, b.gasPool, b.statedb, b.header, tx, &b.header.GasUsed, vm.Config{})
+	//receipt, _, err := ApplyTransaction(b.config, bc, &b.header.Coinbase, b.gasPool, b.statedb, b.header, tx, &b.header.GasUsed, vm.Config{})
+	receipt, _, err := ApplyTransaction(b.config, nil, nil, &b.header.Coinbase, b.gasPool, b.statedb, b.header, tx, b.header.GasUsed, vm.Config{})
 	if err != nil {
 		panic(err)
 	}
@@ -166,7 +168,8 @@ func (b *BlockGen) OffsetTime(seconds int64) {
 // a similar non-validating proof of work implementation.
 func GenerateChain(config *params.ChainConfig, parent *types.Block, engine consensus.Engine, db ethdb.Database, n int, gen func(int, *BlockGen)) ([]*types.Block, []types.Receipts) {
 	if config == nil {
-		config = params.TestChainConfig
+		//config = params.TestChainConfig
+		config = params.DposChainConfig
 	}
 	blocks, receipts := make(types.Blocks, n), make([]types.Receipts, n)
 	genblock := func(i int, parent *types.Block, statedb *state.StateDB) (*types.Block, types.Receipts) {
@@ -196,6 +199,8 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 		}
 
 		if b.engine != nil {
+			// TODO(bytejedi): dpos.AccumulateRewards -> Finalize()
+			dpos.AccumulateRewards(config, statedb, b.header, b.uncles)
 			block, _ := b.engine.Finalize(b.chainReader, b.header, statedb, b.txs, b.uncles, b.receipts)
 			// Write state changes to db
 			root, err := statedb.Commit(config.IsEIP158(b.header.Number))
@@ -205,6 +210,7 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 			if err := statedb.Database().TrieDB().Commit(root, false); err != nil {
 				panic(fmt.Sprintf("trie write error: %v", err))
 			}
+			b.header.DposContext = parent.Header().DposContext
 			return block, b.receipts
 		}
 		return nil, nil
@@ -231,18 +237,27 @@ func makeHeader(chain consensus.ChainReader, parent *types.Block, state *state.S
 	}
 
 	return &types.Header{
-		Root:       state.IntermediateRoot(chain.Config().IsEIP158(parent.Number())),
-		ParentHash: parent.Hash(),
-		Coinbase:   parent.Coinbase(),
-		Difficulty: engine.CalcDifficulty(chain, time.Uint64(), &types.Header{
-			Number:     parent.Number(),
-			Time:       new(big.Int).Sub(time, big.NewInt(10)),
-			Difficulty: parent.Difficulty(),
-			UncleHash:  parent.UncleHash(),
-		}),
-		GasLimit: CalcGasLimit(parent, parent.GasLimit(), parent.GasLimit()),
-		Number:   new(big.Int).Add(parent.Number(), common.Big1),
-		Time:     time,
+		//Root:       state.IntermediateRoot(chain.Config().IsEIP158(parent.Number())),
+		//ParentHash: parent.Hash(),
+		//Coinbase:   parent.Coinbase(),
+		//Difficulty: engine.CalcDifficulty(chain, time.Uint64(), &types.Header{
+		//	Number:     parent.Number(),
+		//	Time:       new(big.Int).Sub(time, big.NewInt(10)),
+		//	Difficulty: parent.Difficulty(),
+		//	UncleHash:  parent.UncleHash(),
+		//}),
+		//GasLimit: CalcGasLimit(parent, parent.GasLimit(), parent.GasLimit()),
+		//Number:   new(big.Int).Add(parent.Number(), common.Big1),
+		//Time:     time,
+		Root:        state.IntermediateRoot(config.IsEIP158(parent.Number())),
+		ParentHash:  parent.Hash(),
+		Coinbase:    parent.Coinbase(),
+		Difficulty:  parent.Difficulty(),
+		DposContext: &types.DposContextProto{},
+		GasLimit:    CalcGasLimit(parent),
+		GasUsed:     new(big.Int),
+		Number:      new(big.Int).Add(parent.Number(), common.Big1),
+		Time:        time,
 	}
 }
 
@@ -258,7 +273,8 @@ func makeHeaderChain(parent *types.Header, n int, engine consensus.Engine, db et
 
 // makeBlockChain creates a deterministic chain of blocks rooted at parent.
 func makeBlockChain(parent *types.Block, n int, engine consensus.Engine, db ethdb.Database, seed int) []*types.Block {
-	blocks, _ := GenerateChain(params.TestChainConfig, parent, engine, db, n, func(i int, b *BlockGen) {
+	//blocks, _ := GenerateChain(params.TestChainConfig, parent, engine, db, n, func(i int, b *BlockGen) {
+	blocks, _ := GenerateChain(params.DposChainConfig, parent, db, n, func(i int, b *BlockGen) {
 		b.SetCoinbase(common.Address{0: byte(seed), 19: byte(i)})
 	})
 	return blocks

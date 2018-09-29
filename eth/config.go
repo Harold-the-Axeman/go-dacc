@@ -20,13 +20,13 @@ import (
 	"math/big"
 	"os"
 	"os/user"
-	"path/filepath"
-	"runtime"
+	//"path/filepath"
+	//"runtime"
 	"time"
 
 	"github.com/daccproject/go-dacc/common"
 	"github.com/daccproject/go-dacc/common/hexutil"
-	"github.com/daccproject/go-dacc/consensus/ethash"
+	//"github.com/daccproject/go-dacc/consensus/ethash"
 	"github.com/daccproject/go-dacc/core"
 	"github.com/daccproject/go-dacc/eth/downloader"
 	"github.com/daccproject/go-dacc/eth/gasprice"
@@ -35,15 +35,17 @@ import (
 
 // DefaultConfig contains default settings for use on the Ethereum main net.
 var DefaultConfig = Config{
-	SyncMode: downloader.FastSync,
-	Ethash: ethash.Config{
-		CacheDir:       "ethash",
-		CachesInMem:    2,
-		CachesOnDisk:   3,
-		DatasetsInMem:  1,
-		DatasetsOnDisk: 2,
-	},
-	NetworkId:     1,
+	//SyncMode: downloader.FastSync,
+	//Ethash: ethash.Config{
+	//	CacheDir:       "ethash",
+	//	CachesInMem:    2,
+	//	CachesOnDisk:   3,
+	//	DatasetsInMem:  1,
+	//	DatasetsOnDisk: 2,
+	//},
+	//NetworkId:     1,
+	SyncMode:      downloader.FullSync,
+	NetworkId:     1919,
 	LightPeers:    100,
 	DatabaseCache: 768,
 	TrieCache:     256,
@@ -67,11 +69,11 @@ func init() {
 			home = user.HomeDir
 		}
 	}
-	if runtime.GOOS == "windows" {
-		DefaultConfig.Ethash.DatasetDir = filepath.Join(home, "AppData", "Ethash")
-	} else {
-		DefaultConfig.Ethash.DatasetDir = filepath.Join(home, ".ethash")
-	}
+	//if runtime.GOOS == "windows" {
+	//	DefaultConfig.Ethash.DatasetDir = filepath.Join(home, "AppData", "Ethash")
+	//} else {
+	//	DefaultConfig.Ethash.DatasetDir = filepath.Join(home, ".ethash")
+	//}
 }
 
 //go:generate gencodec -type Config -field-override configMarshaling -formats toml -out gen_config.go
@@ -98,7 +100,9 @@ type Config struct {
 	TrieTimeout        time.Duration
 
 	// Mining-related options
-	Etherbase      common.Address `toml:",omitempty"`
+	//Etherbase      common.Address `toml:",omitempty"`
+	Validator      common.Address `toml:",omitempty"`
+	Coinbase       common.Address `toml:",omitempty"`
 	MinerNotify    []string       `toml:",omitempty"`
 	MinerExtraData []byte         `toml:",omitempty"`
 	MinerGasFloor  uint64
@@ -108,7 +112,7 @@ type Config struct {
 	MinerNoverify  bool
 
 	// Ethash options
-	Ethash ethash.Config
+	//Ethash ethash.Config
 
 	// Transaction pool options
 	TxPool core.TxPoolConfig
@@ -121,6 +125,7 @@ type Config struct {
 
 	// Miscellaneous options
 	DocRoot string `toml:"-"`
+	Dpos    bool   `toml:"-"`
 }
 
 type configMarshaling struct {

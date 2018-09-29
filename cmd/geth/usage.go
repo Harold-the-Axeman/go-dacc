@@ -25,7 +25,7 @@ import (
 	"strings"
 
 	"github.com/daccproject/go-dacc/cmd/utils"
-	"github.com/daccproject/go-dacc/internal/debug"
+	//"github.com/daccproject/go-dacc/internal/debug"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -72,8 +72,8 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.KeyStoreDirFlag,
 			utils.NoUSBFlag,
 			utils.NetworkIdFlag,
-			utils.TestnetFlag,
-			utils.RinkebyFlag,
+			//utils.TestnetFlag,
+			//utils.RinkebyFlag,
 			utils.SyncModeFlag,
 			utils.GCModeFlag,
 			utils.EthStatsURLFlag,
@@ -83,24 +83,24 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.LightKDFFlag,
 		},
 	},
-	{
-		Name: "DEVELOPER CHAIN",
-		Flags: []cli.Flag{
-			utils.DeveloperFlag,
-			utils.DeveloperPeriodFlag,
-		},
-	},
-	{
-		Name: "ETHASH",
-		Flags: []cli.Flag{
-			utils.EthashCacheDirFlag,
-			utils.EthashCachesInMemoryFlag,
-			utils.EthashCachesOnDiskFlag,
-			utils.EthashDatasetDirFlag,
-			utils.EthashDatasetsInMemoryFlag,
-			utils.EthashDatasetsOnDiskFlag,
-		},
-	},
+	//{
+	//	Name: "DEVELOPER CHAIN",
+	//	Flags: []cli.Flag{
+	//		utils.DeveloperFlag,
+	//		utils.DeveloperPeriodFlag,
+	//	},
+	//},
+	//{
+	//	Name: "ETHASH",
+	//	Flags: []cli.Flag{
+	//		utils.EthashCacheDirFlag,
+	//		utils.EthashCachesInMemoryFlag,
+	//		utils.EthashCachesOnDiskFlag,
+	//		utils.EthashDatasetDirFlag,
+	//		utils.EthashDatasetsInMemoryFlag,
+	//		utils.EthashDatasetsOnDiskFlag,
+	//	},
+	//},
 	//{
 	//	Name: "DASHBOARD",
 	//	Flags: []cli.Flag{
@@ -185,15 +185,17 @@ var AppHelpFlagGroups = []flagGroup{
 		Name: "MINER",
 		Flags: []cli.Flag{
 			utils.MiningEnabledFlag,
-			utils.MinerThreadsFlag,
+			//utils.MinerThreadsFlag,
 			utils.MinerNotifyFlag,
 			utils.MinerGasPriceFlag,
 			utils.MinerGasTargetFlag,
 			utils.MinerGasLimitFlag,
-			utils.MinerEtherbaseFlag,
+			//utils.MinerEtherbaseFlag,
 			utils.MinerExtraDataFlag,
 			utils.MinerRecommitIntervalFlag,
 			utils.MinerNoVerfiyFlag,
+			utils.ValidatorFlag,
+			utils.CoinbaseFlag,
 		},
 	},
 	{
@@ -209,13 +211,13 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.VMEnableDebugFlag,
 		},
 	},
-	{
-		Name: "LOGGING AND DEBUGGING",
-		Flags: append([]cli.Flag{
-			utils.FakePoWFlag,
-			utils.NoCompactionFlag,
-		}, debug.Flags...),
-	},
+	//{
+	//	Name: "LOGGING AND DEBUGGING",
+	//	Flags: append([]cli.Flag{
+	//		utils.FakePoWFlag,
+	//		utils.NoCompactionFlag,
+	//	}, debug.Flags...),
+	//},
 	{
 		Name: "METRICS AND STATS",
 		Flags: []cli.Flag{

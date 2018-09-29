@@ -30,7 +30,7 @@ import (
 	"github.com/daccproject/go-dacc/common"
 	"github.com/daccproject/go-dacc/common/hexutil"
 	"github.com/daccproject/go-dacc/common/math"
-	"github.com/daccproject/go-dacc/consensus/ethash"
+	//"github.com/daccproject/go-dacc/consensus/ethash"
 	"github.com/daccproject/go-dacc/core"
 	"github.com/daccproject/go-dacc/core/rawdb"
 	"github.com/daccproject/go-dacc/core/types"
@@ -796,15 +796,17 @@ func FormatLogs(logs []vm.StructLog) []StructLogRes {
 func RPCMarshalBlock(b *types.Block, inclTx bool, fullTx bool) (map[string]interface{}, error) {
 	head := b.Header() // copies the header once
 	fields := map[string]interface{}{
-		"number":           (*hexutil.Big)(head.Number),
-		"hash":             b.Hash(),
-		"parentHash":       head.ParentHash,
-		"nonce":            head.Nonce,
-		"mixHash":          head.MixDigest,
-		"sha3Uncles":       head.UncleHash,
-		"logsBloom":        head.Bloom,
-		"stateRoot":        head.Root,
-		"miner":            head.Coinbase,
+		"number":     (*hexutil.Big)(head.Number),
+		"hash":       b.Hash(),
+		"parentHash": head.ParentHash,
+		"nonce":      head.Nonce,
+		"mixHash":    head.MixDigest,
+		"sha3Uncles": head.UncleHash,
+		"logsBloom":  head.Bloom,
+		"stateRoot":  head.Root,
+		//"miner":            head.Coinbase,
+		"validator":        head.Validator,
+		"coinbase":         head.Coinbase,
 		"difficulty":       (*hexutil.Big)(head.Difficulty),
 		"extraData":        hexutil.Bytes(head.Extra),
 		"size":             hexutil.Uint64(b.Size()),
@@ -858,6 +860,7 @@ func (s *PublicBlockChainAPI) rpcOutputBlock(b *types.Block, inclTx bool, fullTx
 
 // RPCTransaction represents a transaction that will serialize to the RPC representation of a transaction
 type RPCTransaction struct {
+	Type             types.TxType    `json:"type"`
 	BlockHash        common.Hash     `json:"blockHash"`
 	BlockNumber      *hexutil.Big    `json:"blockNumber"`
 	From             common.Address  `json:"from"`
@@ -885,6 +888,7 @@ func newRPCTransaction(tx *types.Transaction, blockHash common.Hash, blockNumber
 	v, r, s := tx.RawSignatureValues()
 
 	result := &RPCTransaction{
+		Type:     tx.Type(),
 		From:     from,
 		Gas:      hexutil.Uint64(tx.Gas()),
 		GasPrice: (*hexutil.Big)(tx.GasPrice()),
@@ -1065,6 +1069,7 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 		"blockNumber":       hexutil.Uint64(blockNumber),
 		"transactionHash":   hash,
 		"transactionIndex":  hexutil.Uint64(index),
+		"type":              tx.Type(),
 		"from":              from,
 		"to":                tx.To(),
 		"gasUsed":           hexutil.Uint64(receipt.GasUsed),
@@ -1092,6 +1097,9 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 
 // sign is a helper function that signs a transaction with the private key of the given address.
 func (s *PublicTransactionPoolAPI) sign(addr common.Address, tx *types.Transaction) (*types.Transaction, error) {
+	if err := tx.Validate(); err != nil {
+		return nil, err
+	}
 	// Look up the wallet containing the requested signer
 	account := accounts.Account{Address: addr}
 
@@ -1119,6 +1127,8 @@ type SendTxArgs struct {
 	// newer name and should be preferred by clients.
 	Data  *hexutil.Bytes `json:"data"`
 	Input *hexutil.Bytes `json:"input"`
+
+	Type types.TxType `json:"type"`
 }
 
 // setDefaults is a helper function that fills in default values for unspecified tx fields.
@@ -1169,14 +1179,23 @@ func (args *SendTxArgs) toTransaction() *types.Transaction {
 	} else if args.Input != nil {
 		input = *args.Input
 	}
-	if args.To == nil {
+	//if args.To == nil {
+	if args.Type == types.Binary && args.To == nil {
 		return types.NewContractCreation(uint64(*args.Nonce), (*big.Int)(args.Value), uint64(*args.Gas), (*big.Int)(args.GasPrice), input)
 	}
-	return types.NewTransaction(uint64(*args.Nonce), *args.To, (*big.Int)(args.Value), uint64(*args.Gas), (*big.Int)(args.GasPrice), input)
+	//return types.NewTransaction(uint64(*args.Nonce), *args.To, (*big.Int)(args.Value), uint64(*args.Gas), (*big.Int)(args.GasPrice), input)
+	to := common.Address{}
+	if args.To != nil {
+		to = *args.To
+	}
+	return types.NewTransaction(args.Type, uint64(*args.Nonce), to, (*big.Int)(args.Value), (*big.Int)(args.Gas), (*big.Int)(args.GasPrice), args.Data)
 }
 
 // submitTransaction is a helper function that submits tx to txPool and logs a message.
 func submitTransaction(ctx context.Context, b Backend, tx *types.Transaction) (common.Hash, error) {
+	if err := tx.Validate(); err != nil {
+		return common.Hash{}, err
+	}
 	if err := b.SendTx(ctx, tx); err != nil {
 		return common.Hash{}, err
 	}
@@ -1405,13 +1424,13 @@ func (api *PublicDebugAPI) PrintBlock(ctx context.Context, number uint64) (strin
 }
 
 // SeedHash retrieves the seed hash of a block.
-func (api *PublicDebugAPI) SeedHash(ctx context.Context, number uint64) (string, error) {
-	block, _ := api.b.BlockByNumber(ctx, rpc.BlockNumber(number))
-	if block == nil {
-		return "", fmt.Errorf("block #%d not found", number)
-	}
-	return fmt.Sprintf("0x%x", ethash.SeedHash(number)), nil
-}
+//func (api *PublicDebugAPI) SeedHash(ctx context.Context, number uint64) (string, error) {
+//	block, _ := api.b.BlockByNumber(ctx, rpc.BlockNumber(number))
+//	if block == nil {
+//		return "", fmt.Errorf("block #%d not found", number)
+//	}
+//	return fmt.Sprintf("0x%x", ethash.SeedHash(number)), nil
+//}
 
 // PrivateDebugAPI is the collection of Ethereum APIs exposed over the private
 // debugging endpoint.

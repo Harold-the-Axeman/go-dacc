@@ -66,23 +66,41 @@ func (n *BlockNonce) UnmarshalText(input []byte) error {
 
 //go:generate gencodec -type Header -field-override headerMarshaling -out gen_header_json.go
 
+// TODO(bytejedi): replace some items *big.Int to unit64
 // Header represents a block header in the Ethereum blockchain.
 type Header struct {
-	ParentHash  common.Hash    `json:"parentHash"       gencodec:"required"`
-	UncleHash   common.Hash    `json:"sha3Uncles"       gencodec:"required"`
-	Coinbase    common.Address `json:"miner"            gencodec:"required"`
-	Root        common.Hash    `json:"stateRoot"        gencodec:"required"`
-	TxHash      common.Hash    `json:"transactionsRoot" gencodec:"required"`
-	ReceiptHash common.Hash    `json:"receiptsRoot"     gencodec:"required"`
-	Bloom       Bloom          `json:"logsBloom"        gencodec:"required"`
-	Difficulty  *big.Int       `json:"difficulty"       gencodec:"required"`
-	Number      *big.Int       `json:"number"           gencodec:"required"`
-	GasLimit    uint64         `json:"gasLimit"         gencodec:"required"`
-	GasUsed     uint64         `json:"gasUsed"          gencodec:"required"`
-	Time        *big.Int       `json:"timestamp"        gencodec:"required"`
-	Extra       []byte         `json:"extraData"        gencodec:"required"`
-	MixDigest   common.Hash    `json:"mixHash"          gencodec:"required"`
-	Nonce       BlockNonce     `json:"nonce"            gencodec:"required"`
+	//ParentHash  common.Hash    `json:"parentHash"       gencodec:"required"`
+	//UncleHash   common.Hash    `json:"sha3Uncles"       gencodec:"required"`
+	//Coinbase    common.Address `json:"miner"            gencodec:"required"`
+	//Root        common.Hash    `json:"stateRoot"        gencodec:"required"`
+	//TxHash      common.Hash    `json:"transactionsRoot" gencodec:"required"`
+	//ReceiptHash common.Hash    `json:"receiptsRoot"     gencodec:"required"`
+	//Bloom       Bloom          `json:"logsBloom"        gencodec:"required"`
+	//Difficulty  *big.Int       `json:"difficulty"       gencodec:"required"`
+	//Number      *big.Int       `json:"number"           gencodec:"required"`
+	//GasLimit    uint64         `json:"gasLimit"         gencodec:"required"`
+	//GasUsed     uint64         `json:"gasUsed"          gencodec:"required"`
+	//Time        *big.Int       `json:"timestamp"        gencodec:"required"`
+	//Extra       []byte         `json:"extraData"        gencodec:"required"`
+	//MixDigest   common.Hash    `json:"mixHash"          gencodec:"required"`
+	//Nonce       BlockNonce     `json:"nonce"            gencodec:"required"`
+	ParentHash  common.Hash       `json:"parentHash"       gencodec:"required"`
+	UncleHash   common.Hash       `json:"sha3Uncles"       gencodec:"required"`
+	Validator   common.Address    `json:"validator"        gencodec:"required"`
+	Coinbase    common.Address    `json:"coinbase"         gencodec:"required"`
+	Root        common.Hash       `json:"stateRoot"        gencodec:"required"`
+	TxHash      common.Hash       `json:"transactionsRoot" gencodec:"required"`
+	ReceiptHash common.Hash       `json:"receiptsRoot"     gencodec:"required"`
+	DposContext *DposContextProto `json:"dposContext"      gencodec:"required"`
+	Bloom       Bloom             `json:"logsBloom"        gencodec:"required"`
+	Difficulty  *big.Int          `json:"difficulty"       gencodec:"required"`
+	Number      *big.Int          `json:"number"           gencodec:"required"`
+	GasLimit    *big.Int          `json:"gasLimit"         gencodec:"required"`
+	GasUsed     *big.Int          `json:"gasUsed"          gencodec:"required"`
+	Time        *big.Int          `json:"timestamp"        gencodec:"required"`
+	Extra       []byte            `json:"extraData"        gencodec:"required"`
+	MixDigest   common.Hash       `json:"mixHash"          gencodec:"required"`
+	Nonce       BlockNonce        `json:"nonce"            gencodec:"required"`
 }
 
 // field type overrides for gencodec
@@ -101,6 +119,8 @@ type headerMarshaling struct {
 func (h *Header) Hash() common.Hash {
 	return rlpHash(h)
 }
+
+// TODO(bytejedi): switch HashNoNonce to consensus/dpos/consensus.go
 
 // Size returns the approximate memory used by all internal contents. It is used
 // to approximate and limit the memory consumption of various caches.
@@ -140,6 +160,8 @@ type Block struct {
 	// inter-peer block relay.
 	ReceivedAt   time.Time
 	ReceivedFrom interface{}
+
+	DposContext *DposContext
 }
 
 // DeprecatedTd is an old relic for extracting the TD of a block. It is in the
@@ -234,6 +256,12 @@ func CopyHeader(h *Header) *Header {
 		cpy.Extra = make([]byte, len(h.Extra))
 		copy(cpy.Extra, h.Extra)
 	}
+
+	// add dposContextProto to header
+	cpy.DposContext = &DposContextProto{}
+	if h.DposContext != nil {
+		cpy.DposContext = h.DposContext
+	}
 	return &cpy
 }
 
@@ -288,22 +316,37 @@ func (b *Block) GasUsed() uint64      { return b.header.GasUsed }
 func (b *Block) Difficulty() *big.Int { return new(big.Int).Set(b.header.Difficulty) }
 func (b *Block) Time() *big.Int       { return new(big.Int).Set(b.header.Time) }
 
-func (b *Block) NumberU64() uint64        { return b.header.Number.Uint64() }
-func (b *Block) MixDigest() common.Hash   { return b.header.MixDigest }
-func (b *Block) Nonce() uint64            { return binary.BigEndian.Uint64(b.header.Nonce[:]) }
-func (b *Block) Bloom() Bloom             { return b.header.Bloom }
-func (b *Block) Coinbase() common.Address { return b.header.Coinbase }
-func (b *Block) Root() common.Hash        { return b.header.Root }
-func (b *Block) ParentHash() common.Hash  { return b.header.ParentHash }
-func (b *Block) TxHash() common.Hash      { return b.header.TxHash }
-func (b *Block) ReceiptHash() common.Hash { return b.header.ReceiptHash }
-func (b *Block) UncleHash() common.Hash   { return b.header.UncleHash }
-func (b *Block) Extra() []byte            { return common.CopyBytes(b.header.Extra) }
+//func (b *Block) NumberU64() uint64        { return b.header.Number.Uint64() }
+//func (b *Block) MixDigest() common.Hash   { return b.header.MixDigest }
+//func (b *Block) Nonce() uint64            { return binary.BigEndian.Uint64(b.header.Nonce[:]) }
+//func (b *Block) Bloom() Bloom             { return b.header.Bloom }
+//func (b *Block) Coinbase() common.Address { return b.header.Coinbase }
+//func (b *Block) Root() common.Hash        { return b.header.Root }
+//func (b *Block) ParentHash() common.Hash  { return b.header.ParentHash }
+//func (b *Block) TxHash() common.Hash      { return b.header.TxHash }
+//func (b *Block) ReceiptHash() common.Hash { return b.header.ReceiptHash }
+//func (b *Block) UncleHash() common.Hash   { return b.header.UncleHash }
+//func (b *Block) Extra() []byte            { return common.CopyBytes(b.header.Extra) }
+
+func (b *Block) NumberU64() uint64         { return b.header.Number.Uint64() }
+func (b *Block) MixDigest() common.Hash    { return b.header.MixDigest }
+func (b *Block) Nonce() uint64             { return binary.BigEndian.Uint64(b.header.Nonce[:]) }
+func (b *Block) Bloom() Bloom              { return b.header.Bloom }
+func (b *Block) Validator() common.Address { return b.header.Validator }
+func (b *Block) Coinbase() common.Address  { return b.header.Coinbase }
+func (b *Block) Root() common.Hash         { return b.header.Root }
+func (b *Block) ParentHash() common.Hash   { return b.header.ParentHash }
+func (b *Block) TxHash() common.Hash       { return b.header.TxHash }
+func (b *Block) ReceiptHash() common.Hash  { return b.header.ReceiptHash }
+func (b *Block) UncleHash() common.Hash    { return b.header.UncleHash }
+func (b *Block) Extra() []byte             { return common.CopyBytes(b.header.Extra) }
 
 func (b *Block) Header() *Header { return CopyHeader(b.header) }
 
 // Body returns the non-header content of the block.
 func (b *Block) Body() *Body { return &Body{b.transactions, b.uncles} }
+
+func (b *Block) DposCtx() *DposContext { return b.DposContext }
 
 // Size returns the true RLP encoded storage size of the block, either by encoding
 // and returning it, or returning a previsouly cached value.
@@ -337,6 +380,9 @@ func (b *Block) WithSeal(header *Header) *Block {
 		header:       &cpy,
 		transactions: b.transactions,
 		uncles:       b.uncles,
+
+		// add dposcontext
+		DposContext: b.DposContext,
 	}
 }
 

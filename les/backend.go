@@ -26,6 +26,7 @@ import (
 	"github.com/daccproject/go-dacc/common"
 	"github.com/daccproject/go-dacc/common/hexutil"
 	"github.com/daccproject/go-dacc/consensus"
+	"github.com/daccproject/go-dacc/consensus/dpos"
 	"github.com/daccproject/go-dacc/core"
 	"github.com/daccproject/go-dacc/core/bloombits"
 	"github.com/daccproject/go-dacc/core/rawdb"
@@ -102,11 +103,12 @@ func New(ctx *node.ServiceContext, config *eth.Config) (*LightEthereum, error) {
 		peers:          peers,
 		reqDist:        newRequestDistributor(peers, quitSync),
 		accountManager: ctx.AccountManager,
-		engine:         eth.CreateConsensusEngine(ctx, chainConfig, &config.Ethash, nil, false, chainDb),
-		shutdownChan:   make(chan bool),
-		networkId:      config.NetworkId,
-		bloomRequests:  make(chan chan *bloombits.Retrieval),
-		bloomIndexer:   eth.NewBloomIndexer(chainDb, params.BloomBitsBlocksClient, params.HelperTrieConfirmations),
+		//engine:         eth.CreateConsensusEngine(ctx, chainConfig, &config.Ethash, nil, false, chainDb),
+		engine:        dpos.New(chainConfig.Dpos, chainDb),
+		shutdownChan:  make(chan bool),
+		networkId:     config.NetworkId,
+		bloomRequests: make(chan chan *bloombits.Retrieval),
+		bloomIndexer:  eth.NewBloomIndexer(chainDb, params.BloomBitsBlocksClient, params.HelperTrieConfirmations),
 	}
 
 	leth.relay = NewLesTxRelay(peers, leth.reqDist)
@@ -164,11 +166,12 @@ func lesTopic(genesisHash common.Hash, protocolVersion uint) discv5.Topic {
 type LightDummyAPI struct{}
 
 // Etherbase is the address that mining rewards will be send to
-func (s *LightDummyAPI) Etherbase() (common.Address, error) {
-	return common.Address{}, fmt.Errorf("not supported")
-}
+//func (s *LightDummyAPI) Etherbase() (common.Address, error) {
+//	return common.Address{}, fmt.Errorf("not supported")
+//}
 
 // Coinbase is the address that mining rewards will be send to (alias for Etherbase)
+// Coinbase is the address that mining rewards will be send to
 func (s *LightDummyAPI) Coinbase() (common.Address, error) {
 	return common.Address{}, fmt.Errorf("not supported")
 }
