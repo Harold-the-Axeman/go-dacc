@@ -42,7 +42,7 @@ ADD genesis.json /genesis.json
 RUN \
   echo 'geth --cache 512 init /genesis.json' > geth.sh && \{{if .Unlock}}
 	echo 'mkdir -p /root/.ethereum/keystore/ && cp /signer.json /root/.ethereum/keystore/' >> geth.sh && \{{end}}
-	echo $'exec geth --networkid {{.NetworkID}} --cache 512 --port {{.Port}} --maxpeers {{.Peers}} {{.LightFlag}} --ethstats \'{{.Ethstats}}\' {{if .Bootnodes}}--bootnodes {{.Bootnodes}}{{end}} {{if .Etherbase}}--miner.etherbase {{.Etherbase}} --mine --miner.threads 1{{end}} {{if .Unlock}}--unlock 0 --password /signer.pass --mine{{end}} --miner.gastarget {{.GasTarget}} --miner.gaslimit {{.GasLimit}} --miner.gasprice {{.GasPrice}}' >> geth.sh
+	echo $'geth --networkid {{.NetworkID}} --cache 512 --port {{.Port}} --maxpeers {{.Peers}} {{.LightFlag}} --ethstats \'{{.Ethstats}}\' {{if .BootV4}}--bootnodesv4 {{.BootV4}}{{end}} {{if .BootV5}}--bootnodesv5 {{.BootV5}}{{end}} {{if .Coinbase}}--coinbase {{.Coinbase}} --mine{{end}}{{if .Unlock}}--unlock 0 --password /signer.pass --mine{{end}} --targetgaslimit {{.GasTarget}} --gasprice {{.GasPrice}}' >> geth.sh
 
 ENTRYPOINT ["/bin/sh", "geth.sh"]
 `
@@ -66,7 +66,7 @@ services:
       - TOTAL_PEERS={{.TotalPeers}}
       - LIGHT_PEERS={{.LightPeers}}
       - STATS_NAME={{.Ethstats}}
-      - MINER_NAME={{.Etherbase}}
+      - MINER_NAME={{.Coinbase}}
       - GAS_TARGET={{.GasTarget}}
       - GAS_LIMIT={{.GasLimit}}
       - GAS_PRICE={{.GasPrice}}
@@ -83,7 +83,8 @@ services:
 // already exists there, it will be overwritten!
 func deployNode(client *sshClient, network string, bootnodes []string, config *nodeInfos, nocache bool) ([]byte, error) {
 	kind := "sealnode"
-	if config.keyJSON == "" && config.etherbase == "" {
+	//if config.keyJSON == "" && config.etherbase == "" {
+	if config.keyJSON == "" && config.coinbase == "" {
 		kind = "bootnode"
 		bootnodes = make([]string, 0)
 	}
@@ -103,7 +104,8 @@ func deployNode(client *sshClient, network string, bootnodes []string, config *n
 		"LightFlag": lightFlag,
 		"Bootnodes": strings.Join(bootnodes, ","),
 		"Ethstats":  config.ethstats,
-		"Etherbase": config.etherbase,
+		//"Etherbase": config.etherbase,
+		"Coinbase":  config.coinbase,
 		"GasTarget": uint64(1000000 * config.gasTarget),
 		"GasLimit":  uint64(1000000 * config.gasLimit),
 		"GasPrice":  uint64(1000000000 * config.gasPrice),
@@ -122,10 +124,11 @@ func deployNode(client *sshClient, network string, bootnodes []string, config *n
 		"Light":      config.peersLight > 0,
 		"LightPeers": config.peersLight,
 		"Ethstats":   config.ethstats[:strings.Index(config.ethstats, ":")],
-		"Etherbase":  config.etherbase,
-		"GasTarget":  config.gasTarget,
-		"GasLimit":   config.gasLimit,
-		"GasPrice":   config.gasPrice,
+		//"Etherbase":  config.etherbase,
+		"Coinbase":  config.coinbase,
+		"GasTarget": config.gasTarget,
+		"GasLimit":  config.gasLimit,
+		"GasPrice":  config.gasPrice,
 	})
 	files[filepath.Join(workdir, "docker-compose.yaml")] = composefile.Bytes()
 
@@ -159,12 +162,13 @@ type nodeInfos struct {
 	enode      string
 	peersTotal int
 	peersLight int
-	etherbase  string
-	keyJSON    string
-	keyPass    string
-	gasTarget  float64
-	gasLimit   float64
-	gasPrice   float64
+	//etherbase  string
+	coinbase  string
+	keyJSON   string
+	keyPass   string
+	gasTarget float64
+	gasLimit  float64
+	gasPrice  float64
 }
 
 // Report converts the typed struct into a plain string->string map, containing
@@ -258,12 +262,13 @@ func checkNode(client *sshClient, network string, boot bool) (*nodeInfos, error)
 		peersTotal: totalPeers,
 		peersLight: lightPeers,
 		ethstats:   infos.envvars["STATS_NAME"],
-		etherbase:  infos.envvars["MINER_NAME"],
-		keyJSON:    keyJSON,
-		keyPass:    keyPass,
-		gasTarget:  gasTarget,
-		gasLimit:   gasLimit,
-		gasPrice:   gasPrice,
+		//etherbase:  infos.envvars["MINER_NAME"],
+		coinbase:  infos.envvars["MINER_NAME"],
+		keyJSON:   keyJSON,
+		keyPass:   keyPass,
+		gasTarget: gasTarget,
+		gasLimit:  gasLimit,
+		gasPrice:  gasPrice,
 	}
 	stats.enode = fmt.Sprintf("enode://%s@%s:%d", id, client.address, stats.port)
 
