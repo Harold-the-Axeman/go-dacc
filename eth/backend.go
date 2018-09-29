@@ -344,16 +344,16 @@ func (s *Ethereum) SetEtherbase(etherbase common.Address) {
 // and updates the minimum price required by the transaction pool.
 func (s *Ethereum) StartMining(threads int) error {
 	// Update the thread count within the consensus engine
-	type threaded interface {
-		SetThreads(threads int)
-	}
-	if th, ok := s.engine.(threaded); ok {
-		log.Info("Updated mining threads", "threads", threads)
-		if threads == 0 {
-			threads = -1 // Disable the miner from within
-		}
-		th.SetThreads(threads)
-	}
+	//type threaded interface {
+	//	SetThreads(threads int)
+	//}
+	//if th, ok := s.engine.(threaded); ok {
+	//	log.Info("Updated mining threads", "threads", threads)
+	//	if threads == 0 {
+	//		threads = -1 // Disable the miner from within
+	//	}
+	//	th.SetThreads(threads)
+	//}
 	// If the miner was not running, initialize it
 	if !s.IsMining() {
 		// Propagate the initial price point to the transaction pool
