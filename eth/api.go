@@ -53,13 +53,19 @@ func NewPublicEthereumAPI(e *Ethereum) *PublicEthereumAPI {
 }
 
 // Etherbase is the address that mining rewards will be send to
-func (api *PublicEthereumAPI) Etherbase() (common.Address, error) {
-	return api.e.Etherbase()
+//func (api *PublicEthereumAPI) Etherbase() (common.Address, error) {
+//	return api.e.Etherbase()
+//}
+
+// Validator is the address that mining signer
+func (api *PublicEthereumAPI) Validator() (common.Address, error) {
+	return api.e.Validator()
 }
 
-// Coinbase is the address that mining rewards will be send to (alias for Etherbase)
+// Coinbase is the address that mining rewards will be send to
 func (api *PublicEthereumAPI) Coinbase() (common.Address, error) {
-	return api.Etherbase()
+	//return api.Etherbase()
+	return api.e.Coinbase()
 }
 
 // Hashrate returns the POW hashrate
@@ -131,8 +137,20 @@ func (api *PrivateMinerAPI) SetGasPrice(gasPrice hexutil.Big) bool {
 }
 
 // SetEtherbase sets the etherbase of the miner
-func (api *PrivateMinerAPI) SetEtherbase(etherbase common.Address) bool {
-	api.e.SetEtherbase(etherbase)
+//func (api *PrivateMinerAPI) SetEtherbase(etherbase common.Address) bool {
+//	api.e.SetEtherbase(etherbase)
+//	return true
+//}
+
+// SetValidator sets the validator of the miner
+func (api *PrivateMinerAPI) SetValidator(validator common.Address) bool {
+	api.e.SetValidator(validator)
+	return true
+}
+
+// SetCoinbase sets the coinbase of the miner
+func (api *PrivateMinerAPI) SetCoinbase(coinbase common.Address) bool {
+	api.e.SetCoinbase(coinbase)
 	return true
 }
 

@@ -30,6 +30,7 @@ import (
 	"github.com/daccproject/go-dacc/common/hexutil"
 	"github.com/daccproject/go-dacc/consensus"
 	"github.com/daccproject/go-dacc/consensus/clique"
+	"github.com/daccproject/go-dacc/consensus/dpos"
 	"github.com/daccproject/go-dacc/consensus/ethash"
 	"github.com/daccproject/go-dacc/core"
 	"github.com/daccproject/go-dacc/core/bloombits"
@@ -84,14 +85,17 @@ type Ethereum struct {
 
 	APIBackend *EthAPIBackend
 
-	miner     *miner.Miner
-	gasPrice  *big.Int
-	etherbase common.Address
+	miner    *miner.Miner
+	gasPrice *big.Int
+	//etherbase common.Address
+	validator common.Address
+	coinbase  common.Address
 
 	networkID     uint64
 	netRPCService *ethapi.PublicNetAPI
 
-	lock sync.RWMutex // Protects the variadic fields (e.g. gas price and etherbase)
+	//lock sync.RWMutex // Protects the variadic fields (e.g. gas price and etherbase)
+	lock sync.RWMutex // Protects the variadic fields (e.g. gas price and coinbase)
 }
 
 func (s *Ethereum) AddLesServer(ls LesServer) {
@@ -130,13 +134,16 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 		chainConfig:    chainConfig,
 		eventMux:       ctx.EventMux,
 		accountManager: ctx.AccountManager,
-		engine:         CreateConsensusEngine(ctx, chainConfig, &config.Ethash, config.MinerNotify, config.MinerNoverify, chainDb),
-		shutdownChan:   make(chan bool),
-		networkID:      config.NetworkId,
-		gasPrice:       config.MinerGasPrice,
-		etherbase:      config.Etherbase,
-		bloomRequests:  make(chan chan *bloombits.Retrieval),
-		bloomIndexer:   NewBloomIndexer(chainDb, params.BloomBitsBlocks, params.BloomConfirms),
+		//engine:         CreateConsensusEngine(ctx, chainConfig, &config.Ethash, config.MinerNotify, config.MinerNoverify, chainDb),
+		engine:       dpos.New(chainConfig.Dpos, chainDb),
+		shutdownChan: make(chan bool),
+		networkID:    config.NetworkId,
+		gasPrice:     config.MinerGasPrice,
+		//etherbase:      config.Etherbase,
+		validator:     config.Validator,
+		coinbase:      config.Coinbase,
+		bloomRequests: make(chan chan *bloombits.Retrieval),
+		bloomIndexer:  NewBloomIndexer(chainDb, params.BloomBitsBlocks, params.BloomConfirms),
 	}
 
 	log.Info("Initialising Ethereum protocol", "versions", ProtocolVersions, "network", config.NetworkId)
@@ -216,35 +223,35 @@ func CreateDB(ctx *node.ServiceContext, config *Config, name string) (ethdb.Data
 }
 
 // CreateConsensusEngine creates the required type of consensus engine instance for an Ethereum service
-func CreateConsensusEngine(ctx *node.ServiceContext, chainConfig *params.ChainConfig, config *ethash.Config, notify []string, noverify bool, db ethdb.Database) consensus.Engine {
-	// If proof-of-authority is requested, set it up
-	if chainConfig.Clique != nil {
-		return clique.New(chainConfig.Clique, db)
-	}
-	// Otherwise assume proof-of-work
-	switch config.PowMode {
-	case ethash.ModeFake:
-		log.Warn("Ethash used in fake mode")
-		return ethash.NewFaker()
-	case ethash.ModeTest:
-		log.Warn("Ethash used in test mode")
-		return ethash.NewTester(nil, noverify)
-	case ethash.ModeShared:
-		log.Warn("Ethash used in shared mode")
-		return ethash.NewShared()
-	default:
-		engine := ethash.New(ethash.Config{
-			CacheDir:       ctx.ResolvePath(config.CacheDir),
-			CachesInMem:    config.CachesInMem,
-			CachesOnDisk:   config.CachesOnDisk,
-			DatasetDir:     config.DatasetDir,
-			DatasetsInMem:  config.DatasetsInMem,
-			DatasetsOnDisk: config.DatasetsOnDisk,
-		}, notify, noverify)
-		engine.SetThreads(-1) // Disable CPU mining
-		return engine
-	}
-}
+//func CreateConsensusEngine(ctx *node.ServiceContext, chainConfig *params.ChainConfig, config *ethash.Config, notify []string, noverify bool, db ethdb.Database) consensus.Engine {
+//	// If proof-of-authority is requested, set it up
+//	if chainConfig.Clique != nil {
+//		return clique.New(chainConfig.Clique, db)
+//	}
+//	// Otherwise assume proof-of-work
+//	switch config.PowMode {
+//	case ethash.ModeFake:
+//		log.Warn("Ethash used in fake mode")
+//		return ethash.NewFaker()
+//	case ethash.ModeTest:
+//		log.Warn("Ethash used in test mode")
+//		return ethash.NewTester(nil, noverify)
+//	case ethash.ModeShared:
+//		log.Warn("Ethash used in shared mode")
+//		return ethash.NewShared()
+//	default:
+//		engine := ethash.New(ethash.Config{
+//			CacheDir:       ctx.ResolvePath(config.CacheDir),
+//			CachesInMem:    config.CachesInMem,
+//			CachesOnDisk:   config.CachesOnDisk,
+//			DatasetDir:     config.DatasetDir,
+//			DatasetsInMem:  config.DatasetsInMem,
+//			DatasetsOnDisk: config.DatasetsOnDisk,
+//		}, notify, noverify)
+//		engine.SetThreads(-1) // Disable CPU mining
+//		return engine
+//	}
+//}
 
 // APIs return the collection of RPC services the ethereum package offers.
 // NOTE, some of these services probably need to be moved to somewhere else.
@@ -307,81 +314,160 @@ func (s *Ethereum) ResetWithGenesisBlock(gb *types.Block) {
 	s.blockchain.ResetWithGenesisBlock(gb)
 }
 
-func (s *Ethereum) Etherbase() (eb common.Address, err error) {
+//func (s *Ethereum) Etherbase() (eb common.Address, err error) {
+//	s.lock.RLock()
+//	etherbase := s.etherbase
+//	s.lock.RUnlock()
+//
+//	if etherbase != (common.Address{}) {
+//		return etherbase, nil
+//	}
+//	if wallets := s.AccountManager().Wallets(); len(wallets) > 0 {
+//		if accounts := wallets[0].Accounts(); len(accounts) > 0 {
+//			etherbase := accounts[0].Address
+//
+//			s.lock.Lock()
+//			s.etherbase = etherbase
+//			s.lock.Unlock()
+//
+//			log.Info("Etherbase automatically configured", "address", etherbase)
+//			return etherbase, nil
+//		}
+//	}
+//	return common.Address{}, fmt.Errorf("etherbase must be explicitly specified")
+//}
+
+func (s *Ethereum) Validator() (validator common.Address, err error) {
 	s.lock.RLock()
-	etherbase := s.etherbase
+	validator = s.validator
 	s.lock.RUnlock()
 
-	if etherbase != (common.Address{}) {
-		return etherbase, nil
+	if validator != (common.Address{}) {
+		return validator, nil
 	}
 	if wallets := s.AccountManager().Wallets(); len(wallets) > 0 {
 		if accounts := wallets[0].Accounts(); len(accounts) > 0 {
-			etherbase := accounts[0].Address
-
-			s.lock.Lock()
-			s.etherbase = etherbase
-			s.lock.Unlock()
-
-			log.Info("Etherbase automatically configured", "address", etherbase)
-			return etherbase, nil
+			return accounts[0].Address, nil
 		}
 	}
-	return common.Address{}, fmt.Errorf("etherbase must be explicitly specified")
+	return common.Address{}, fmt.Errorf("validator address must be explicitly specified")
 }
 
 // SetEtherbase sets the mining reward address.
-func (s *Ethereum) SetEtherbase(etherbase common.Address) {
-	s.lock.Lock()
-	s.etherbase = etherbase
-	s.lock.Unlock()
+//func (s *Ethereum) SetEtherbase(etherbase common.Address) {
+//	s.lock.Lock()
+//	s.etherbase = etherbase
+//	s.lock.Unlock()
+//
+//	s.miner.SetEtherbase(etherbase)
+//}
 
-	s.miner.SetEtherbase(etherbase)
+// set in js console via admin interface or wrapper from cli flags
+func (self *Ethereum) SetValidator(validator common.Address) {
+	self.lock.Lock()
+	self.validator = validator
+	self.lock.Unlock()
+}
+
+func (s *Ethereum) Coinbase() (eb common.Address, err error) {
+	s.lock.RLock()
+	coinbase := s.coinbase
+	s.lock.RUnlock()
+
+	if coinbase != (common.Address{}) {
+		return coinbase, nil
+	}
+	if wallets := s.AccountManager().Wallets(); len(wallets) > 0 {
+		if accounts := wallets[0].Accounts(); len(accounts) > 0 {
+			return accounts[0].Address, nil
+		}
+	}
+	return common.Address{}, fmt.Errorf("coinbase address must be explicitly specified")
+}
+
+// set in js console via admin interface or wrapper from cli flags
+func (self *Ethereum) SetCoinbase(coinbase common.Address) {
+	self.lock.Lock()
+	self.coinbase = coinbase
+	self.lock.Unlock()
+
+	self.miner.SetCoinbase(coinbase)
 }
 
 // StartMining starts the miner with the given number of CPU threads. If mining
 // is already running, this method adjust the number of threads allowed to use
 // and updates the minimum price required by the transaction pool.
-func (s *Ethereum) StartMining(threads int) error {
-	// Update the thread count within the consensus engine
-	//type threaded interface {
-	//	SetThreads(threads int)
-	//}
-	//if th, ok := s.engine.(threaded); ok {
-	//	log.Info("Updated mining threads", "threads", threads)
-	//	if threads == 0 {
-	//		threads = -1 // Disable the miner from within
-	//	}
-	//	th.SetThreads(threads)
-	//}
-	// If the miner was not running, initialize it
-	if !s.IsMining() {
-		// Propagate the initial price point to the transaction pool
-		s.lock.RLock()
-		price := s.gasPrice
-		s.lock.RUnlock()
-		s.txPool.SetGasPrice(price)
+//func (s *Ethereum) StartMining(threads int) error {
+//	// Update the thread count within the consensus engine
+//	//type threaded interface {
+//	//	SetThreads(threads int)
+//	//}
+//	//if th, ok := s.engine.(threaded); ok {
+//	//	log.Info("Updated mining threads", "threads", threads)
+//	//	if threads == 0 {
+//	//		threads = -1 // Disable the miner from within
+//	//	}
+//	//	th.SetThreads(threads)
+//	//}
+//	// If the miner was not running, initialize it
+//	if !s.IsMining() {
+//		// Propagate the initial price point to the transaction pool
+//		s.lock.RLock()
+//		price := s.gasPrice
+//		s.lock.RUnlock()
+//		s.txPool.SetGasPrice(price)
+//
+//		// Configure the local mining addess
+//		eb, err := s.Etherbase()
+//		if err != nil {
+//			log.Error("Cannot start mining without etherbase", "err", err)
+//			return fmt.Errorf("etherbase missing: %v", err)
+//		}
+//		if clique, ok := s.engine.(*clique.Clique); ok {
+//			wallet, err := s.accountManager.Find(accounts.Account{Address: eb})
+//			if wallet == nil || err != nil {
+//				log.Error("Etherbase account unavailable locally", "err", err)
+//				return fmt.Errorf("signer missing: %v", err)
+//			}
+//			clique.Authorize(eb, wallet.SignHash)
+//		}
+//		// If mining is started, we can disable the transaction rejection mechanism
+//		// introduced to speed sync times.
+//		atomic.StoreUint32(&s.protocolManager.acceptTxs, 1)
+//
+//		go s.miner.Start(eb)
+//	}
+//	return nil
+//}
 
-		// Configure the local mining addess
-		eb, err := s.Etherbase()
-		if err != nil {
-			log.Error("Cannot start mining without etherbase", "err", err)
-			return fmt.Errorf("etherbase missing: %v", err)
-		}
-		if clique, ok := s.engine.(*clique.Clique); ok {
-			wallet, err := s.accountManager.Find(accounts.Account{Address: eb})
-			if wallet == nil || err != nil {
-				log.Error("Etherbase account unavailable locally", "err", err)
-				return fmt.Errorf("signer missing: %v", err)
-			}
-			clique.Authorize(eb, wallet.SignHash)
-		}
-		// If mining is started, we can disable the transaction rejection mechanism
-		// introduced to speed sync times.
-		atomic.StoreUint32(&s.protocolManager.acceptTxs, 1)
-
-		go s.miner.Start(eb)
+func (s *Ethereum) StartMining(local bool) error {
+	validator, err := s.Validator()
+	if err != nil {
+		log.Error("Cannot start mining without validator", "err", err)
+		return fmt.Errorf("validator missing: %v", err)
 	}
+	cb, err := s.Coinbase()
+	if err != nil {
+		log.Error("Cannot start mining without coinbase", "err", err)
+		return fmt.Errorf("coinbase missing: %v", err)
+	}
+
+	if dpos, ok := s.engine.(*dpos.Dpos); ok {
+		wallet, err := s.accountManager.Find(accounts.Account{Address: validator})
+		if wallet == nil || err != nil {
+			log.Error("Coinbase account unavailable locally", "err", err)
+			return fmt.Errorf("signer missing: %v", err)
+		}
+		dpos.Authorize(validator, wallet.SignHash)
+	}
+	if local {
+		// If local (CPU) mining is started, we can disable the transaction rejection
+		// mechanism introduced to speed sync times. CPU mining on mainnet is ludicrous
+		// so noone will ever hit this path, whereas marking sync done on CPU mining
+		// will ensure that private networks work in single miner mode too.
+		atomic.StoreUint32(&s.protocolManager.acceptTxs, 1)
+	}
+	go s.miner.Start(cb)
 	return nil
 }
 
