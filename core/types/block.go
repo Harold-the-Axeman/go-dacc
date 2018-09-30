@@ -95,8 +95,8 @@ type Header struct {
 	Bloom       Bloom             `json:"logsBloom"        gencodec:"required"`
 	Difficulty  *big.Int          `json:"difficulty"       gencodec:"required"`
 	Number      *big.Int          `json:"number"           gencodec:"required"`
-	GasLimit    *big.Int          `json:"gasLimit"         gencodec:"required"`
-	GasUsed     *big.Int          `json:"gasUsed"          gencodec:"required"`
+	GasLimit    uint64            `json:"gasLimit"         gencodec:"required"`
+	GasUsed     uint64            `json:"gasUsed"          gencodec:"required"`
 	Time        *big.Int          `json:"timestamp"        gencodec:"required"`
 	Extra       []byte            `json:"extraData"        gencodec:"required"`
 	MixDigest   common.Hash       `json:"mixHash"          gencodec:"required"`

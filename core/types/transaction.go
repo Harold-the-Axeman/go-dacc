@@ -93,7 +93,7 @@ type txdataMarshaling struct {
 //	return newTransaction(nonce, &to, amount, gasLimit, gasPrice, data)
 //}
 
-func NewTransaction(txType TxType, nonce uint64, to common.Address, amount, gasLimit, gasPrice *big.Int, data []byte) *Transaction {
+func NewTransaction(txType TxType, nonce uint64, to common.Address, amount *big.Int, gasLimit uint64, gasPrice *big.Int, data []byte) *Transaction {
 	// compatible with raw transaction with to address is empty
 	if txType != Binary && (to == common.Address{}) {
 		return newTransaction(txType, nonce, nil, amount, gasLimit, gasPrice, data)
@@ -107,7 +107,7 @@ func NewContractCreation(nonce uint64, amount *big.Int, gasLimit uint64, gasPric
 }
 
 //func newTransaction(nonce uint64, to *common.Address, amount *big.Int, gasLimit uint64, gasPrice *big.Int, data []byte) *Transaction {
-func newTransaction(txType TxType, nonce uint64, to *common.Address, amount, gasLimit, gasPrice *big.Int, data []byte) *Transaction {
+func newTransaction(txType TxType, nonce uint64, to *common.Address, amount *big.Int, gasLimit uint64, gasPrice *big.Int, data []byte) *Transaction {
 	if len(data) > 0 {
 		data = common.CopyBytes(data)
 	}
