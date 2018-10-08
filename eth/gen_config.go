@@ -8,7 +8,7 @@ import (
 
 	"github.com/daccproject/go-dacc/common"
 	"github.com/daccproject/go-dacc/common/hexutil"
-	"github.com/daccproject/go-dacc/consensus/ethash"
+	//"github.com/daccproject/go-dacc/consensus/ethash"
 	"github.com/daccproject/go-dacc/core"
 	"github.com/daccproject/go-dacc/eth/downloader"
 	"github.com/daccproject/go-dacc/eth/gasprice"
@@ -19,30 +19,33 @@ var _ = (*configMarshaling)(nil)
 // MarshalTOML marshals as TOML.
 func (c Config) MarshalTOML() (interface{}, error) {
 	type Config struct {
-		Genesis                 *core.Genesis `toml:",omitempty"`
-		NetworkId               uint64
-		SyncMode                downloader.SyncMode
-		NoPruning               bool
-		LightServ               int  `toml:",omitempty"`
-		LightPeers              int  `toml:",omitempty"`
-		SkipBcVersionCheck      bool `toml:"-"`
-		DatabaseHandles         int  `toml:"-"`
-		DatabaseCache           int
-		TrieCache               int
-		TrieTimeout             time.Duration
-		Etherbase               common.Address `toml:",omitempty"`
-		MinerNotify             []string       `toml:",omitempty"`
-		MinerExtraData          hexutil.Bytes  `toml:",omitempty"`
-		MinerGasFloor           uint64
-		MinerGasCeil            uint64
-		MinerGasPrice           *big.Int
-		MinerRecommit           time.Duration
-		MinerNoverify           bool
-		Ethash                  ethash.Config
+		Genesis            *core.Genesis `toml:",omitempty"`
+		NetworkId          uint64
+		SyncMode           downloader.SyncMode
+		NoPruning          bool
+		LightServ          int  `toml:",omitempty"`
+		LightPeers         int  `toml:",omitempty"`
+		SkipBcVersionCheck bool `toml:"-"`
+		DatabaseHandles    int  `toml:"-"`
+		DatabaseCache      int
+		TrieCache          int
+		TrieTimeout        time.Duration
+		//Etherbase               common.Address `toml:",omitempty"`
+		Validator      common.Address `toml:",omitempty"`
+		Coinbase       common.Address `toml:",omitempty"`
+		MinerNotify    []string       `toml:",omitempty"`
+		MinerExtraData hexutil.Bytes  `toml:",omitempty"`
+		MinerGasFloor  uint64
+		MinerGasCeil   uint64
+		MinerGasPrice  *big.Int
+		MinerRecommit  time.Duration
+		MinerNoverify  bool
+		//Ethash                  ethash.Config
 		TxPool                  core.TxPoolConfig
 		GPO                     gasprice.Config
 		EnablePreimageRecording bool
 		DocRoot                 string `toml:"-"`
+		Dpos                    bool   `toml:"-"`
 	}
 	var enc Config
 	enc.Genesis = c.Genesis
@@ -56,7 +59,9 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.DatabaseCache = c.DatabaseCache
 	enc.TrieCache = c.TrieCache
 	enc.TrieTimeout = c.TrieTimeout
-	enc.Etherbase = c.Etherbase
+	//enc.Etherbase = c.Etherbase
+	enc.Validator = c.Validator
+	enc.Coinbase = c.Coinbase
 	enc.MinerNotify = c.MinerNotify
 	enc.MinerExtraData = c.MinerExtraData
 	enc.MinerGasFloor = c.MinerGasFloor
@@ -64,41 +69,45 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.MinerGasPrice = c.MinerGasPrice
 	enc.MinerRecommit = c.MinerRecommit
 	enc.MinerNoverify = c.MinerNoverify
-	enc.Ethash = c.Ethash
+	//enc.Ethash = c.Ethash
 	enc.TxPool = c.TxPool
 	enc.GPO = c.GPO
 	enc.EnablePreimageRecording = c.EnablePreimageRecording
 	enc.DocRoot = c.DocRoot
+	enc.Dpos = c.Dpos
 	return &enc, nil
 }
 
 // UnmarshalTOML unmarshals from TOML.
 func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	type Config struct {
-		Genesis                 *core.Genesis `toml:",omitempty"`
-		NetworkId               *uint64
-		SyncMode                *downloader.SyncMode
-		NoPruning               *bool
-		LightServ               *int  `toml:",omitempty"`
-		LightPeers              *int  `toml:",omitempty"`
-		SkipBcVersionCheck      *bool `toml:"-"`
-		DatabaseHandles         *int  `toml:"-"`
-		DatabaseCache           *int
-		TrieCache               *int
-		TrieTimeout             *time.Duration
-		Etherbase               *common.Address `toml:",omitempty"`
-		MinerNotify             []string        `toml:",omitempty"`
-		MinerExtraData          *hexutil.Bytes  `toml:",omitempty"`
-		MinerGasFloor           *uint64
-		MinerGasCeil            *uint64
-		MinerGasPrice           *big.Int
-		MinerRecommit           *time.Duration
-		MinerNoverify           *bool
-		Ethash                  *ethash.Config
+		Genesis            *core.Genesis `toml:",omitempty"`
+		NetworkId          *uint64
+		SyncMode           *downloader.SyncMode
+		NoPruning          *bool
+		LightServ          *int  `toml:",omitempty"`
+		LightPeers         *int  `toml:",omitempty"`
+		SkipBcVersionCheck *bool `toml:"-"`
+		DatabaseHandles    *int  `toml:"-"`
+		DatabaseCache      *int
+		TrieCache          *int
+		TrieTimeout        *time.Duration
+		//Etherbase               *common.Address `toml:",omitempty"`
+		Validator      *common.Address `toml:",omitempty"`
+		Coinbase       *common.Address `toml:",omitempty"`
+		MinerNotify    []string        `toml:",omitempty"`
+		MinerExtraData *hexutil.Bytes  `toml:",omitempty"`
+		MinerGasFloor  *uint64
+		MinerGasCeil   *uint64
+		MinerGasPrice  *big.Int
+		MinerRecommit  *time.Duration
+		MinerNoverify  *bool
+		//Ethash                  *ethash.Config
 		TxPool                  *core.TxPoolConfig
 		GPO                     *gasprice.Config
 		EnablePreimageRecording *bool
 		DocRoot                 *string `toml:"-"`
+		Dpos                    *bool   `toml:"-"`
 	}
 	var dec Config
 	if err := unmarshal(&dec); err != nil {
@@ -137,8 +146,14 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	if dec.TrieTimeout != nil {
 		c.TrieTimeout = *dec.TrieTimeout
 	}
-	if dec.Etherbase != nil {
-		c.Etherbase = *dec.Etherbase
+	//if dec.Etherbase != nil {
+	//	c.Etherbase = *dec.Etherbase
+	//}
+	if dec.Validator != nil {
+		c.Validator = *dec.Validator
+	}
+	if dec.Coinbase != nil {
+		c.Coinbase = *dec.Coinbase
 	}
 	if dec.MinerNotify != nil {
 		c.MinerNotify = dec.MinerNotify
@@ -161,9 +176,9 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	if dec.MinerNoverify != nil {
 		c.MinerNoverify = *dec.MinerNoverify
 	}
-	if dec.Ethash != nil {
-		c.Ethash = *dec.Ethash
-	}
+	//if dec.Ethash != nil {
+	//	c.Ethash = *dec.Ethash
+	//}
 	if dec.TxPool != nil {
 		c.TxPool = *dec.TxPool
 	}
@@ -175,6 +190,9 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	}
 	if dec.DocRoot != nil {
 		c.DocRoot = *dec.DocRoot
+	}
+	if dec.Dpos != nil {
+		c.Dpos = *dec.Dpos
 	}
 	return nil
 }
