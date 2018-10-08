@@ -1510,7 +1510,7 @@ func (d *Downloader) commitFastSyncData(results []*fetchResult, stateSync *state
 
 func (d *Downloader) commitPivotBlock(result *fetchResult) error {
 	block := types.NewBlockWithHeader(result.Header).WithBody(result.Transactions, result.Uncles)
-	if err := d.syncDposContextState(b.Header().DposContext); err != nil {
+	if err := d.syncDposContextState(block.Header().DposContext); err != nil {
 		return err
 	}
 	log.Debug("Committing fast sync pivot as new head", "number", block.Number(), "hash", block.Hash())
