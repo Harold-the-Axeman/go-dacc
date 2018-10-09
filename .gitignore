@@ -37,6 +37,9 @@ profile.cov
 # VS Code
 .vscode
 
+*.swp
+*.swo
+*.rlp
 # dashboard
 /dashboard/assets/flow-typed
 /dashboard/assets/node_modules
