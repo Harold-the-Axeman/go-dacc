@@ -165,8 +165,6 @@ func (c *CliqueConfig) String() string {
 
 // DposConfig is the consensus engine configs for delegated proof-of-stake based sealing.
 type DposConfig struct {
-	Period     uint64           `json:"period"`     // Number of seconds between blocks to enforce
-	Epoch      uint64           `json:"epoch"`      // Epoch length to reset votes and checkpoint
 	Validators []common.Address `json:"validators"` // Genesis validator list
 }
 
