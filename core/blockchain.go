@@ -1149,7 +1149,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 		} else {
 			parent = chain[i-1]
 		}
-		block.DposContext, err = types.NewDposContextFromProto(bc.chainDb, parent.Header().DposContext)
+		block.DposContext, err = types.NewDposContextFromProto(bc.db, parent.Header().DposContext)
 		if err != nil {
 			return i, events, coalescedLogs, err
 		}
