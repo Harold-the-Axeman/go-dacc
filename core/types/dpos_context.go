@@ -19,7 +19,7 @@ type DposContext struct {
 	candidateTrie *trie.Trie
 	mintCntTrie   *trie.Trie
 
-	db *trie.Database
+	db ethdb.Database
 }
 
 var (
@@ -30,27 +30,27 @@ var (
 	mintCntPrefix   = []byte("mintCnt-")
 )
 
-func NewEpochTrie(root common.Hash, db *trie.Database) (*trie.Trie, error) {
-	return trie.NewTrieWithPrefix(root, epochPrefix, db)
+func NewEpochTrie(root common.Hash, diskdb ethdb.Database) (*trie.Trie, error) {
+	return trie.NewTrieWithPrefix(root, epochPrefix, trie.NewDatabase(diskdb))
 }
 
-func NewDelegateTrie(root common.Hash, db *trie.Database) (*trie.Trie, error) {
-	return trie.NewTrieWithPrefix(root, delegatePrefix, db)
+func NewDelegateTrie(root common.Hash, diskdb ethdb.Database) (*trie.Trie, error) {
+	return trie.NewTrieWithPrefix(root, delegatePrefix, trie.NewDatabase(diskdb))
 }
 
-func NewVoteTrie(root common.Hash, db *trie.Database) (*trie.Trie, error) {
-	return trie.NewTrieWithPrefix(root, votePrefix, db)
+func NewVoteTrie(root common.Hash, diskdb ethdb.Database) (*trie.Trie, error) {
+	return trie.NewTrieWithPrefix(root, votePrefix, trie.NewDatabase(diskdb))
 }
 
-func NewCandidateTrie(root common.Hash, db *trie.Database) (*trie.Trie, error) {
-	return trie.NewTrieWithPrefix(root, candidatePrefix, db)
+func NewCandidateTrie(root common.Hash, diskdb ethdb.Database) (*trie.Trie, error) {
+	return trie.NewTrieWithPrefix(root, candidatePrefix, trie.NewDatabase(diskdb))
 }
 
-func NewMintCntTrie(root common.Hash, db *trie.Database) (*trie.Trie, error) {
-	return trie.NewTrieWithPrefix(root, mintCntPrefix, db)
+func NewMintCntTrie(root common.Hash, diskdb ethdb.Database) (*trie.Trie, error) {
+	return trie.NewTrieWithPrefix(root, mintCntPrefix, trie.NewDatabase(diskdb))
 }
 
-func NewDposContext(db *trie.Database) (*DposContext, error) {
+func NewDposContext(db ethdb.Database) (*DposContext, error) {
 	epochTrie, err := NewEpochTrie(common.Hash{}, db)
 	if err != nil {
 		return nil, err
@@ -81,7 +81,7 @@ func NewDposContext(db *trie.Database) (*DposContext, error) {
 	}, nil
 }
 
-func NewDposContextFromProto(db *trie.Database, ctxProto *DposContextProto) (*DposContext, error) {
+func NewDposContextFromProto(db ethdb.Database, ctxProto *DposContextProto) (*DposContext, error) {
 	epochTrie, err := NewEpochTrie(ctxProto.EpochHash, db)
 	if err != nil {
 		return nil, err
@@ -296,24 +296,24 @@ func (d *DposContext) UnDelegate(delegatorAddr, candidateAddr common.Address) er
 	return d.voteTrie.TryDelete(delegator)
 }
 
-func (d *DposContext) CommitTo(dbw trie.DatabaseWriter) (*DposContextProto, error) {
-	epochRoot, err := d.epochTrie.CommitTo(dbw)
+func (d *DposContext) CommitTo() (*DposContextProto, error) {
+	epochRoot, err := d.epochTrie.Commit(nil)
 	if err != nil {
 		return nil, err
 	}
-	delegateRoot, err := d.delegateTrie.CommitTo(dbw)
+	delegateRoot, err := d.delegateTrie.Commit(nil)
 	if err != nil {
 		return nil, err
 	}
-	voteRoot, err := d.voteTrie.CommitTo(dbw)
+	voteRoot, err := d.voteTrie.Commit(nil)
 	if err != nil {
 		return nil, err
 	}
-	candidateRoot, err := d.candidateTrie.CommitTo(dbw)
+	candidateRoot, err := d.candidateTrie.Commit(nil)
 	if err != nil {
 		return nil, err
 	}
-	mintCntRoot, err := d.mintCntTrie.CommitTo(dbw)
+	mintCntRoot, err := d.mintCntTrie.Commit(nil)
 	if err != nil {
 		return nil, err
 	}
