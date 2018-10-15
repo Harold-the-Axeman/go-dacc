@@ -424,19 +424,21 @@ func (d *Dpos) CheckValidator(lastBlock *types.Block, now int64) error {
 
 // Seal generates a new block for the given input block with the local miner's
 // seal place on top.
-func (d *Dpos) Seal(chain consensus.ChainReader, block *types.Block, stop <-chan struct{}) (*types.Block, error) {
+func (d *Dpos) Seal(chain consensus.ChainReader, block *types.Block, results chan<- *types.Block, stop <-chan struct{}) error {
 	header := block.Header()
 	number := header.Number.Uint64()
 	// Sealing the genesis block is not supported
 	if number == 0 {
-		return nil, errUnknownBlock
+		//return nil, errUnknownBlock
+		return errUnknownBlock
 	}
 	now := time.Now().Unix()
 	delay := NextSlot(now) - now
 	if delay > 0 {
 		select {
 		case <-stop:
-			return nil, nil
+			//return nil, nil
+			return nil
 		case <-time.After(time.Duration(delay) * time.Second):
 		}
 	}
@@ -445,10 +447,34 @@ func (d *Dpos) Seal(chain consensus.ChainReader, block *types.Block, stop <-chan
 	// time's up, sign the block
 	sighash, err := d.signFn(accounts.Account{Address: d.signer}, sigHash(header).Bytes())
 	if err != nil {
-		return nil, err
+		//return nil, err
+		return err
 	}
 	copy(header.Extra[len(header.Extra)-extraSeal:], sighash)
-	return block.WithSeal(header), nil
+	//return block.WithSeal(header), nil
+	return nil
+}
+
+func (d *Dpos) SealHash(header *types.Header) (hash common.Hash) {
+	hasher := sha3.NewKeccak256()
+
+	rlp.Encode(hasher, []interface{}{
+		header.ParentHash,
+		header.UncleHash,
+		header.Coinbase,
+		header.Root,
+		header.TxHash,
+		header.ReceiptHash,
+		header.Bloom,
+		header.Difficulty,
+		header.Number,
+		header.GasLimit,
+		header.GasUsed,
+		header.Time,
+		header.Extra,
+	})
+	hasher.Sum(hash[:0])
+	return hash
 }
 
 func (d *Dpos) CalcDifficulty(chain consensus.ChainReader, time uint64, parent *types.Header) *big.Int {
@@ -469,6 +495,21 @@ func (d *Dpos) Authorize(signer common.Address, signFn SignerFn) {
 	d.signer = signer
 	d.signFn = signFn
 	d.mu.Unlock()
+}
+
+func (d *Dpos) Close() error {
+	var err error
+	//ethash.closeOnce.Do(func() {
+	//	// Short circuit if the exit channel is not allocated.
+	//	if ethash.exitCh == nil {
+	//		return
+	//	}
+	//	errc := make(chan error)
+	//	ethash.exitCh <- errc
+	//	err = <-errc
+	//	close(ethash.exitCh)
+	//})
+	return err
 }
 
 // ecrecover extracts the Ethereum account address from a signed header.

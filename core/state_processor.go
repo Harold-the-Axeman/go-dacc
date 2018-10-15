@@ -25,7 +25,6 @@ import (
 	"github.com/daccproject/go-dacc/core/vm"
 	"github.com/daccproject/go-dacc/crypto"
 	"github.com/daccproject/go-dacc/params"
-	"math/big"
 )
 
 // StateProcessor is a basic Processor, which takes care of transitioning
@@ -71,7 +70,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 	for i, tx := range block.Transactions() {
 		statedb.Prepare(tx.Hash(), block.Hash(), i)
 		//receipt, _, err := ApplyTransaction(p.config, p.bc, nil, gp, statedb, header, tx, usedGas, cfg)
-		receipt, _, err := ApplyTransaction(p.config, block.DposCtx(), p.bc, nil, gp, statedb, header, tx, totalUsedGas, cfg)
+		receipt, _, err := ApplyTransaction(p.config, block.DposCtx(), p.bc, nil, gp, statedb, header, tx, usedGas, cfg)
 		if err != nil {
 			return nil, nil, 0, err
 		}
@@ -90,14 +89,14 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 // for the transaction, gas used and an error if the transaction failed,
 // indicating the block was invalid.
 //func ApplyTransaction(config *params.ChainConfig, bc ChainContext, author *common.Address, gp *GasPool, statedb *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config) (*types.Receipt, uint64, error) {
-func ApplyTransaction(config *params.ChainConfig, dposContext *types.DposContext, bc *BlockChain, author *common.Address, gp *GasPool, statedb *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *big.Int, cfg vm.Config) (*types.Receipt, *big.Int, error) {
+func ApplyTransaction(config *params.ChainConfig, dposContext *types.DposContext, bc *BlockChain, author *common.Address, gp *GasPool, statedb *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config) (*types.Receipt, uint64, error) {
 	msg, err := tx.AsMessage(types.MakeSigner(config, header.Number))
 	if err != nil {
 		return nil, 0, err
 	}
 
 	if msg.To() == nil && msg.Type() != types.Binary {
-		return nil, nil, types.ErrInvalidType
+		return nil, 0, types.ErrInvalidType
 	}
 
 	// Create a new context to be used in the EVM environment
@@ -112,7 +111,7 @@ func ApplyTransaction(config *params.ChainConfig, dposContext *types.DposContext
 	}
 	if msg.Type() != types.Binary {
 		if err = applyDposMessage(dposContext, msg); err != nil {
-			return nil, nil, err
+			return nil, 0, err
 		}
 	}
 

@@ -255,8 +255,8 @@ func (g *Genesis) ToBlock(db ethdb.Database) *types.Block {
 		Time:        new(big.Int).SetUint64(g.Timestamp),
 		ParentHash:  g.ParentHash,
 		Extra:       g.ExtraData,
-		GasLimit:    new(big.Int).SetUint64(g.GasLimit),
-		GasUsed:     new(big.Int).SetUint64(g.GasUsed),
+		GasLimit:    g.GasLimit,
+		GasUsed:     g.GasUsed,
 		Difficulty:  g.Difficulty,
 		MixDigest:   g.Mixhash,
 		Coinbase:    g.Coinbase,
@@ -284,7 +284,7 @@ func (g *Genesis) ToBlock(db ethdb.Database) *types.Block {
 func (g *Genesis) Commit(db ethdb.Database) (*types.Block, error) {
 	block := g.ToBlock(db)
 	// add dposcontext
-	if _, err := block.DposContext.CommitTo(db); err != nil {
+	if _, err := block.DposContext.CommitTo(); err != nil {
 		return nil, err
 	}
 	if block.Number().Sign() != 0 {
