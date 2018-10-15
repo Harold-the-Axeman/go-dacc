@@ -1188,7 +1188,7 @@ func (args *SendTxArgs) toTransaction() *types.Transaction {
 	if args.To != nil {
 		to = *args.To
 	}
-	return types.NewTransaction(args.Type, uint64(*args.Nonce), to, (*big.Int)(args.Value), (*big.Int)(args.Gas), (*big.Int)(args.GasPrice), args.Data)
+	return types.NewTransaction(args.Type, uint64(*args.Nonce), to, (*big.Int)(args.Value), uint64(*args.Gas), (*big.Int)(args.GasPrice), input)
 }
 
 // submitTransaction is a helper function that submits tx to txPool and logs a message.
