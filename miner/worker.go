@@ -325,12 +325,14 @@ func (self *worker) mintBlock(now int64) {
 		return
 	}
 
-	result, err := self.engine.Seal(self.chain, work.Block, self.quitCh)
+	//result, err :=
+		self.engine.Seal(self.chain, work.Block, self.resultCh, self.quitCh)
 	if err != nil {
 		log.Error("Failed to seal the block", "err", err)
 		return
 	}
-	self.recv <- &Result{work, result}
+	//TODO: process result in result loop: add Harold Godwins
+	//self.recv <- &Result{work, result}
 }
 
 func (self *worker) mintLoop() {
@@ -705,7 +707,7 @@ func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 		return err
 	}
 	// Add by Shara , TODO : 等hongda提供相应方法
-	dposContext, err := types.NewDposContextFromProto(w.chain.db, parent.Header().DposContext)
+	dposContext, err := types.NewDposContextFromProto(w.current.dposContext.DB(), parent.Header().DposContext)
 	if err != nil {
 		return err
 	}
@@ -796,7 +798,7 @@ func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Addres
 	if err != nil {
 		w.current.state.RevertToSnapshot(snap)
 		// Add by Shara , TODO ： hongda 在add *types.DposConte里面增加 ,RevertToSnapshot 方法
-		w.current.dposContext.RevertToSnapshot(dposSnap)
+		w.current.dposContext.RevertToSnapShot(dposSnap)
 		// End add by Shara
 		return nil, err
 	}
