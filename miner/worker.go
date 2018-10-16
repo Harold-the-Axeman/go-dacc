@@ -24,7 +24,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	mapset "github.com/deckarep/golang-set"
 	"github.com/daccproject/go-dacc/common"
 	"github.com/daccproject/go-dacc/consensus"
 	"github.com/daccproject/go-dacc/consensus/misc"
@@ -35,6 +34,7 @@ import (
 	"github.com/daccproject/go-dacc/event"
 	"github.com/daccproject/go-dacc/log"
 	"github.com/daccproject/go-dacc/params"
+	mapset "github.com/deckarep/golang-set"
 )
 
 const (
@@ -81,12 +81,13 @@ const (
 type environment struct {
 	signer types.Signer
 
-	state     *state.StateDB // apply state changes here
-	ancestors mapset.Set     // ancestor set (used for checking uncle parent validity)
-	family    mapset.Set     // family set (used for checking uncle invalidity)
-	uncles    mapset.Set     // uncle set
-	tcount    int            // tx count in cycle
-	gasPool   *core.GasPool  // available gas used to pack transactions
+	state       *state.StateDB // apply state changes here
+	dposContext *types.DposContext
+	ancestors   mapset.Set    // ancestor set (used for checking uncle parent validity)
+	family      mapset.Set    // family set (used for checking uncle invalidity)
+	uncles      mapset.Set    // uncle set
+	tcount      int           // tx count in cycle
+	gasPool     *core.GasPool // available gas used to pack transactions
 
 	header   *types.Header
 	txs      []*types.Transaction
@@ -137,8 +138,8 @@ type worker struct {
 	txsSub       event.Subscription
 	chainHeadCh  chan core.ChainHeadEvent
 	chainHeadSub event.Subscription
-	chainSideCh  chan core.ChainSideEvent
-	chainSideSub event.Subscription
+	//chainSideCh  chan core.ChainSideEvent
+	//chainSideSub event.Subscription
 
 	// Channels
 	newWorkCh          chan *newWorkReq
@@ -177,19 +178,19 @@ type worker struct {
 
 func newWorker(config *params.ChainConfig, engine consensus.Engine, eth Backend, mux *event.TypeMux, recommit time.Duration, gasFloor, gasCeil uint64) *worker {
 	worker := &worker{
-		config:             config,
-		engine:             engine,
-		eth:                eth,
-		mux:                mux,
-		chain:              eth.BlockChain(),
-		gasFloor:           gasFloor,
-		gasCeil:            gasCeil,
-		possibleUncles:     make(map[common.Hash]*types.Block),
-		unconfirmed:        newUnconfirmedBlocks(eth.BlockChain(), miningLogAtDepth),
-		pendingTasks:       make(map[common.Hash]*task),
-		txsCh:              make(chan core.NewTxsEvent, txChanSize),
-		chainHeadCh:        make(chan core.ChainHeadEvent, chainHeadChanSize),
-		chainSideCh:        make(chan core.ChainSideEvent, chainSideChanSize),
+		config:         config,
+		engine:         engine,
+		eth:            eth,
+		mux:            mux,
+		chain:          eth.BlockChain(),
+		gasFloor:       gasFloor,
+		gasCeil:        gasCeil,
+		possibleUncles: make(map[common.Hash]*types.Block),
+		unconfirmed:    newUnconfirmedBlocks(eth.BlockChain(), miningLogAtDepth),
+		pendingTasks:   make(map[common.Hash]*task),
+		txsCh:          make(chan core.NewTxsEvent, txChanSize),
+		chainHeadCh:    make(chan core.ChainHeadEvent, chainHeadChanSize),
+		//chainSideCh:        make(chan core.ChainSideEvent, chainSideChanSize),
 		newWorkCh:          make(chan *newWorkReq),
 		taskCh:             make(chan *task),
 		resultCh:           make(chan *types.Block, resultQueueSize),
@@ -202,7 +203,7 @@ func newWorker(config *params.ChainConfig, engine consensus.Engine, eth Backend,
 	worker.txsSub = eth.TxPool().SubscribeNewTxsEvent(worker.txsCh)
 	// Subscribe events for blockchain
 	worker.chainHeadSub = eth.BlockChain().SubscribeChainHeadEvent(worker.chainHeadCh)
-	worker.chainSideSub = eth.BlockChain().SubscribeChainSideEvent(worker.chainSideCh)
+	//worker.chainSideSub = eth.BlockChain().SubscribeChainSideEvent(worker.chainSideCh)
 
 	// Sanitize recommit interval if the user-specified one is too short.
 	if recommit < minRecommitInterval {
@@ -397,40 +398,41 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 func (w *worker) mainLoop() {
 	defer w.txsSub.Unsubscribe()
 	defer w.chainHeadSub.Unsubscribe()
-	defer w.chainSideSub.Unsubscribe()
+	//defer w.chainSideSub.Unsubscribe()
 
 	for {
 		select {
 		case req := <-w.newWorkCh:
 			w.commitNewWork(req.interrupt, req.noempty, req.timestamp)
 
-		case ev := <-w.chainSideCh:
-			if _, exist := w.possibleUncles[ev.Block.Hash()]; exist {
-				continue
-			}
-			// Add side block to possible uncle block set.
-			w.possibleUncles[ev.Block.Hash()] = ev.Block
-			// If our mining block contains less than 2 uncle blocks,
-			// add the new uncle block if valid and regenerate a mining block.
-			if w.isRunning() && w.current != nil && w.current.uncles.Cardinality() < 2 {
-				start := time.Now()
-				if err := w.commitUncle(w.current, ev.Block.Header()); err == nil {
-					var uncles []*types.Header
-					w.current.uncles.Each(func(item interface{}) bool {
-						hash, ok := item.(common.Hash)
-						if !ok {
-							return false
-						}
-						uncle, exist := w.possibleUncles[hash]
-						if !exist {
-							return false
-						}
-						uncles = append(uncles, uncle.Header())
-						return false
-					})
-					w.commit(uncles, nil, true, start)
-				}
-			}
+		// Dpos won't have Uncles, so remove this chainSide event subscribe
+		//case ev := <-w.chainSideCh:
+		//	if _, exist := w.possibleUncles[ev.Block.Hash()]; exist {
+		//		continue
+		//	}
+		//	// Add side block to possible uncle block set.
+		//	w.possibleUncles[ev.Block.Hash()] = ev.Block
+		//	// If our mining block contains less than 2 uncle blocks,
+		//	// add the new uncle block if valid and regenerate a mining block.
+		//	if w.isRunning() && w.current != nil && w.current.uncles.Cardinality() < 2 {
+		//		start := time.Now()
+		//		if err := w.commitUncle(w.current, ev.Block.Header()); err == nil {
+		//			var uncles []*types.Header
+		//			w.current.uncles.Each(func(item interface{}) bool {
+		//				hash, ok := item.(common.Hash)
+		//				if !ok {
+		//					return false
+		//				}
+		//				uncle, exist := w.possibleUncles[hash]
+		//				if !exist {
+		//					return false
+		//				}
+		//				uncles = append(uncles, uncle.Header())
+		//				return false
+		//			})
+		//			w.commit(uncles, nil, true, start)
+		//		}
+		//	}
 
 		case ev := <-w.txsCh:
 			// Apply transactions to the pending state if we're not mining.
@@ -466,8 +468,8 @@ func (w *worker) mainLoop() {
 			return
 		case <-w.chainHeadSub.Err():
 			return
-		case <-w.chainSideSub.Err():
-			return
+			//case <-w.chainSideSub.Err():
+			//	return
 		}
 	}
 }
