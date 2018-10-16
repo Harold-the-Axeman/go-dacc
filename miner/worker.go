@@ -1,42 +1,40 @@
-// Copyright 2015 The go-dacc Authors
-// This file is part of the go-dacc library.
+// Copyright 2015 The go-ethereum Authors
+// This file is part of the go-ethereum library.
 //
-// The go-dacc library is free software: you can redistribute it and/or modify
+// The go-ethereum library is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// The go-dacc library is distributed in the hope that it will be useful,
+// The go-ethereum library is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU Lesser General Public License for more details.
 //
 // You should have received a copy of the GNU Lesser General Public License
-// along with the go-dacc library. If not, see <http://www.gnu.org/licenses/>.
+// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
 package miner
 
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"math/big"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/daccproject/go-dacc/common"
-	"github.com/daccproject/go-dacc/consensus"
-	"github.com/daccproject/go-dacc/consensus/dpos"
-	"github.com/daccproject/go-dacc/consensus/misc"
-	"github.com/daccproject/go-dacc/core"
-	"github.com/daccproject/go-dacc/core/state"
-	"github.com/daccproject/go-dacc/core/types"
-	"github.com/daccproject/go-dacc/core/vm"
-	"github.com/daccproject/go-dacc/event"
-	"github.com/daccproject/go-dacc/log"
-	"github.com/daccproject/go-dacc/params"
-	"github.com/deckarep/golang-set"
+	mapset "github.com/deckarep/golang-set"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus"
+	"github.com/ethereum/go-ethereum/consensus/misc"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/params"
 )
 
 const (
@@ -51,9 +49,7 @@ const (
 	chainHeadChanSize = 10
 
 	// chainSideChanSize is the size of channel listening to ChainSideEvent.
-	// Change by Shara
-	// chainSideChanSize = 10
-	// End change by Shara
+	chainSideChanSize = 10
 
 	// resubmitAdjustChanSize is the size of resubmitting interval adjustment channel.
 	resubmitAdjustChanSize = 10
@@ -85,22 +81,16 @@ const (
 type environment struct {
 	signer types.Signer
 
-	state *state.StateDB // apply state changes here
-	// Add by Shara
-	dposContext *types.DposContext
-	// end Add by Shara
-	ancestors mapset.Set    // ancestor set (used for checking uncle parent validity)
-	family    mapset.Set    // family set (used for checking uncle invalidity)
-	uncles    mapset.Set    // uncle set
-	tcount    int           // tx count in cycle
-	gasPool   *core.GasPool // available gas used to pack transactions
+	state     *state.StateDB // apply state changes here
+	ancestors mapset.Set     // ancestor set (used for checking uncle parent validity)
+	family    mapset.Set     // family set (used for checking uncle invalidity)
+	uncles    mapset.Set     // uncle set
+	tcount    int            // tx count in cycle
+	gasPool   *core.GasPool  // available gas used to pack transactions
 
 	header   *types.Header
 	txs      []*types.Transaction
 	receipts []*types.Receipt
-	// Add by Shara
-	Block *types.Block // the new block
-	// end Add by Shara
 }
 
 // task contains all information for consensus engine sealing and result submitting.
@@ -110,14 +100,6 @@ type task struct {
 	block     *types.Block
 	createdAt time.Time
 }
-
-// Add by Shara
-type Result struct {
-	Work  *environment
-	Block *types.Block
-}
-
-// End Add by Shara
 
 const (
 	commitInterruptNone int32 = iota
@@ -155,10 +137,8 @@ type worker struct {
 	txsSub       event.Subscription
 	chainHeadCh  chan core.ChainHeadEvent
 	chainHeadSub event.Subscription
-	// Change by Shara, remove Chain Side
-	// chainSideCh  chan core.ChainSideEvent
-	//chainSideSub event.Subscription
-	// end Change by Shara
+	chainSideCh  chan core.ChainSideEvent
+	chainSideSub event.Subscription
 
 	// Channels
 	newWorkCh          chan *newWorkReq
@@ -193,31 +173,23 @@ type worker struct {
 	skipSealHook func(*task) bool                   // Method to decide whether skipping the sealing.
 	fullTaskHook func()                             // Method to call before pushing the full sealing task.
 	resubmitHook func(time.Duration, time.Duration) // Method to call upon updating resubmitting interval.
-
-	// Add by Shara
-	recv    chan *Result
-	quitCh  chan struct{}
-	stopper chan struct{}
-	// End Add by Shara
 }
 
 func newWorker(config *params.ChainConfig, engine consensus.Engine, eth Backend, mux *event.TypeMux, recommit time.Duration, gasFloor, gasCeil uint64) *worker {
 	worker := &worker{
-		config:         config,
-		engine:         engine,
-		eth:            eth,
-		mux:            mux,
-		chain:          eth.BlockChain(),
-		gasFloor:       gasFloor,
-		gasCeil:        gasCeil,
-		possibleUncles: make(map[common.Hash]*types.Block),
-		unconfirmed:    newUnconfirmedBlocks(eth.BlockChain(), miningLogAtDepth),
-		pendingTasks:   make(map[common.Hash]*task),
-		txsCh:          make(chan core.NewTxsEvent, txChanSize),
-		chainHeadCh:    make(chan core.ChainHeadEvent, chainHeadChanSize),
-		// Change by Shara
-		// chainSideCh:        make(chan core.ChainSideEvent, chainSideChanSize),
-		// Change by Shara
+		config:             config,
+		engine:             engine,
+		eth:                eth,
+		mux:                mux,
+		chain:              eth.BlockChain(),
+		gasFloor:           gasFloor,
+		gasCeil:            gasCeil,
+		possibleUncles:     make(map[common.Hash]*types.Block),
+		unconfirmed:        newUnconfirmedBlocks(eth.BlockChain(), miningLogAtDepth),
+		pendingTasks:       make(map[common.Hash]*task),
+		txsCh:              make(chan core.NewTxsEvent, txChanSize),
+		chainHeadCh:        make(chan core.ChainHeadEvent, chainHeadChanSize),
+		chainSideCh:        make(chan core.ChainSideEvent, chainSideChanSize),
 		newWorkCh:          make(chan *newWorkReq),
 		taskCh:             make(chan *task),
 		resultCh:           make(chan *types.Block, resultQueueSize),
@@ -230,9 +202,7 @@ func newWorker(config *params.ChainConfig, engine consensus.Engine, eth Backend,
 	worker.txsSub = eth.TxPool().SubscribeNewTxsEvent(worker.txsCh)
 	// Subscribe events for blockchain
 	worker.chainHeadSub = eth.BlockChain().SubscribeChainHeadEvent(worker.chainHeadCh)
-	// Change by Shara
-	//worker.chainSideSub = eth.BlockChain().SubscribeChainSideEvent(worker.chainSideCh)
-	// End Change by Shara
+	worker.chainSideSub = eth.BlockChain().SubscribeChainSideEvent(worker.chainSideCh)
 
 	// Sanitize recommit interval if the user-specified one is too short.
 	if recommit < minRecommitInterval {
@@ -252,7 +222,7 @@ func newWorker(config *params.ChainConfig, engine consensus.Engine, eth Backend,
 }
 
 // setEtherbase sets the etherbase used to initialize the block coinbase field.
-func (w *worker) setCoinbase(addr common.Address) {
+func (w *worker) setEtherbase(addr common.Address) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	w.coinbase = addr
@@ -294,63 +264,6 @@ func (w *worker) start() {
 	atomic.StoreInt32(&w.running, 1)
 	w.startCh <- struct{}{}
 }
-
-// Add by Shara , copy from meitu
-func (self *worker) mintBlock(now int64) {
-	engine, ok := self.engine.(*dpos.Dpos)
-	if !ok {
-		log.Error("Only the dpos engine was allowed")
-		return
-	}
-	err := engine.CheckValidator(self.chain.CurrentBlock(), now)
-	if err != nil {
-		switch err {
-		case dpos.ErrWaitForPrevBlock,
-			dpos.ErrMintFutureBlock,
-			dpos.ErrInvalidBlockValidator,
-			dpos.ErrInvalidMintBlockTime:
-			log.Debug("Failed to mint the block, while ", "err", err)
-		default:
-			log.Error("Failed to mint the block", "err", err)
-		}
-		return
-	}
-	// Add by Shara
-	req := <-self.newWorkCh
-	work, err := self.createNewWork(req.interrupt, req.noempty, req.timestamp)
-	//work, err := self.createNewWork()
-	// End add by Shara
-	if err != nil {
-		log.Error("Failed to create the new work", "err", err)
-		return
-	}
-
-	//result, err := self.engine.Seal(self.chain, work.Block, self.resultCh, self.quitCh)
-	self.engine.Seal(self.chain, work.Block, self.resultCh, self.quitCh)
-	if err != nil {
-		log.Error("Failed to seal the block", "err", err)
-		return
-	}
-	//TODO: process result in result loop: add Harold Godwins
-	//self.recv <- &Result{work, result}
-}
-
-func (self *worker) mintLoop() {
-	ticker := time.NewTicker(time.Second).C
-	for {
-		select {
-		case now := <-ticker:
-			self.mintBlock(now.Unix())
-		case <-self.stopper:
-			close(self.quitCh)
-			self.quitCh = make(chan struct{}, 1)
-			self.stopper = make(chan struct{}, 1)
-			return
-		}
-	}
-}
-
-// End add by Shara
 
 // stop sets the running status as 0.
 func (w *worker) stop() {
@@ -436,10 +349,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 		case <-timer.C:
 			// If mining is running resubmit a new work cycle periodically to pull in
 			// higher priced transactions. Disable this overhead for pending blocks.
-			// Change by Shara
-			// if w.isRunning() && (w.config.Clique == nil || w.config.Clique.Period > 0) {
-			if w.isRunning() {
-				// End Change by Shara
+			if w.isRunning() && (w.config.Clique == nil || w.config.Clique.Period > 0) {
 				// Short circuit if no new transaction arrives.
 				if atomic.LoadInt32(&w.newTxs) == 0 {
 					timer.Reset(recommit)
@@ -487,49 +397,41 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 func (w *worker) mainLoop() {
 	defer w.txsSub.Unsubscribe()
 	defer w.chainHeadSub.Unsubscribe()
-	// Change by Shara
-	// defer w.chainSideSub.Unsubscribe()
-	// End change by Shara
+	defer w.chainSideSub.Unsubscribe()
 
 	for {
 		select {
 		case req := <-w.newWorkCh:
-			// change by Shara
-			// w.commitNewWork(req.interrupt, req.noempty, req.timestamp)
-			w.createNewWork(req.interrupt, req.noempty, req.timestamp)
-			// end change by Shara
+			w.commitNewWork(req.interrupt, req.noempty, req.timestamp)
 
-		// Change by Shara
-		/*
-			case ev := <-w.chainSideCh:
-				if _, exist := w.possibleUncles[ev.Block.Hash()]; exist {
-					continue
-				}
-				// Add side block to possible uncle block set.
-				w.possibleUncles[ev.Block.Hash()] = ev.Block
-				// If our mining block contains less than 2 uncle blocks,
-				// add the new uncle block if valid and regenerate a mining block.
-				if w.isRunning() && w.current != nil && w.current.uncles.Cardinality() < 2 {
-					start := time.Now()
-					if err := w.commitUncle(w.current, ev.Block.Header()); err == nil {
-						var uncles []*types.Header
-						w.current.uncles.Each(func(item interface{}) bool {
-							hash, ok := item.(common.Hash)
-							if !ok {
-								return false
-							}
-							uncle, exist := w.possibleUncles[hash]
-							if !exist {
-								return false
-							}
-							uncles = append(uncles, uncle.Header())
+		case ev := <-w.chainSideCh:
+			if _, exist := w.possibleUncles[ev.Block.Hash()]; exist {
+				continue
+			}
+			// Add side block to possible uncle block set.
+			w.possibleUncles[ev.Block.Hash()] = ev.Block
+			// If our mining block contains less than 2 uncle blocks,
+			// add the new uncle block if valid and regenerate a mining block.
+			if w.isRunning() && w.current != nil && w.current.uncles.Cardinality() < 2 {
+				start := time.Now()
+				if err := w.commitUncle(w.current, ev.Block.Header()); err == nil {
+					var uncles []*types.Header
+					w.current.uncles.Each(func(item interface{}) bool {
+						hash, ok := item.(common.Hash)
+						if !ok {
 							return false
-						})
-						w.commit(uncles, nil, true, start)
-					}
+						}
+						uncle, exist := w.possibleUncles[hash]
+						if !exist {
+							return false
+						}
+						uncles = append(uncles, uncle.Header())
+						return false
+					})
+					w.commit(uncles, nil, true, start)
 				}
-		*/
-		// End change by Shara
+			}
+
 		case ev := <-w.txsCh:
 			// Apply transactions to the pending state if we're not mining.
 			//
@@ -550,16 +452,10 @@ func (w *worker) mainLoop() {
 				w.commitTransactions(txset, coinbase, nil)
 				w.updateSnapshot()
 			} else {
-				// Change by Shara
 				// If we're mining, but nothing is being processed, wake on new transactions
-				//if w.config.Clique != nil && w.config.Clique.Period == 0 {
-				// Change by Shara
-				// w.commitNewWork(nil, false, time.Now().Unix())
-				//w.createNewWork(nil, false, time.Now().Unix())
-				// End Change by Shara
-				//}
-				w.createNewWork(nil, false, time.Now().Unix())
-				// End Change by Shara
+				if w.config.Clique != nil && w.config.Clique.Period == 0 {
+					w.commitNewWork(nil, false, time.Now().Unix())
+				}
 			}
 			atomic.AddInt32(&w.newTxs, int32(len(ev.Txs)))
 
@@ -570,12 +466,8 @@ func (w *worker) mainLoop() {
 			return
 		case <-w.chainHeadSub.Err():
 			return
-			// Change by Shara
-			/*
-				case <-w.chainSideSub.Err():
-					return
-			*/
-			// End change by Shara
+		case <-w.chainSideSub.Err():
+			return
 		}
 	}
 }
@@ -685,9 +577,7 @@ func (w *worker) resultLoop() {
 				events = append(events, core.ChainEvent{Block: block, Hash: block.Hash(), Logs: logs})
 				events = append(events, core.ChainHeadEvent{Block: block})
 			case core.SideStatTy:
-				// Change by Shara ,
-				//events = append(events, core.ChainSideEvent{Block: block})
-				// End Change by Shara
+				events = append(events, core.ChainSideEvent{Block: block})
 			}
 			w.chain.PostChainEvents(events, logs)
 
@@ -706,18 +596,9 @@ func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 	if err != nil {
 		return err
 	}
-	// Add by Shara , TODO : 等hongda提供相应方法
-	dposContext, err := types.NewDposContextFromProto(w.current.dposContext.DB(), parent.Header().DposContext)
-	if err != nil {
-		return err
-	}
-	// End add by Shara
 	env := &environment{
-		signer: types.NewEIP155Signer(w.config.ChainID),
-		state:  state,
-		// Add by Shara
-		dposContext: dposContext,
-		// End by Shara
+		signer:    types.NewEIP155Signer(w.config.ChainID),
+		state:     state,
 		ancestors: mapset.NewSet(),
 		family:    mapset.NewSet(),
 		uncles:    mapset.NewSet(),
@@ -790,16 +671,10 @@ func (w *worker) updateSnapshot() {
 
 func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Address) ([]*types.Log, error) {
 	snap := w.current.state.Snapshot()
-	// Change by Shara
-	dposSnap := w.current.dposContext.Snapshot()
 
-	receipt, _, err := core.ApplyTransaction(w.config, w.current.dposContext, w.chain, &coinbase, w.current.gasPool, w.current.state, w.current.header, tx, &w.current.header.GasUsed, vm.Config{})
-	// End change by Shara
+	receipt, _, err := core.ApplyTransaction(w.config, w.chain, &coinbase, w.current.gasPool, w.current.state, w.current.header, tx, &w.current.header.GasUsed, vm.Config{})
 	if err != nil {
 		w.current.state.RevertToSnapshot(snap)
-		// Add by Shara , TODO ： hongda 在add *types.DposConte里面增加 ,RevertToSnapshot 方法
-		w.current.dposContext.RevertToSnapShot(dposSnap)
-		// End add by Shara
 		return nil, err
 	}
 	w.current.txs = append(w.current.txs, tx)
@@ -922,9 +797,7 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 }
 
 // commitNewWork generates several new sealing tasks based on the parent block.
-// Change by Shara , change commitNewWork func name to createNewWork
-func (w *worker) createNewWork(interrupt *int32, noempty bool, timestamp int64) (*environment, error) {
-
+func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 
@@ -953,20 +826,13 @@ func (w *worker) createNewWork(interrupt *int32, noempty bool, timestamp int64) 
 	if w.isRunning() {
 		if w.coinbase == (common.Address{}) {
 			log.Error("Refusing to mine without etherbase")
-			// Add by Shara
-			//return
-			return nil, fmt.Errorf("got error when Refusing to mine without etherbase")
-			// End add by Shara
+			return
 		}
 		header.Coinbase = w.coinbase
 	}
 	if err := w.engine.Prepare(w.chain, header); err != nil {
 		log.Error("Failed to prepare header for mining", "err", err)
-		// Change by Shara
-		// return
-		return nil, fmt.Errorf("got error when preparing header, err: %s", err)
-		// End change by Shara
-
+		return
 	}
 	// If we are care about TheDAO hard-fork check whether to override the extra-data or not
 	if daoBlock := w.config.DAOForkBlock; daoBlock != nil {
@@ -985,10 +851,7 @@ func (w *worker) createNewWork(interrupt *int32, noempty bool, timestamp int64) 
 	err := w.makeCurrent(parent, header)
 	if err != nil {
 		log.Error("Failed to create mining context", "err", err)
-		// Change by Shara
-		// return
-		return nil, fmt.Errorf("got error when create mining context, err: %s", err)
-		// End change by Shara
+		return
 	}
 	// Create the current work task and check any fork transitions needed
 	env := w.current
@@ -1024,18 +887,12 @@ func (w *worker) createNewWork(interrupt *int32, noempty bool, timestamp int64) 
 	pending, err := w.eth.TxPool().Pending()
 	if err != nil {
 		log.Error("Failed to fetch pending transactions", "err", err)
-		// Change by Shara
-		// return
-		return nil, fmt.Errorf("got error when fetch pending transcations, err: %s", err)
-		// End change by Shara
+		return
 	}
 	// Short circuit if there is no available pending transactions
 	if len(pending) == 0 {
 		w.updateSnapshot()
-		// Change by Shara
-		// return
-		return env, nil
-		// End change by Shara
+		return
 	}
 	// Split the pending transactions into locals and remotes
 	localTxs, remoteTxs := make(map[common.Address]types.Transactions), pending
@@ -1046,27 +903,18 @@ func (w *worker) createNewWork(interrupt *int32, noempty bool, timestamp int64) 
 		}
 	}
 	if len(localTxs) > 0 {
-		txs := types.NewTransactionsByPriceAndNonce(env.signer, localTxs)
+		txs := types.NewTransactionsByPriceAndNonce(w.current.signer, localTxs)
 		if w.commitTransactions(txs, w.coinbase, interrupt) {
-			// Change by Shara
-			// return
-			return env, nil
-			// End change by Shara
+			return
 		}
 	}
 	if len(remoteTxs) > 0 {
-		txs := types.NewTransactionsByPriceAndNonce(env.signer, remoteTxs)
+		txs := types.NewTransactionsByPriceAndNonce(w.current.signer, remoteTxs)
 		if w.commitTransactions(txs, w.coinbase, interrupt) {
-			// Change by Shara
-			// return
-			return env, nil
-			// End change by Shara
+			return
 		}
 	}
 	w.commit(uncles, w.fullTaskHook, true, tstart)
-	// Add by Shara
-	return env, nil
-	// End add by shara
 }
 
 // commit runs any post-transaction state modifications, assembles the final block
@@ -1079,12 +927,7 @@ func (w *worker) commit(uncles []*types.Header, interval func(), update bool, st
 		*receipts[i] = *l
 	}
 	s := w.current.state.Copy()
-	// Change by Shara
-	work := w.current
-	block, err := w.engine.Finalize(w.chain, w.current.header, s, w.current.txs, uncles, w.current.receipts, work.dposContext)
-	work.Block.DposContext = work.dposContext
-	// End change by Shara
-
+	block, err := w.engine.Finalize(w.chain, w.current.header, s, w.current.txs, uncles, w.current.receipts)
 	if err != nil {
 		return err
 	}
