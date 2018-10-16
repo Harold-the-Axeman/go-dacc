@@ -325,8 +325,8 @@ func (self *worker) mintBlock(now int64) {
 		return
 	}
 
-	//result, err :=
-		self.engine.Seal(self.chain, work.Block, self.resultCh, self.quitCh)
+	//result, err := self.engine.Seal(self.chain, work.Block, self.resultCh, self.quitCh)
+	self.engine.Seal(self.chain, work.Block, self.resultCh, self.quitCh)
 	if err != nil {
 		log.Error("Failed to seal the block", "err", err)
 		return

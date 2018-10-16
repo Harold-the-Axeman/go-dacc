@@ -29,9 +29,7 @@ import (
 	"github.com/daccproject/go-dacc/common"
 	"github.com/daccproject/go-dacc/common/hexutil"
 	"github.com/daccproject/go-dacc/consensus"
-	//"github.com/daccproject/go-dacc/consensus/clique"
 	"github.com/daccproject/go-dacc/consensus/dpos"
-	//"github.com/daccproject/go-dacc/consensus/ethash"
 	"github.com/daccproject/go-dacc/core"
 	"github.com/daccproject/go-dacc/core/bloombits"
 	"github.com/daccproject/go-dacc/core/rawdb"
@@ -440,34 +438,38 @@ func (self *Ethereum) SetCoinbase(coinbase common.Address) {
 //	return nil
 //}
 
-func (s *Ethereum) StartMining(local bool) error {
-	validator, err := s.Validator()
-	if err != nil {
-		log.Error("Cannot start mining without validator", "err", err)
-		return fmt.Errorf("validator missing: %v", err)
-	}
-	cb, err := s.Coinbase()
-	if err != nil {
-		log.Error("Cannot start mining without coinbase", "err", err)
-		return fmt.Errorf("coinbase missing: %v", err)
-	}
+func (s *Ethereum) StartMining() error {
+	if !s.IsMining() {
+		// Propagate the initial price point to the transaction pool
+		s.lock.RLock()
+		price := s.gasPrice
+		s.lock.RUnlock()
+		s.txPool.SetGasPrice(price)
 
-	if dpos, ok := s.engine.(*dpos.Dpos); ok {
-		wallet, err := s.accountManager.Find(accounts.Account{Address: validator})
-		if wallet == nil || err != nil {
-			log.Error("Coinbase account unavailable locally", "err", err)
-			return fmt.Errorf("signer missing: %v", err)
+		// Configure the validator address
+		validator, err := s.Validator()
+		if err != nil {
+			log.Error("Cannot start mining without validator", "err", err)
+			return fmt.Errorf("validator missing: %v", err)
 		}
-		dpos.Authorize(validator, wallet.SignHash)
-	}
-	if local {
-		// If local (CPU) mining is started, we can disable the transaction rejection
-		// mechanism introduced to speed sync times. CPU mining on mainnet is ludicrous
-		// so noone will ever hit this path, whereas marking sync done on CPU mining
-		// will ensure that private networks work in single miner mode too.
+		// Configure the local mining address
+		cb, err := s.Coinbase()
+		if err != nil {
+			log.Error("Cannot start mining without coinbase", "err", err)
+			return fmt.Errorf("coinbase missing: %v", err)
+		}
+
+		if dpos, ok := s.engine.(*dpos.Dpos); ok {
+			wallet, err := s.accountManager.Find(accounts.Account{Address: validator})
+			if wallet == nil || err != nil {
+				log.Error("Coinbase account unavailable locally", "err", err)
+				return fmt.Errorf("signer missing: %v", err)
+			}
+			dpos.Authorize(validator, wallet.SignHash)
+		}
 		atomic.StoreUint32(&s.protocolManager.acceptTxs, 1)
+		go s.miner.Start(cb)
 	}
-	go s.miner.Start(cb)
 	return nil
 }
 
