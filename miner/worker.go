@@ -26,6 +26,7 @@ import (
 
 	"github.com/daccproject/go-dacc/common"
 	"github.com/daccproject/go-dacc/consensus"
+	"github.com/daccproject/go-dacc/consensus/dpos"
 	"github.com/daccproject/go-dacc/consensus/misc"
 	"github.com/daccproject/go-dacc/core"
 	"github.com/daccproject/go-dacc/core/state"
@@ -222,8 +223,8 @@ func newWorker(config *params.ChainConfig, engine consensus.Engine, eth Backend,
 	return worker
 }
 
-// setEtherbase sets the etherbase used to initialize the block coinbase field.
-func (w *worker) setEtherbase(addr common.Address) {
+// setCoinbase sets the etherbase used to initialize the block coinbase field.
+func (w *worker) setCoinbase(addr common.Address) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	w.coinbase = addr
@@ -263,8 +264,57 @@ func (w *worker) pendingBlock() *types.Block {
 // start sets the running status as 1 and triggers new work submitting.
 func (w *worker) start() {
 	atomic.StoreInt32(&w.running, 1)
+	//go w.mintLoop()
 	w.startCh <- struct{}{}
 }
+
+//func (w *worker) mintBlock(now int64) {
+//	engine, ok := w.engine.(*dpos.Dpos)
+//	if !ok {
+//		log.Error("Only the dpos engine was allowed")
+//		return
+//	}
+//	err := engine.CheckValidator(w.chain.CurrentBlock(), now)
+//	if err != nil {
+//		switch err {
+//		case dpos.ErrWaitForPrevBlock,
+//			dpos.ErrMintFutureBlock,
+//			dpos.ErrInvalidBlockValidator,
+//			dpos.ErrInvalidMintBlockTime:
+//			log.Debug("Failed to mint the block, while ", "err", err)
+//		default:
+//			log.Error("Failed to mint the block", "err", err)
+//		}
+//		return
+//	}
+//	work, err := w.createNewWork()
+//	if err != nil {
+//		log.Error("Failed to create the new work", "err", err)
+//		return
+//	}
+//
+//	result, err := w.engine.Seal(w.chain, work.Block, w.quitCh)
+//	if err != nil {
+//		log.Error("Failed to seal the block", "err", err)
+//		return
+//	}
+//	w.recv <- &Result{work, result}
+//}
+
+//func (w *worker) mintLoop() {
+//	ticker := time.NewTicker(time.Second).C
+//	for {
+//		select {
+//		case now := <-ticker:
+//			w.mintBlock(now.Unix())
+//		case <-w.stopper:
+//			close(w.quitCh)
+//			w.quitCh = make(chan struct{}, 1)
+//			w.stopper = make(chan struct{}, 1)
+//			return
+//		}
+//	}
+//}
 
 // stop sets the running status as 0.
 func (w *worker) stop() {
@@ -350,14 +400,14 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 		case <-timer.C:
 			// If mining is running resubmit a new work cycle periodically to pull in
 			// higher priced transactions. Disable this overhead for pending blocks.
-			if w.isRunning() && (w.config.Clique == nil || w.config.Clique.Period > 0) {
-				// Short circuit if no new transaction arrives.
-				if atomic.LoadInt32(&w.newTxs) == 0 {
-					timer.Reset(recommit)
-					continue
-				}
-				commit(true, commitInterruptResubmit)
-			}
+			//if w.isRunning() && (w.config.Clique == nil || w.config.Clique.Period > 0) {
+			//	// Short circuit if no new transaction arrives.
+			//	if atomic.LoadInt32(&w.newTxs) == 0 {
+			//		timer.Reset(recommit)
+			//		continue
+			//	}
+			//	commit(true, commitInterruptResubmit)
+			//}
 
 		case interval := <-w.resubmitIntervalCh:
 			// Adjust resubmit interval explicitly by user.
@@ -403,7 +453,36 @@ func (w *worker) mainLoop() {
 	for {
 		select {
 		case req := <-w.newWorkCh:
-			w.commitNewWork(req.interrupt, req.noempty, req.timestamp)
+			engine, ok := w.engine.(*dpos.Dpos)
+			if !ok {
+				log.Error("Only the dpos engine was allowed")
+				return
+			}
+			err := engine.CheckValidator(w.chain.CurrentBlock(), req.timestamp)
+			if err != nil {
+				switch err {
+				case dpos.ErrWaitForPrevBlock,
+					dpos.ErrMintFutureBlock,
+					dpos.ErrInvalidBlockValidator,
+					dpos.ErrInvalidMintBlockTime:
+					log.Debug("Failed to mint the block, while ", "err", err)
+				default:
+					log.Error("Failed to mint the block", "err", err)
+				}
+				return
+			}
+			w.createNewWork(req.interrupt, req.noempty, req.timestamp)
+			//work, err := w.createNewWork()
+			//if err != nil {
+			//	log.Error("Failed to create the new work", "err", err)
+			//	return
+			//}
+			//
+			//result, err := w.engine.Seal(w.chain, work.Block, w.quitCh)
+			//if err != nil {
+			//	log.Error("Failed to seal the block", "err", err)
+			//	return
+			//}
 
 		// Dpos won't have Uncles, so remove this chainSide event subscribe
 		//case ev := <-w.chainSideCh:
@@ -453,12 +532,13 @@ func (w *worker) mainLoop() {
 				txset := types.NewTransactionsByPriceAndNonce(w.current.signer, txs)
 				w.commitTransactions(txset, coinbase, nil)
 				w.updateSnapshot()
-			} else {
-				// If we're mining, but nothing is being processed, wake on new transactions
-				if w.config.Clique != nil && w.config.Clique.Period == 0 {
-					w.commitNewWork(nil, false, time.Now().Unix())
-				}
 			}
+			//} else {
+			// If we're mining, but nothing is being processed, wake on new transactions
+			//	if w.config.Clique != nil && w.config.Clique.Period == 0 {
+			//		w.createNewWork(nil, false, time.Now().Unix())
+			//	}
+			//}
 			atomic.AddInt32(&w.newTxs, int32(len(ev.Txs)))
 
 		// System stopped
@@ -578,8 +658,8 @@ func (w *worker) resultLoop() {
 			case core.CanonStatTy:
 				events = append(events, core.ChainEvent{Block: block, Hash: block.Hash(), Logs: logs})
 				events = append(events, core.ChainHeadEvent{Block: block})
-			case core.SideStatTy:
-				events = append(events, core.ChainSideEvent{Block: block})
+				//case core.SideStatTy:
+				//	events = append(events, core.ChainSideEvent{Block: block})
 			}
 			w.chain.PostChainEvents(events, logs)
 
@@ -674,7 +754,7 @@ func (w *worker) updateSnapshot() {
 func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Address) ([]*types.Log, error) {
 	snap := w.current.state.Snapshot()
 
-	receipt, _, err := core.ApplyTransaction(w.config, w.chain, &coinbase, w.current.gasPool, w.current.state, w.current.header, tx, &w.current.header.GasUsed, vm.Config{})
+	receipt, _, err := core.ApplyTransaction(w.config, w.current.dposContext, w.chain, &coinbase, w.current.gasPool, w.current.state, w.current.header, tx, &w.current.header.GasUsed, vm.Config{})
 	if err != nil {
 		w.current.state.RevertToSnapshot(snap)
 		return nil, err
@@ -798,8 +878,9 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 	return false
 }
 
-// commitNewWork generates several new sealing tasks based on the parent block.
-func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) {
+// createNewWork generates several new sealing tasks based on the parent block.
+func (w *worker) createNewWork(interrupt *int32, noempty bool, timestamp int64) {
+	//func (w *worker) createNewWork() (*environment, error) {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 
@@ -929,7 +1010,8 @@ func (w *worker) commit(uncles []*types.Header, interval func(), update bool, st
 		*receipts[i] = *l
 	}
 	s := w.current.state.Copy()
-	block, err := w.engine.Finalize(w.chain, w.current.header, s, w.current.txs, uncles, w.current.receipts)
+	block, err := w.engine.Finalize(w.chain, w.current.header, s, w.current.txs, uncles, w.current.receipts, w.current.dposContext)
+	block.DposContext = w.current.dposContext
 	if err != nil {
 		return err
 	}

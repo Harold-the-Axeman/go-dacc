@@ -395,50 +395,19 @@ func (self *Ethereum) SetCoinbase(coinbase common.Address) {
 // StartMining starts the miner with the given number of CPU threads. If mining
 // is already running, this method adjust the number of threads allowed to use
 // and updates the minimum price required by the transaction pool.
-//func (s *Ethereum) StartMining(threads int) error {
-//	// Update the thread count within the consensus engine
-//	//type threaded interface {
-//	//	SetThreads(threads int)
-//	//}
-//	//if th, ok := s.engine.(threaded); ok {
-//	//	log.Info("Updated mining threads", "threads", threads)
-//	//	if threads == 0 {
-//	//		threads = -1 // Disable the miner from within
-//	//	}
-//	//	th.SetThreads(threads)
-//	//}
-//	// If the miner was not running, initialize it
-//	if !s.IsMining() {
-//		// Propagate the initial price point to the transaction pool
-//		s.lock.RLock()
-//		price := s.gasPrice
-//		s.lock.RUnlock()
-//		s.txPool.SetGasPrice(price)
-//
-//		// Configure the local mining addess
-//		eb, err := s.Etherbase()
-//		if err != nil {
-//			log.Error("Cannot start mining without etherbase", "err", err)
-//			return fmt.Errorf("etherbase missing: %v", err)
-//		}
-//		if clique, ok := s.engine.(*clique.Clique); ok {
-//			wallet, err := s.accountManager.Find(accounts.Account{Address: eb})
-//			if wallet == nil || err != nil {
-//				log.Error("Etherbase account unavailable locally", "err", err)
-//				return fmt.Errorf("signer missing: %v", err)
-//			}
-//			clique.Authorize(eb, wallet.SignHash)
-//		}
-//		// If mining is started, we can disable the transaction rejection mechanism
-//		// introduced to speed sync times.
-//		atomic.StoreUint32(&s.protocolManager.acceptTxs, 1)
-//
-//		go s.miner.Start(eb)
-//	}
-//	return nil
-//}
-
-func (s *Ethereum) StartMining() error {
+func (s *Ethereum) StartMining(threads int) error {
+	// Update the thread count within the consensus engine
+	type threaded interface {
+		SetThreads(threads int)
+	}
+	if th, ok := s.engine.(threaded); ok {
+		log.Info("Updated mining threads", "threads", threads)
+		if threads == 0 {
+			threads = -1 // Disable the miner from within
+		}
+		th.SetThreads(threads)
+	}
+	// If the miner was not running, initialize it
 	if !s.IsMining() {
 		// Propagate the initial price point to the transaction pool
 		s.lock.RLock()
@@ -446,32 +415,63 @@ func (s *Ethereum) StartMining() error {
 		s.lock.RUnlock()
 		s.txPool.SetGasPrice(price)
 
-		// Configure the validator address
-		validator, err := s.Validator()
-		if err != nil {
-			log.Error("Cannot start mining without validator", "err", err)
-			return fmt.Errorf("validator missing: %v", err)
-		}
-		// Configure the local mining address
+		// Configure the local mining addess
 		cb, err := s.Coinbase()
 		if err != nil {
-			log.Error("Cannot start mining without coinbase", "err", err)
-			return fmt.Errorf("coinbase missing: %v", err)
+			log.Error("Cannot start mining without etherbase", "err", err)
+			return fmt.Errorf("etherbase missing: %v", err)
 		}
-
-		if dpos, ok := s.engine.(*dpos.Dpos); ok {
-			wallet, err := s.accountManager.Find(accounts.Account{Address: validator})
-			if wallet == nil || err != nil {
-				log.Error("Coinbase account unavailable locally", "err", err)
-				return fmt.Errorf("signer missing: %v", err)
-			}
-			dpos.Authorize(validator, wallet.SignHash)
-		}
+		//if clique, ok := s.engine.(*clique.Clique); ok {
+		//	wallet, err := s.accountManager.Find(accounts.Account{Address: cb})
+		//	if wallet == nil || err != nil {
+		//		log.Error("Etherbase account unavailable locally", "err", err)
+		//		return fmt.Errorf("signer missing: %v", err)
+		//	}
+		//	clique.Authorize(cb, wallet.SignHash)
+		//}
+		// If mining is started, we can disable the transaction rejection mechanism
+		// introduced to speed sync times.
 		atomic.StoreUint32(&s.protocolManager.acceptTxs, 1)
+
 		go s.miner.Start(cb)
 	}
 	return nil
 }
+
+//func (s *Ethereum) StartMining() error {
+//	if !s.IsMining() {
+//		// Propagate the initial price point to the transaction pool
+//		s.lock.RLock()
+//		price := s.gasPrice
+//		s.lock.RUnlock()
+//		s.txPool.SetGasPrice(price)
+//
+//		// Configure the validator address
+//		validator, err := s.Validator()
+//		if err != nil {
+//			log.Error("Cannot start mining without validator", "err", err)
+//			return fmt.Errorf("validator missing: %v", err)
+//		}
+//		// Configure the local mining address
+//		cb, err := s.Coinbase()
+//		if err != nil {
+//			log.Error("Cannot start mining without coinbase", "err", err)
+//			return fmt.Errorf("coinbase missing: %v", err)
+//		}
+//
+//		if dpos, ok := s.engine.(*dpos.Dpos); ok {
+//			wallet, err := s.accountManager.Find(accounts.Account{Address: validator})
+//			if wallet == nil || err != nil {
+//				log.Error("Coinbase account unavailable locally", "err", err)
+//				return fmt.Errorf("signer missing: %v", err)
+//			}
+//			dpos.Authorize(validator, wallet.SignHash)
+//		}
+//		atomic.StoreUint32(&s.protocolManager.acceptTxs, 1)
+//		go s.miner.Start(cb)
+//	}
+//	return nil
+//}
 
 // StopMining terminates the miner, both at the consensus engine level as well as
 // at the block creation level.

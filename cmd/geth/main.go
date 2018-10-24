@@ -348,12 +348,12 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 		}
 		ethereum.TxPool().SetGasPrice(gasprice)
 
-		//threads := ctx.GlobalInt(utils.MinerLegacyThreadsFlag.Name)
-		//if ctx.GlobalIsSet(utils.MinerThreadsFlag.Name) {
-		//	threads = ctx.GlobalInt(utils.MinerThreadsFlag.Name)
-		//}
-		//if err := ethereum.StartMining(threads); err != nil {
-		if err := ethereum.StartMining(); err != nil {
+		threads := ctx.GlobalInt(utils.MinerLegacyThreadsFlag.Name)
+		if ctx.GlobalIsSet(utils.MinerThreadsFlag.Name) {
+			threads = ctx.GlobalInt(utils.MinerThreadsFlag.Name)
+		}
+		if err := ethereum.StartMining(threads); err != nil {
+			//if err := ethereum.StartMining(); err != nil {
 			utils.Fatalf("Failed to start mining: %v", err)
 		}
 	}
