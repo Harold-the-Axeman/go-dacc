@@ -19,6 +19,7 @@ package miner
 import (
 	"bytes"
 	"errors"
+	"github.com/daccproject/go-dacc/ethdb"
 	"math/big"
 	"sync"
 	"sync/atomic"
@@ -125,10 +126,11 @@ type intervalAdjust struct {
 // worker is the main object which takes care of submitting new work to consensus engine
 // and gathering the sealing result.
 type worker struct {
-	config *params.ChainConfig
-	engine consensus.Engine
-	eth    Backend
-	chain  *core.BlockChain
+	config  *params.ChainConfig
+	engine  consensus.Engine
+	eth     Backend
+	chain   *core.BlockChain
+	chainDB ethdb.Database
 
 	gasFloor uint64
 	gasCeil  uint64
@@ -184,6 +186,7 @@ func newWorker(config *params.ChainConfig, engine consensus.Engine, eth Backend,
 		eth:            eth,
 		mux:            mux,
 		chain:          eth.BlockChain(),
+		chainDB:        eth.ChainDb(),
 		gasFloor:       gasFloor,
 		gasCeil:        gasCeil,
 		possibleUncles: make(map[common.Hash]*types.Block),
@@ -678,13 +681,18 @@ func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 	if err != nil {
 		return err
 	}
+	dposContext, err := types.NewDposContextFromProto(w.chainDB, parent.Header().DposContext)
+	if err != nil {
+		return err
+	}
 	env := &environment{
-		signer:    types.NewEIP155Signer(w.config.ChainID),
-		state:     state,
-		ancestors: mapset.NewSet(),
-		family:    mapset.NewSet(),
-		uncles:    mapset.NewSet(),
-		header:    header,
+		signer:      types.NewEIP155Signer(w.config.ChainID),
+		state:       state,
+		dposContext: dposContext,
+		ancestors:   mapset.NewSet(),
+		family:      mapset.NewSet(),
+		uncles:      mapset.NewSet(),
+		header:      header,
 	}
 
 	// when 08 is processed ancestors contain 07 (quick block)

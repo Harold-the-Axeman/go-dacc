@@ -28,6 +28,7 @@ import (
 	"github.com/daccproject/go-dacc/core/state"
 	"github.com/daccproject/go-dacc/core/types"
 	"github.com/daccproject/go-dacc/eth/downloader"
+	"github.com/daccproject/go-dacc/ethdb"
 	"github.com/daccproject/go-dacc/event"
 	"github.com/daccproject/go-dacc/log"
 	"github.com/daccproject/go-dacc/params"
@@ -37,6 +38,7 @@ import (
 type Backend interface {
 	BlockChain() *core.BlockChain
 	TxPool() *core.TxPool
+	ChainDb() ethdb.Database
 }
 
 // Miner creates blocks and searches for proof-of-work values.
