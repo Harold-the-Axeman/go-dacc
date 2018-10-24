@@ -438,7 +438,9 @@ func (self *Ethereum) SetCoinbase(coinbase common.Address) {
 //	return nil
 //}
 
-func (s *Ethereum) StartMining() error {
+func (s *Ethereum) StartMining(thread int) error {
+	log.Info("etherum start mining...")
+
 	if !s.IsMining() {
 		// Propagate the initial price point to the transaction pool
 		s.lock.RLock()

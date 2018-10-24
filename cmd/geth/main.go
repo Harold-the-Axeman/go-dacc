@@ -353,7 +353,7 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 		//	threads = ctx.GlobalInt(utils.MinerThreadsFlag.Name)
 		//}
 		//if err := ethereum.StartMining(threads); err != nil {
-		if err := ethereum.StartMining(); err != nil {
+		if err := ethereum.StartMining(1); err != nil {
 			utils.Fatalf("Failed to start mining: %v", err)
 		}
 	}

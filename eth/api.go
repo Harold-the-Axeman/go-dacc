@@ -24,6 +24,7 @@ import (
 	"io"
 	"math/big"
 	"os"
+
 	//"runtime"
 	"strings"
 	"time"
@@ -107,10 +108,9 @@ func NewPrivateMinerAPI(e *Ethereum) *PrivateMinerAPI {
 // transaction pool.
 func (api *PrivateMinerAPI) Start(threads *int) error {
 	if threads == nil {
-		//return api.e.StartMining(runtime.NumCPU())
+		return api.e.StartMining(1)
 	}
-	//return api.e.StartMining(*threads)
-	return nil
+	return api.e.StartMining(*threads)
 }
 
 // Stop terminates the miner, both at the consensus engine level as well as at
