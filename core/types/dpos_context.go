@@ -8,6 +8,7 @@ import (
 	"github.com/daccproject/go-dacc/common"
 	"github.com/daccproject/go-dacc/crypto/sha3"
 	"github.com/daccproject/go-dacc/ethdb"
+	"github.com/daccproject/go-dacc/log"
 	"github.com/daccproject/go-dacc/rlp"
 	"github.com/daccproject/go-dacc/trie"
 )
@@ -84,18 +85,22 @@ func NewDposContext(db ethdb.Database) (*DposContext, error) {
 func NewDposContextFromProto(db ethdb.Database, ctxProto *DposContextProto) (*DposContext, error) {
 	epochTrie, err := NewEpochTrie(ctxProto.EpochHash, db)
 	if err != nil {
+		log.Info("error epochTrie:" + err.Error())
 		return nil, err
 	}
 	delegateTrie, err := NewDelegateTrie(ctxProto.DelegateHash, db)
 	if err != nil {
+		log.Info("error delegateTrie:" + err.Error())
 		return nil, err
 	}
 	voteTrie, err := NewVoteTrie(ctxProto.VoteHash, db)
 	if err != nil {
+		log.Info("error voteTrie:" + err.Error())
 		return nil, err
 	}
 	candidateTrie, err := NewCandidateTrie(ctxProto.CandidateHash, db)
 	if err != nil {
+		log.Info("error candidateTrie:" + err.Error())
 		return nil, err
 	}
 	mintCntTrie, err := NewMintCntTrie(ctxProto.MintCntHash, db)
@@ -301,22 +306,58 @@ func (d *DposContext) CommitTo() (*DposContextProto, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := d.epochTrie.TrieDB().Commit(epochRoot, false); err != nil {
+		return nil, err
+	}
 	delegateRoot, err := d.delegateTrie.Commit(nil)
 	if err != nil {
+		return nil, err
+	}
+	if err := d.delegateTrie.TrieDB().Commit(delegateRoot, false); err != nil {
 		return nil, err
 	}
 	voteRoot, err := d.voteTrie.Commit(nil)
 	if err != nil {
 		return nil, err
 	}
+	if err := d.voteTrie.TrieDB().Commit(voteRoot, false); err != nil {
+		return nil, err
+	}
 	candidateRoot, err := d.candidateTrie.Commit(nil)
 	if err != nil {
+		return nil, err
+	}
+	if err := d.candidateTrie.TrieDB().Commit(candidateRoot, false); err != nil {
 		return nil, err
 	}
 	mintCntRoot, err := d.mintCntTrie.Commit(nil)
 	if err != nil {
 		return nil, err
 	}
+	if err := d.mintCntTrie.TrieDB().Commit(mintCntRoot, false); err != nil {
+		return nil, err
+	}
+	/*
+		epochRoot, err := d.epochTrie.Commit(nil)
+		if err != nil {
+			return nil, err
+		}
+		delegateRoot, err := d.delegateTrie.Commit(nil)
+		if err != nil {
+			return nil, err
+		}
+		voteRoot, err := d.voteTrie.Commit(nil)
+		if err != nil {
+			return nil, err
+		}
+		candidateRoot, err := d.candidateTrie.Commit(nil)
+		if err != nil {
+			return nil, err
+		}
+		mintCntRoot, err := d.mintCntTrie.Commit(nil)
+		if err != nil {
+			return nil, err
+		}*/
 	return &DposContextProto{
 		EpochHash:     epochRoot,
 		DelegateHash:  delegateRoot,
