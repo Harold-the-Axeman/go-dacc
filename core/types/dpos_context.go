@@ -301,20 +301,35 @@ func (d *DposContext) CommitTo() (*DposContextProto, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := d.epochTrie.TrieDB().Commit(epochRoot,false);err != nil{
+		return nil, err
+	}
 	delegateRoot, err := d.delegateTrie.Commit(nil)
 	if err != nil {
+		return nil, err
+	}
+	if err := d.delegateTrie.TrieDB().Commit(delegateRoot,false);err != nil{
 		return nil, err
 	}
 	voteRoot, err := d.voteTrie.Commit(nil)
 	if err != nil {
 		return nil, err
 	}
+	if err := d.voteTrie.TrieDB().Commit(voteRoot,false);err != nil{
+		return nil, err
+	}
 	candidateRoot, err := d.candidateTrie.Commit(nil)
 	if err != nil {
 		return nil, err
 	}
+	if err := d.candidateTrie.TrieDB().Commit(candidateRoot,false);err != nil{
+		return nil, err
+	}
 	mintCntRoot, err := d.mintCntTrie.Commit(nil)
 	if err != nil {
+		return nil, err
+	}
+	if err := d.mintCntTrie.TrieDB().Commit(mintCntRoot,false);err != nil{
 		return nil, err
 	}
 	return &DposContextProto{
