@@ -428,32 +428,35 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 	for {
 		select {
 		case <-w.startCh:
-			clearPending(w.chain.CurrentBlock().NumberU64())
+			/*clearPending(w.chain.CurrentBlock().NumberU64())
 			timestamp = time.Now().Unix()
-			//TODO: commit(false, commitInterruptNewHead)
+			commit(false, commitInterruptNewHead)*/
+
+			//NOTE: we need do noting here
 
 		case <-w.chainHeadCh: //head := <-w.chainHeadCh:
 			/*clearPending(head.Block.NumberU64())
 			timestamp = time.Now().Unix()
 			commit(false, commitInterruptNewHead)*/
+
 			//changed by Harold:
-			//TODO: we need cancal the seal methods here.
+			//TODO: we need cancal the seal methods here?
 			//close(self.quitCh)
 			//self.quitCh = make(chan struct{}, 1)
 
 		// DPOS block producing ticker
+		//TODO: ticker will always run here
 		case now := <-ticker.C:
+			clearPending(w.chain.CurrentBlock().NumberU64())  //NOTE: this line in not need here
 			timestamp = now.Unix() // TODO: NEED CHECK, possible bug: time.Now().Unix() or now, which one?
 			commit(false, commitInterruptNewHead) //NOTE: replace call mintBlock in the task loop
-
 
 		case <-timer.C:
 			// If mining is running resubmit a new work cycle periodically to pull in
 			// higher priced transactions. Disable this overhead for pending blocks.
-			// Change by Shara
-			// if w.isRunning() && (w.config.Clique == nil || w.config.Clique.Period > 0) {
-			//TODO: we do not need this in DPOS, but Block Producing need timeout!
-			/*if w.isRunning() {
+
+			//NOTE: we do not need this in DPOS, but Block Producing need timeout!
+			/*if w.isRunning() && (w.config.Clique == nil || w.config.Clique.Period > 0) {
 				// End Change by Shara
 				// Short circuit if no new transaction arrives.
 				if atomic.LoadInt32(&w.newTxs) == 0 {
@@ -566,17 +569,11 @@ func (w *worker) mainLoop() {
 				w.commitTransactions(txset, coinbase, nil)
 				w.updateSnapshot()
 			} else {
-				// Change by Shara
 				// If we're mining, but nothing is being processed, wake on new transactions
-				//if w.config.Clique != nil && w.config.Clique.Period == 0 {
-				// Change by Shara
-				// w.commitNewWork(nil, false, time.Now().Unix())
-				//w.createNewWork(nil, false, time.Now().Unix())
-				// End Change by Shara
-				//}
-				//TODO: Check here, follow the meitu methods
-				w.createNewWork(nil, false, time.Now().Unix())
-				// End Change by Shara
+				/*if w.config.Clique != nil && w.config.Clique.Period == 0 {
+					 w.commitNewWork(nil, false, time.Now().Unix())
+				}*/
+				//TODO: Check here, follow the meitu methods: should not call createNewWork directly: Possible bug here, tx will missing?
 			}
 			atomic.AddInt32(&w.newTxs, int32(len(ev.Txs)))
 
@@ -820,7 +817,7 @@ func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Addres
 	// End change by Shara
 	if err != nil {
 		w.current.state.RevertToSnapshot(snap)
-		// Add by Shara , TODO ： hongda 在add *types.DposConte里面增加 ,RevertToSnapshot 方法
+		// Add by Shara
 		w.current.dposContext.RevertToSnapShot(dposSnap)
 		// End add by Shara
 		return nil, err
