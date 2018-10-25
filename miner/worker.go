@@ -19,7 +19,6 @@ package miner
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"math/big"
 	"sync"
 	"sync/atomic"
@@ -130,6 +129,7 @@ type newWorkReq struct {
 	interrupt *int32
 	noempty   bool
 	timestamp int64
+	//now int64  // used by mintBlock
 }
 
 // intervalAdjust represents a resubmitting interval adjustment.
@@ -296,14 +296,14 @@ func (w *worker) start() {
 }
 
 // Add by Shara , copy from meitu
-func (self *worker) mintBlock(now int64) {
-	log.Info("Add by Shara, mintblock() start ")
+func (self *worker) mintBlock(req newWorkReq) {
+
 	engine, ok := self.engine.(*dpos.Dpos)
 	if !ok {
 		log.Error("Only the dpos engine was allowed")
 		return
 	}
-	err := engine.CheckValidator(self.chain.CurrentBlock(), now)
+	err := engine.CheckValidator(self.chain.CurrentBlock(), req.timestamp) //TODO: check it is now
 	if err != nil {
 		switch err {
 		case dpos.ErrWaitForPrevBlock,
@@ -317,8 +317,7 @@ func (self *worker) mintBlock(now int64) {
 		return
 	}
 	// Add by Shara
-	req := <-self.newWorkCh
-	work, err := self.createNewWork(req.interrupt, req.noempty, req.timestamp)
+	self.createNewWork(req.interrupt, req.noempty, req.timestamp)
 	//work, err := self.createNewWork()
 	// End add by Shara
 	if err != nil {
@@ -326,17 +325,16 @@ func (self *worker) mintBlock(now int64) {
 		return
 	}
 
-	//result, err := self.engine.Seal(self.chain, work.Block, self.resultCh, self.quitCh)
-	self.engine.Seal(self.chain, work.Block, self.resultCh, self.quitCh)
+	//NOTE: the following code is moved to the task/result loop  added by harold
+	/*result, err := self.engine.Seal(self.chain, work.Block, self.resultCh, self.quitCh)
 	if err != nil {
 		log.Error("Failed to seal the block", "err", err)
 		return
 	}
-	//TODO: process result in result loop: add Harold Godwins
-	//self.recv <- &Result{work, result}
+	self.recv <- &Result{work, result}*/
 }
 
-func (self *worker) mintLoop() {
+/*func (self *worker) mintLoop() {
 	ticker := time.NewTicker(time.Second).C
 	for {
 		select {
@@ -349,7 +347,7 @@ func (self *worker) mintLoop() {
 			return
 		}
 	}
-}
+}*/
 
 // End add by Shara
 
@@ -422,24 +420,34 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 		w.pendingMu.Unlock()
 	}
 
+	// DPOS ticker for block producing, added by Harold
+	ticker := time.NewTicker(time.Second)
+
 	for {
 		select {
 		case <-w.startCh:
 			clearPending(w.chain.CurrentBlock().NumberU64())
 			timestamp = time.Now().Unix()
-			commit(false, commitInterruptNewHead)
+			//TODO: commit(false, commitInterruptNewHead)
 
 		case head := <-w.chainHeadCh:
 			clearPending(head.Block.NumberU64())
 			timestamp = time.Now().Unix()
-			commit(false, commitInterruptNewHead)
+			//TODO: commit(false, commitInterruptNewHead)
+
+		case now := <-ticker.C:
+			timestamp = now.Unix() // TODO: NEED CHECK, possible bug. time.Now().Unix() or now which one is better
+			commit(false, commitInterruptNewHead) //NOTE: replace call mintBlock in the task loop
+
 
 		case <-timer.C:
 			// If mining is running resubmit a new work cycle periodically to pull in
 			// higher priced transactions. Disable this overhead for pending blocks.
 			// Change by Shara
 			// if w.isRunning() && (w.config.Clique == nil || w.config.Clique.Period > 0) {
-			if w.isRunning() {
+
+			//TODO: we do not need this in DPOS
+			/*if w.isRunning() {
 				// End Change by Shara
 				// Short circuit if no new transaction arrives.
 				if atomic.LoadInt32(&w.newTxs) == 0 {
@@ -447,7 +455,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 					continue
 				}
 				commit(true, commitInterruptResubmit)
-			}
+			}*/
 
 		case interval := <-w.resubmitIntervalCh:
 			// Adjust resubmit interval explicitly by user.
@@ -497,7 +505,9 @@ func (w *worker) mainLoop() {
 		case req := <-w.newWorkCh:
 			// change by Shara
 			// w.commitNewWork(req.interrupt, req.noempty, req.timestamp)
-			w.createNewWork(req.interrupt, req.noempty, req.timestamp)
+			// TODO: mintBlock here, check the event channel above in the newWorkLoop
+			w.mintBlock(*req)
+			//w.createNewWork(req.interrupt, req.noempty, req.timestamp)
 			// end change by Shara
 
 		// Change by Shara
@@ -559,6 +569,7 @@ func (w *worker) mainLoop() {
 				//w.createNewWork(nil, false, time.Now().Unix())
 				// End Change by Shara
 				//}
+				//TODO: Check here, follow the meitu methods
 				w.createNewWork(nil, false, time.Now().Unix())
 				// End Change by Shara
 			}
@@ -930,7 +941,7 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 
 // commitNewWork generates several new sealing tasks based on the parent block.
 // Change by Shara , change commitNewWork func name to createNewWork
-func (w *worker) createNewWork(interrupt *int32, noempty bool, timestamp int64) (*environment, error) {
+func (w *worker) createNewWork(interrupt *int32, noempty bool, timestamp int64)  { //TODO: check (*environment, error)  remove by harold
 
 	w.mu.RLock()
 	defer w.mu.RUnlock()
@@ -966,7 +977,7 @@ func (w *worker) createNewWork(interrupt *int32, noempty bool, timestamp int64) 
 			log.Error("Refusing to mine without etherbase")
 			// Add by Shara
 			//return
-			return nil, fmt.Errorf("got error when Refusing to mine without etherbase")
+			return
 			// End add by Shara
 		}
 		header.Coinbase = w.coinbase
@@ -975,7 +986,7 @@ func (w *worker) createNewWork(interrupt *int32, noempty bool, timestamp int64) 
 		log.Error("Failed to prepare header for mining", "err", err)
 		// Change by Shara
 		// return
-		return nil, fmt.Errorf("got error when preparing header, err: %s", err)
+		return
 		// End change by Shara
 
 	}
@@ -998,7 +1009,7 @@ func (w *worker) createNewWork(interrupt *int32, noempty bool, timestamp int64) 
 		log.Error("Failed to create mining context", "err", err)
 		// Change by Shara
 		// return
-		return nil, fmt.Errorf("got error when create mining context, err: %s", err)
+		return
 		// End change by Shara
 	}
 	// Create the current work task and check any fork transitions needed
@@ -1037,7 +1048,7 @@ func (w *worker) createNewWork(interrupt *int32, noempty bool, timestamp int64) 
 		log.Error("Failed to fetch pending transactions", "err", err)
 		// Change by Shara
 		// return
-		return nil, fmt.Errorf("got error when fetch pending transcations, err: %s", err)
+		return
 		// End change by Shara
 	}
 	// Short circuit if there is no available pending transactions
@@ -1045,7 +1056,7 @@ func (w *worker) createNewWork(interrupt *int32, noempty bool, timestamp int64) 
 		w.updateSnapshot()
 		// Change by Shara
 		// return
-		return env, nil
+		return
 		// End change by Shara
 	}
 	// Split the pending transactions into locals and remotes
@@ -1061,7 +1072,7 @@ func (w *worker) createNewWork(interrupt *int32, noempty bool, timestamp int64) 
 		if w.commitTransactions(txs, w.coinbase, interrupt) {
 			// Change by Shara
 			// return
-			return env, nil
+			return
 			// End change by Shara
 		}
 	}
@@ -1070,13 +1081,13 @@ func (w *worker) createNewWork(interrupt *int32, noempty bool, timestamp int64) 
 		if w.commitTransactions(txs, w.coinbase, interrupt) {
 			// Change by Shara
 			// return
-			return env, nil
+			return
 			// End change by Shara
 		}
 	}
 	w.commit(uncles, w.fullTaskHook, true, tstart)
 	// Add by Shara
-	return env, nil
+	//return env, nil
 	// End add by shara
 }
 
