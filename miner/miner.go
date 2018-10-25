@@ -28,6 +28,7 @@ import (
 	"github.com/daccproject/go-dacc/core/state"
 	"github.com/daccproject/go-dacc/core/types"
 	"github.com/daccproject/go-dacc/eth/downloader"
+	"github.com/daccproject/go-dacc/ethdb"
 	"github.com/daccproject/go-dacc/event"
 	"github.com/daccproject/go-dacc/log"
 	"github.com/daccproject/go-dacc/params"
@@ -37,6 +38,7 @@ import (
 type Backend interface {
 	BlockChain() *core.BlockChain
 	TxPool() *core.TxPool
+	ChainDb() ethdb.Database
 }
 
 // Miner creates blocks and searches for proof-of-work values.
@@ -106,6 +108,7 @@ func (m *Miner) update() {
 }
 
 func (m *Miner) Start(coinbase common.Address) {
+	
 	atomic.StoreInt32(&m.shouldStart, 1)
 	//m.SetEtherbase(coinbase)
 	m.SetCoinbase(coinbase)
@@ -114,6 +117,7 @@ func (m *Miner) Start(coinbase common.Address) {
 		log.Info("Network syncing, will start miner afterwards")
 		return
 	}
+	log.Info("miner start .....")
 	m.worker.start()
 }
 

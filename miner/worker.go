@@ -292,11 +292,13 @@ func (w *worker) pendingBlock() *types.Block {
 // start sets the running status as 1 and triggers new work submitting.
 func (w *worker) start() {
 	atomic.StoreInt32(&w.running, 1)
+	log.Info("woker start ....")
 	w.startCh <- struct{}{}
 }
 
 // Add by Shara , copy from meitu
 func (self *worker) mintBlock(now int64) {
+	log.Info("Add by Shara, mintblock() start ")
 	engine, ok := self.engine.(*dpos.Dpos)
 	if !ok {
 		log.Error("Only the dpos engine was allowed")
@@ -704,11 +706,17 @@ func (w *worker) resultLoop() {
 func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 	state, err := w.chain.StateAt(parent.Root())
 	if err != nil {
+		log.Info("err 1:" + err.Error())
 		return err
 	}
 	// Add by Shara , TODO : 等hongda提供相应方法
-	dposContext, err := types.NewDposContextFromProto(w.current.dposContext.DB(), parent.Header().DposContext)
+	// log.Info(parent.Header().DposContext.CandidateHash)
+	log.Info("parent number:" + parent.Number().String())
+	log.Info(parent.Header().DposContext.EpochHash.String())
+
+	dposContext, err := types.NewDposContextFromProto(w.eth.ChainDb(), parent.Header().DposContext)
 	if err != nil {
+		log.Info("err 2:" + err.Error())
 		return err
 	}
 	// End add by Shara
@@ -942,6 +950,10 @@ func (w *worker) createNewWork(interrupt *int32, noempty bool, timestamp int64) 
 	}
 
 	num := parent.Number()
+	log.Info("parent number :" + num.String())
+	log.Info("parent Hash:" + parent.Hash().String())
+	log.Info("parent Hash:" + parent.ParentHash().String())
+
 	header := &types.Header{
 		ParentHash: parent.Hash(),
 		Number:     num.Add(num, common.Big1),
@@ -1082,12 +1094,14 @@ func (w *worker) commit(uncles []*types.Header, interval func(), update bool, st
 	// Change by Shara
 	work := w.current
 	block, err := w.engine.Finalize(w.chain, w.current.header, s, w.current.txs, uncles, w.current.receipts, work.dposContext)
-	work.Block.DposContext = work.dposContext
-	// End change by Shara
-
 	if err != nil {
+		log.Info(err.Error())
 		return err
 	}
+	block.DposContext = work.dposContext
+
+	// End change by Shara
+
 	if w.isRunning() {
 		if interval != nil {
 			interval()
