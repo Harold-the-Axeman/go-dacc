@@ -448,11 +448,10 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 		case now := <-ticker.C:
 			//TODO: ticker will always run here, temporary fix here.
 			if atomic.LoadInt32(&w.running) == 1 {
-				clearPending(w.chain.CurrentBlock().NumberU64())  //NOTE: this line in not need here
-				timestamp = now.Unix() // TODO: NEED CHECK, possible bug: time.Now().Unix() or now, which one?
-				commit(false, commitInterruptNewHead) //NOTE: replace call mintBlock in the task loop
+				clearPending(w.chain.CurrentBlock().NumberU64()) //NOTE: this line in not need here
+				timestamp = now.Unix()                           // TODO: NEED CHECK, possible bug: time.Now().Unix() or now, which one?
+				commit(false, commitInterruptNewHead)            //NOTE: replace call mintBlock in the task loop
 			}
-
 
 		case <-timer.C:
 			// If mining is running resubmit a new work cycle periodically to pull in
@@ -631,11 +630,9 @@ func (w *worker) taskLoop() {
 				continue
 			}
 			w.pendingMu.Lock()
-			log.Error("Sealhash in task", "number", task.block.Number(), "sealhash", w.engine.SealHash(task.block.Header()), "hash", task.block.Hash())
 			w.pendingTasks[w.engine.SealHash(task.block.Header())] = task
 			w.pendingMu.Unlock()
 
-			log.Info("Task Received")
 			if err := w.engine.Seal(w.chain, task.block, w.resultCh, stopCh); err != nil {
 				log.Warn("Block sealing failed", "err", err)
 			}
@@ -652,7 +649,6 @@ func (w *worker) resultLoop() {
 	for {
 		select {
 		case block := <-w.resultCh:
-			log.Info("miner.work: result received")
 			// Short circuit when receiving empty result.
 			if block == nil {
 				continue
@@ -950,7 +946,7 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 // commitNewWork generates several new sealing tasks based on the parent block.
 // Change by Shara , change commitNewWork func name to createNewWork
 //NOTE: change return value: check (*environment, error)  remove by harold
-func (w *worker) createNewWork(interrupt *int32, noempty bool, timestamp int64)  {
+func (w *worker) createNewWork(interrupt *int32, noempty bool, timestamp int64) {
 
 	w.mu.RLock()
 	defer w.mu.RUnlock()

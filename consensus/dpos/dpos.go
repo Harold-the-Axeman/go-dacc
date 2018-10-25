@@ -30,7 +30,7 @@ const (
 	extraVanity        = 32   // Fixed number of extra-data prefix bytes reserved for signer vanity
 	extraSeal          = 65   // Fixed number of extra-data suffix bytes reserved for signer seal
 	inmemorySignatures = 4096 // Number of recent block signatures to keep in memory
-	
+
 	blockInterval    = int64(2)
 	epochInterval    = int64(86400)
 	maxValidatorSize = 1
@@ -464,6 +464,7 @@ func (d *Dpos) SealHash(header *types.Header) (hash common.Hash) {
 	rlp.Encode(hasher, []interface{}{
 		header.ParentHash,
 		header.UncleHash,
+		header.Validator,
 		header.Coinbase,
 		header.Root,
 		header.TxHash,
@@ -474,7 +475,10 @@ func (d *Dpos) SealHash(header *types.Header) (hash common.Hash) {
 		header.GasLimit,
 		header.GasUsed,
 		header.Time,
-		header.Extra,
+		header.Extra[:len(header.Extra)-65], // Yes, this will panic if extra is too short
+		header.MixDigest,
+		header.Nonce,
+		header.DposContext.Root(),
 	})
 	hasher.Sum(hash[:0])
 	return hash
