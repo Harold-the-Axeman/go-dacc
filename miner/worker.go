@@ -99,7 +99,7 @@ type environment struct {
 	txs      []*types.Transaction
 	receipts []*types.Receipt
 	// Add by Shara
-	Block *types.Block // the new block
+	//Block *types.Block //removed by Harold
 	// end Add by Shara
 }
 
@@ -111,11 +111,11 @@ type task struct {
 	createdAt time.Time
 }
 
-// Add by Shara
-type Result struct {
+// Add by Shara, removed by Harold no need.
+/*type Result struct {
 	Work  *environment
 	Block *types.Block
-}
+}*/
 
 // End Add by Shara
 
@@ -194,10 +194,10 @@ type worker struct {
 	fullTaskHook func()                             // Method to call before pushing the full sealing task.
 	resubmitHook func(time.Duration, time.Duration) // Method to call upon updating resubmitting interval.
 
-	// Add by Shara
-	recv    chan *Result
+	// Add by Shara //TODO. fix later, the agent channel in v1.7.3
+	/*recv    chan *Result
 	quitCh  chan struct{}
-	stopper chan struct{}
+	stopper chan struct{}*/
 	// End Add by Shara
 }
 
@@ -292,7 +292,6 @@ func (w *worker) pendingBlock() *types.Block {
 // start sets the running status as 1 and triggers new work submitting.
 func (w *worker) start() {
 	atomic.StoreInt32(&w.running, 1)
-	log.Info("woker start ....")
 	w.startCh <- struct{}{}
 }
 
