@@ -31,7 +31,7 @@ const (
 	extraSeal          = 65   // Fixed number of extra-data suffix bytes reserved for signer seal
 	inmemorySignatures = 4096 // Number of recent block signatures to keep in memory
 
-	blockInterval    = int64(10)
+	blockInterval    = int64(2)
 	epochInterval    = int64(86400)
 	maxValidatorSize = 1
 	safeSize         = maxValidatorSize*2/3 + 1
@@ -452,6 +452,9 @@ func (d *Dpos) Seal(chain consensus.ChainReader, block *types.Block, results cha
 	}
 	copy(header.Extra[len(header.Extra)-extraSeal:], sighash)
 	//return block.WithSeal(header), nil
+
+	//Added by Bytejedi
+	results <- block.WithSeal(header)
 	return nil
 }
 
