@@ -33,7 +33,9 @@ type API struct {
 }
 
 // GetValidators retrieves the list of the validators at specified block
+// GetValidators 检索指定块上的验证人列表
 func (api *API) GetValidators(number *rpc.BlockNumber) ([]common.Address, error) {
+	// 根据传入的blocknumber获取blockheader
 	var header *types.Header
 	if number == nil || *number == rpc.LatestBlockNumber {
 		header = api.chain.CurrentHeader()
@@ -44,6 +46,7 @@ func (api *API) GetValidators(number *rpc.BlockNumber) ([]common.Address, error)
 		return nil, errUnknownBlock
 	}
 
+	// 创建新的一个周期EpochTrie(记录每个周期的验证人列表)
 	epochTrie, err := types.NewEpochTrie(header.DposContext.EpochHash, api.dpos.db)
 	if err != nil {
 		return nil, err
@@ -58,6 +61,7 @@ func (api *API) GetValidators(number *rpc.BlockNumber) ([]common.Address, error)
 }
 
 // GetConfirmedBlockNumber retrieves the latest irreversible block
+// GetConfirmedBlockNumber 获取最新的不可逆的区块号
 func (api *API) GetConfirmedBlockNumber() (*big.Int, error) {
 	var err error
 	header := api.dpos.confirmedBlockHeader

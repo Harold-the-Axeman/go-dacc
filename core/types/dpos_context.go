@@ -338,6 +338,7 @@ func (dc *DposContext) SetVote(vote *trie.Trie)           { dc.voteTrie = vote }
 func (dc *DposContext) SetCandidate(candidate *trie.Trie) { dc.candidateTrie = candidate }
 func (dc *DposContext) SetMintCnt(mintCnt *trie.Trie)     { dc.mintCntTrie = mintCnt }
 
+// GetValidators 通过DposContext返回epochTrie中的validators
 func (dc *DposContext) GetValidators() ([]common.Address, error) {
 	var validators []common.Address
 	key := []byte("validator")
