@@ -240,7 +240,7 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.MinerLegacyThreadsFlag,
 			utils.MinerLegacyGasTargetFlag,
 			utils.MinerLegacyGasPriceFlag,
-			utils.MinerLegacyEtherbaseFlag,
+			//utils.MinerLegacyEtherbaseFlag,
 			utils.MinerLegacyExtraDataFlag,
 		},
 	},

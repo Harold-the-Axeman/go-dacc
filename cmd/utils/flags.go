@@ -367,11 +367,11 @@ var (
 		Usage: "Public address for block mining rewards (default = first account created)",
 		Value: "0",
 	}
-	MinerLegacyEtherbaseFlag = cli.StringFlag{
-		Name:  "etherbase",
-		Usage: "Public address for block mining rewards (default = first account, deprecated, use --miner.etherbase)",
-		Value: "0",
-	}
+	//MinerLegacyEtherbaseFlag = cli.StringFlag{
+	//	Name:  "etherbase",
+	//	Usage: "Public address for block mining rewards (default = first account, deprecated, use --miner.etherbase)",
+	//	Value: "0",
+	//}
 	MinerExtraDataFlag = cli.StringFlag{
 		Name:  "miner.extradata",
 		Usage: "Block extra data set by the miner (default = client version)",
