@@ -194,7 +194,7 @@ type worker struct {
 	fullTaskHook func()                             // Method to call before pushing the full sealing task.
 	resubmitHook func(time.Duration, time.Duration) // Method to call upon updating resubmitting interval.
 
-	// Add by Shara //TODO. fix later, the agent channel in v1.7.3
+	// Add by Shara //no need now, the agent channel in v1.7.3
 	/*recv    chan *Result
 	quitCh  chan struct{}
 	stopper chan struct{}*/
@@ -296,6 +296,7 @@ func (w *worker) start() {
 }
 
 // Add by Shara , copy from meitu
+// Modified by Harold, move the code in the end to other loops.
 func (self *worker) mintBlock(req newWorkReq) {
 
 	engine, ok := self.engine.(*dpos.Dpos)
@@ -303,7 +304,7 @@ func (self *worker) mintBlock(req newWorkReq) {
 		log.Error("Only the dpos engine was allowed")
 		return
 	}
-	err := engine.CheckValidator(self.chain.CurrentBlock(), req.timestamp) //TODO: check it is now
+	err := engine.CheckValidator(self.chain.CurrentBlock(), req.timestamp)
 	if err != nil {
 		switch err {
 		case dpos.ErrWaitForPrevBlock,
@@ -334,6 +335,7 @@ func (self *worker) mintBlock(req newWorkReq) {
 	self.recv <- &Result{work, result}*/
 }
 
+// Removed by harold, merged with newWorkLoop/mainLoop
 /*func (self *worker) mintLoop() {
 	ticker := time.NewTicker(time.Second).C
 	for {
@@ -430,13 +432,18 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			timestamp = time.Now().Unix()
 			//TODO: commit(false, commitInterruptNewHead)
 
-		case head := <-w.chainHeadCh:
-			clearPending(head.Block.NumberU64())
+		case <-w.chainHeadCh: //head := <-w.chainHeadCh:
+			/*clearPending(head.Block.NumberU64())
 			timestamp = time.Now().Unix()
-			//TODO: commit(false, commitInterruptNewHead)
+			commit(false, commitInterruptNewHead)*/
+			//changed by Harold:
+			//TODO: we need cancal the seal methods here.
+			//close(self.quitCh)
+			//self.quitCh = make(chan struct{}, 1)
 
+		// DPOS block producing ticker
 		case now := <-ticker.C:
-			timestamp = now.Unix() // TODO: NEED CHECK, possible bug. time.Now().Unix() or now which one is better
+			timestamp = now.Unix() // TODO: NEED CHECK, possible bug: time.Now().Unix() or now, which one?
 			commit(false, commitInterruptNewHead) //NOTE: replace call mintBlock in the task loop
 
 
@@ -445,8 +452,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			// higher priced transactions. Disable this overhead for pending blocks.
 			// Change by Shara
 			// if w.isRunning() && (w.config.Clique == nil || w.config.Clique.Period > 0) {
-
-			//TODO: we do not need this in DPOS
+			//TODO: we do not need this in DPOS, but Block Producing need timeout!
 			/*if w.isRunning() {
 				// End Change by Shara
 				// Short circuit if no new transaction arrives.
@@ -504,8 +510,7 @@ func (w *worker) mainLoop() {
 		select {
 		case req := <-w.newWorkCh:
 			// change by Shara
-			// w.commitNewWork(req.interrupt, req.noempty, req.timestamp)
-			// TODO: mintBlock here, check the event channel above in the newWorkLoop
+			// NOTE, added by harold: mintBlock here, check the event channel above in the newWorkLoop
 			w.mintBlock(*req)
 			//w.createNewWork(req.interrupt, req.noempty, req.timestamp)
 			// end change by Shara
@@ -719,16 +724,16 @@ func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 		log.Info("err 1:" + err.Error())
 		return err
 	}
-	// Add by Shara , TODO : 等hongda提供相应方法
-	// log.Info(parent.Header().DposContext.CandidateHash)
-	log.Info("parent number:" + parent.Number().String())
-	log.Info(parent.Header().DposContext.EpochHash.String())
-
+	// Add by Shara
+	//log.Info("parent number:" + parent.Number().String())
+	//log.Info(parent.Header().DposContext.EpochHash.String())
 	dposContext, err := types.NewDposContextFromProto(w.eth.ChainDb(), parent.Header().DposContext)
+
 	if err != nil {
-		log.Info("err 2:" + err.Error())
+		log.Info("miner.makerCurrent.getDposContextError:" + err.Error())
 		return err
 	}
+
 	// End add by Shara
 	env := &environment{
 		signer: types.NewEIP155Signer(w.config.ChainID),
@@ -941,7 +946,8 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 
 // commitNewWork generates several new sealing tasks based on the parent block.
 // Change by Shara , change commitNewWork func name to createNewWork
-func (w *worker) createNewWork(interrupt *int32, noempty bool, timestamp int64)  { //TODO: check (*environment, error)  remove by harold
+//NOTE: change return value: check (*environment, error)  remove by harold
+func (w *worker) createNewWork(interrupt *int32, noempty bool, timestamp int64)  {
 
 	w.mu.RLock()
 	defer w.mu.RUnlock()
@@ -960,9 +966,9 @@ func (w *worker) createNewWork(interrupt *int32, noempty bool, timestamp int64) 
 	}
 
 	num := parent.Number()
-	log.Info("parent number :" + num.String())
-	log.Info("parent Hash:" + parent.Hash().String())
-	log.Info("parent Hash:" + parent.ParentHash().String())
+	//log.Info("parent number :" + num.String())
+	//log.Info("parent Hash:" + parent.Hash().String())
+	//log.Info("parent Hash:" + parent.ParentHash().String())
 
 	header := &types.Header{
 		ParentHash: parent.Hash(),
@@ -975,20 +981,13 @@ func (w *worker) createNewWork(interrupt *int32, noempty bool, timestamp int64) 
 	if w.isRunning() {
 		if w.coinbase == (common.Address{}) {
 			log.Error("Refusing to mine without etherbase")
-			// Add by Shara
-			//return
 			return
-			// End add by Shara
 		}
 		header.Coinbase = w.coinbase
 	}
 	if err := w.engine.Prepare(w.chain, header); err != nil {
 		log.Error("Failed to prepare header for mining", "err", err)
-		// Change by Shara
-		// return
 		return
-		// End change by Shara
-
 	}
 	// If we are care about TheDAO hard-fork check whether to override the extra-data or not
 	if daoBlock := w.config.DAOForkBlock; daoBlock != nil {
@@ -1007,10 +1006,7 @@ func (w *worker) createNewWork(interrupt *int32, noempty bool, timestamp int64) 
 	err := w.makeCurrent(parent, header)
 	if err != nil {
 		log.Error("Failed to create mining context", "err", err)
-		// Change by Shara
-		// return
 		return
-		// End change by Shara
 	}
 	// Create the current work task and check any fork transitions needed
 	env := w.current
@@ -1046,18 +1042,12 @@ func (w *worker) createNewWork(interrupt *int32, noempty bool, timestamp int64) 
 	pending, err := w.eth.TxPool().Pending()
 	if err != nil {
 		log.Error("Failed to fetch pending transactions", "err", err)
-		// Change by Shara
-		// return
 		return
-		// End change by Shara
 	}
 	// Short circuit if there is no available pending transactions
 	if len(pending) == 0 {
 		w.updateSnapshot()
-		// Change by Shara
-		// return
 		return
-		// End change by Shara
 	}
 	// Split the pending transactions into locals and remotes
 	localTxs, remoteTxs := make(map[common.Address]types.Transactions), pending
@@ -1070,25 +1060,16 @@ func (w *worker) createNewWork(interrupt *int32, noempty bool, timestamp int64) 
 	if len(localTxs) > 0 {
 		txs := types.NewTransactionsByPriceAndNonce(env.signer, localTxs)
 		if w.commitTransactions(txs, w.coinbase, interrupt) {
-			// Change by Shara
-			// return
 			return
-			// End change by Shara
 		}
 	}
 	if len(remoteTxs) > 0 {
 		txs := types.NewTransactionsByPriceAndNonce(env.signer, remoteTxs)
 		if w.commitTransactions(txs, w.coinbase, interrupt) {
-			// Change by Shara
-			// return
 			return
-			// End change by Shara
 		}
 	}
 	w.commit(uncles, w.fullTaskHook, true, tstart)
-	// Add by Shara
-	//return env, nil
-	// End add by shara
 }
 
 // commit runs any post-transaction state modifications, assembles the final block
@@ -1101,15 +1082,17 @@ func (w *worker) commit(uncles []*types.Header, interval func(), update bool, st
 		*receipts[i] = *l
 	}
 	s := w.current.state.Copy()
+
 	// Change by Shara
 	work := w.current
+
 	block, err := w.engine.Finalize(w.chain, w.current.header, s, w.current.txs, uncles, w.current.receipts, work.dposContext)
 	if err != nil {
-		log.Info(err.Error())
+		log.Info("worker.commit.finalize", err.Error())
 		return err
 	}
+	//NOTE: in commitNewWork of the v1.7.3 version, Harold
 	block.DposContext = work.dposContext
-
 	// End change by Shara
 
 	if w.isRunning() {
