@@ -30,7 +30,7 @@ const (
 	extraVanity        = 32   // Fixed number of extra-data prefix bytes reserved for signer vanity
 	extraSeal          = 65   // Fixed number of extra-data suffix bytes reserved for signer seal
 	inmemorySignatures = 4096 // Number of recent block signatures to keep in memory
-
+	
 	blockInterval    = int64(2)
 	epochInterval    = int64(86400)
 	maxValidatorSize = 1
