@@ -108,11 +108,11 @@ var daoGenesisForkBlock = big.NewInt(314)
 //	} else {
 //		// Force chain initialization
 //		args := []string{"--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none", "--ipcdisable", "--datadir", datadir}
-//		geth := runGeth(t, append(args, []string{"--exec", "2+2", "console"}...)...)
-//		geth.WaitExit()
+//		gdacc := runGeth(t, append(args, []string{"--exec", "2+2", "console"}...)...)
+//		gdacc.WaitExit()
 //	}
 //	// Retrieve the DAO config flag from the database
-//	path := filepath.Join(datadir, "geth", "chaindata")
+//	path := filepath.Join(datadir, "gdacc", "chaindata")
 //	db, err := ethdb.NewLDBDatabase(path, 0, 0)
 //	if err != nil {
 //		t.Fatalf("test %d: failed to open test database: %v", test, err)
