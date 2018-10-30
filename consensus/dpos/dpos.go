@@ -482,19 +482,9 @@ func (d *Dpos) Authorize(signer common.Address, signFn SignerFn) {
 	d.mu.Unlock()
 }
 
+// Close implements consensus.Engine. It's a noop for dpos as there is are no background threads.
 func (d *Dpos) Close() error {
-	var err error
-	//ethash.closeOnce.Do(func() {
-	//	// Short circuit if the exit channel is not allocated.
-	//	if ethash.exitCh == nil {
-	//		return
-	//	}
-	//	errc := make(chan error)
-	//	ethash.exitCh <- errc
-	//	err = <-errc
-	//	close(ethash.exitCh)
-	//})
-	return err
+	return nil
 }
 
 // ecrecover extracts the Ethereum account address from a signed header.
