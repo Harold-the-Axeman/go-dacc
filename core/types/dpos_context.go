@@ -14,11 +14,11 @@ import (
 )
 
 type DposContext struct {
-	epochTrie     *trie.Trie
-	delegateTrie  *trie.Trie
-	voteTrie      *trie.Trie
-	candidateTrie *trie.Trie
-	mintCntTrie   *trie.Trie
+	epochTrie     *trie.Trie // 记录每个周期的验证人
+	delegateTrie  *trie.Trie // 记录验证人以及对应投票人
+	voteTrie      *trie.Trie // 记录投票人对应验证人
+	candidateTrie *trie.Trie // 记录候选人
+	mintCntTrie   *trie.Trie // 记录验证人在周期内的出块数
 
 	db ethdb.Database
 }

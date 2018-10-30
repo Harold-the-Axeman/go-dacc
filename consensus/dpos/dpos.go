@@ -85,9 +85,9 @@ type Dpos struct {
 	config *params.DposConfig // Consensus engine configuration parameters
 	db     ethdb.Database     // Database to store and retrieve snapshot checkpoints
 
-	signer               common.Address
-	signFn               SignerFn
-	signatures           *lru.ARCCache // Signatures of recent blocks to speed up mining
+	signer               common.Address // 签名者
+	signFn               SignerFn       // 签名函数
+	signatures           *lru.ARCCache  // Signatures of recent blocks to speed up mining
 	confirmedBlockHeader *types.Header
 
 	mu   sync.RWMutex
@@ -459,29 +459,7 @@ func (d *Dpos) Seal(chain consensus.ChainReader, block *types.Block, results cha
 }
 
 func (d *Dpos) SealHash(header *types.Header) (hash common.Hash) {
-	hasher := sha3.NewKeccak256()
-
-	rlp.Encode(hasher, []interface{}{
-		header.ParentHash,
-		header.UncleHash,
-		header.Validator,
-		header.Coinbase,
-		header.Root,
-		header.TxHash,
-		header.ReceiptHash,
-		header.Bloom,
-		header.Difficulty,
-		header.Number,
-		header.GasLimit,
-		header.GasUsed,
-		header.Time,
-		header.Extra[:len(header.Extra)-65], // Yes, this will panic if extra is too short
-		header.MixDigest,
-		header.Nonce,
-		header.DposContext.Root(),
-	})
-	hasher.Sum(hash[:0])
-	return hash
+	return sigHash(header)
 }
 
 func (d *Dpos) CalcDifficulty(chain consensus.ChainReader, time uint64, parent *types.Header) *big.Int {
@@ -497,6 +475,7 @@ func (d *Dpos) APIs(chain consensus.ChainReader) []rpc.API {
 	}}
 }
 
+// 授权
 func (d *Dpos) Authorize(signer common.Address, signFn SignerFn) {
 	d.mu.Lock()
 	d.signer = signer
@@ -520,6 +499,7 @@ func (d *Dpos) Close() error {
 }
 
 // ecrecover extracts the Ethereum account address from a signed header.
+// ecrecovery 从一个签过名的头中提取Ethereum帐户地址
 func ecrecover(header *types.Header, sigcache *lru.ARCCache) (common.Address, error) {
 	// If the signature's already cached, return that
 	hash := header.Hash()
