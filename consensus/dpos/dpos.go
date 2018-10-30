@@ -348,8 +348,6 @@ func (d *Dpos) Prepare(chain consensus.ChainReader, header *types.Header) error 
 	return nil
 }
 
-// TODO(bytejedi): impl Finalize()
-
 func AccumulateRewards(config *params.ChainConfig, state *state.StateDB, header *types.Header, uncles []*types.Header) {
 	// Select the correct block reward based on chain progression
 	blockReward := frontierBlockReward
