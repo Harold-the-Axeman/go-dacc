@@ -429,7 +429,6 @@ func (d *Dpos) Seal(chain consensus.ChainReader, block *types.Block, results cha
 	number := header.Number.Uint64()
 	// Sealing the genesis block is not supported
 	if number == 0 {
-		//return nil, errUnknownBlock
 		return errUnknownBlock
 	}
 	now := time.Now().Unix()
@@ -437,7 +436,6 @@ func (d *Dpos) Seal(chain consensus.ChainReader, block *types.Block, results cha
 	if delay > 0 {
 		select {
 		case <-stop:
-			//return nil, nil
 			return nil
 		case <-time.After(time.Duration(delay) * time.Second):
 		}
@@ -447,14 +445,15 @@ func (d *Dpos) Seal(chain consensus.ChainReader, block *types.Block, results cha
 	// time's up, sign the block
 	sighash, err := d.signFn(accounts.Account{Address: d.signer}, sigHash(header).Bytes())
 	if err != nil {
-		//return nil, err
 		return err
 	}
 	copy(header.Extra[len(header.Extra)-extraSeal:], sighash)
-	//return block.WithSeal(header), nil
 
-	//Added by Bytejedi
-	results <- block.WithSeal(header)
+	select {
+	case results <- block.WithSeal(header):
+	default:
+		log.Warn("Sealing result is not read by miner", "mode", "dpos", "sealhash", d.SealHash(block.Header()))
+	}
 	return nil
 }
 
