@@ -1081,17 +1081,18 @@ func (w *worker) commit(uncles []*types.Header, interval func(), update bool, st
 		*receipts[i] = *l
 	}
 	s := w.current.state.Copy()
+	dc := w.current.dposContext.Copy()
 
 	// Change by Shara
-	work := w.current
+	//work := w.current
 
-	block, err := w.engine.Finalize(w.chain, w.current.header, s, w.current.txs, uncles, w.current.receipts, work.dposContext)
+	block, err := w.engine.Finalize(w.chain, w.current.header, s, w.current.txs, uncles, w.current.receipts, dc)
 	if err != nil {
 		log.Info("worker.commit.finalize", err.Error())
 		return err
 	}
 	//NOTE: in commitNewWork of the v1.7.3 version, Harold
-	block.DposContext = work.dposContext
+	block.DposContext = dc
 	// End change by Shara
 
 	if w.isRunning() {
