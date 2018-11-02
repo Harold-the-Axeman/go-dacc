@@ -129,6 +129,7 @@ func (d *DposContext) Copy() *DposContext {
 		voteTrie:      &voteTrie,
 		candidateTrie: &candidateTrie,
 		mintCntTrie:   &mintCntTrie,
+		db:			d.db,
 	}
 }
 

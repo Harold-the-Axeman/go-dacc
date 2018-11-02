@@ -815,6 +815,13 @@ func RPCMarshalBlock(b *types.Block, inclTx bool, fullTx bool) (map[string]inter
 		"timestamp":        (*hexutil.Big)(head.Time),
 		"transactionsRoot": head.TxHash,
 		"receiptsRoot":     head.ReceiptHash,
+		"dposContext":	map[string]interface{}{
+			"epochRoot":head.DposContext.EpochHash,
+			"delegateRoot":head.DposContext.DelegateHash,
+			"candidateRoot":head.DposContext.CandidateHash,
+			"voteRoot":head.DposContext.VoteHash,
+			"mintCntRoot":head.DposContext.MintCntHash,
+		},
 	}
 
 	if inclTx {
