@@ -338,7 +338,7 @@ func (d *Dpos) Prepare(chain consensus.ChainReader, header *types.Header) error 
 		header.Extra = append(header.Extra, bytes.Repeat([]byte{0x00}, extraVanity-len(header.Extra))...)
 	}
 	header.Extra = header.Extra[:extraVanity]
-	header.Extra = append(header.Extra, make([]byte, extraSeal)...)
+	header.Extra = append(header.Extra, make([]byte, extraSeal)...) // after this len(header.Extra) is 97
 	parent := chain.GetHeader(header.ParentHash, number-1)
 	if parent == nil {
 		return consensus.ErrUnknownAncestor
