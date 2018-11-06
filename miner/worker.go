@@ -450,7 +450,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			if atomic.LoadInt32(&w.running) == 1 {
 				clearPending(w.chain.CurrentBlock().NumberU64()) //NOTE: this line in not need here
 				timestamp = now.Unix()                           // TODO: NEED CHECK, possible bug: time.Now().Unix() or now, which one?
-				commit(false, commitInterruptNewHead)            //NOTE: replace call mintBlock in the task loop
+				commit(false, commitInterruptNone)            //NOTE: replace call mintBlock in the task loop
 			}
 
 		case <-timer.C:
