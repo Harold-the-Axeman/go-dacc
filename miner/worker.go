@@ -449,7 +449,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			if atomic.LoadInt32(&w.running) == 1 {
 				clearPending(w.chain.CurrentBlock().NumberU64()) //NOTE: this line in not need here
 				timestamp = now.Unix()                           // TODO: NEED CHECK, possible bug: time.Now().Unix() or now, which one?
-				commit(false, commitInterruptNewHead)            //NOTE: replace call mintBlock in the task loop
+				commit(false, commitInterruptNone)            //NOTE: replace call mintBlock in the task loop
 			}
 
 		case <-timer.C:
@@ -1028,23 +1028,18 @@ func (w *worker) createNewWork(interrupt *int32, noempty bool, timestamp int64) 
 		}
 	}
 
-	if !noempty {
-		// Create an empty block based on temporary copied state for sealing in advance without waiting block
-		// execution finished.
-		w.commit(uncles, nil, false, tstart)
-	}
+	//if !noempty {
+	//	// Create an empty block based on temporary copied state for sealing in advance without waiting block
+	//	// execution finished.
+	//	w.commit(uncles, nil, false, tstart)
+	//}
 
 	// Fill the block with all available pending transactions.
 	pending, err := w.eth.TxPool().Pending()
-	if err != nil {
-		log.Error("Failed to fetch pending transactions", "err", err)
-		return
+	if err == nil && len(pending) == 0{
+		w.updateSnapshot()
 	}
 	// Short circuit if there is no available pending transactions
-	if len(pending) == 0 {
-		w.updateSnapshot()
-		return
-	}
 	// Split the pending transactions into locals and remotes
 	localTxs, remoteTxs := make(map[common.Address]types.Transactions), pending
 	for _, account := range w.eth.TxPool().Locals() {
@@ -1065,7 +1060,11 @@ func (w *worker) createNewWork(interrupt *int32, noempty bool, timestamp int64) 
 			return
 		}
 	}
-	w.commit(uncles, w.fullTaskHook, true, tstart)
+	if !noempty && len(remoteTxs) == 0 && len(localTxs) == 0{
+		w.commit(uncles, nil, false, tstart)
+	}else {
+		w.commit(uncles, w.fullTaskHook, true, tstart)
+	}
 }
 
 // commit runs any post-transaction state modifications, assembles the final block
