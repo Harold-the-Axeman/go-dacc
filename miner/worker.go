@@ -449,7 +449,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			if atomic.LoadInt32(&w.running) == 1 {
 				clearPending(w.chain.CurrentBlock().NumberU64()) //NOTE: this line in not need here
 				timestamp = now.Unix()                           // TODO: NEED CHECK, possible bug: time.Now().Unix() or now, which one?
-				commit(false, commitInterruptNone)            //NOTE: replace call mintBlock in the task loop
+				commit(false, commitInterruptNone)               //NOTE: replace call mintBlock in the task loop
 			}
 
 		case <-timer.C:
@@ -719,16 +719,13 @@ func (w *worker) resultLoop() {
 func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 	state, err := w.chain.StateAt(parent.Root())
 	if err != nil {
-		log.Info("err 1:" + err.Error())
 		return err
 	}
 	// Add by Shara
 	//log.Info("parent number:" + parent.Number().String())
 	//log.Info(parent.Header().DposContext.EpochHash.String())
 	dposContext, err := types.NewDposContextFromProto(w.eth.ChainDb(), parent.Header().DposContext)
-
 	if err != nil {
-		log.Info("miner.makerCurrent.getDposContextError:" + err.Error())
 		return err
 	}
 
@@ -1036,7 +1033,7 @@ func (w *worker) createNewWork(interrupt *int32, noempty bool, timestamp int64) 
 
 	// Fill the block with all available pending transactions.
 	pending, err := w.eth.TxPool().Pending()
-	if err == nil && len(pending) == 0{
+	if err == nil && len(pending) == 0 {
 		w.updateSnapshot()
 	}
 	// Short circuit if there is no available pending transactions
@@ -1060,15 +1057,16 @@ func (w *worker) createNewWork(interrupt *int32, noempty bool, timestamp int64) 
 			return
 		}
 	}
-	if !noempty && len(remoteTxs) == 0 && len(localTxs) == 0{
+	if !noempty && len(remoteTxs) == 0 && len(localTxs) == 0 {
 		w.commit(uncles, nil, false, tstart)
-	}else {
+	} else {
 		w.commit(uncles, w.fullTaskHook, true, tstart)
 	}
 }
 
 // commit runs any post-transaction state modifications, assembles the final block
 // and commits new work if consensus engine is running.
+// TODO: remove uncles, interval
 func (w *worker) commit(uncles []*types.Header, interval func(), update bool, start time.Time) error {
 	// Deep copy receipts here to avoid interaction between different tasks.
 	receipts := make([]*types.Receipt, len(w.current.receipts))

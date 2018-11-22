@@ -509,10 +509,12 @@ func ecrecover(header *types.Header, sigcache *lru.ARCCache) (common.Address, er
 	return signer, nil
 }
 
+// PrevSlot return prev block's timestamp
 func PrevSlot(now int64) int64 {
 	return int64((now-1)/blockInterval) * blockInterval
 }
 
+// NextSlot return next block's timestamp
 func NextSlot(now int64) int64 {
 	return int64((now+blockInterval-1)/blockInterval) * blockInterval
 }

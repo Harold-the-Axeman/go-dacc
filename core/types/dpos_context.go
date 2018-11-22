@@ -14,11 +14,11 @@ import (
 )
 
 type DposContext struct {
-	epochTrie     *trie.Trie // 记录每个周期的验证人
-	delegateTrie  *trie.Trie // 记录验证人以及对应投票人
-	voteTrie      *trie.Trie // 记录投票人对应验证人
-	candidateTrie *trie.Trie // 记录候选人
-	mintCntTrie   *trie.Trie // 记录验证人在周期内的出块数
+	epochTrie     *trie.Trie // 记录每个周期的验证人,就一条数据，k: []byte("validator") v: 经过rlp处理后的validators列表
+	delegateTrie  *trie.Trie // 记录验证人以及对应投票人，k: append(candidate, delegator...) v: delegator
+	voteTrie      *trie.Trie // 记录投票人对应验证人, k: delegator v: candidate
+	candidateTrie *trie.Trie // 记录候选人, k: candidate v: candidate
+	mintCntTrie   *trie.Trie // 记录验证人在周期内的出块数, k: append(第几个周期, validator.Bytes()...) v: 出块数
 
 	db ethdb.Database
 }
@@ -129,7 +129,7 @@ func (d *DposContext) Copy() *DposContext {
 		voteTrie:      &voteTrie,
 		candidateTrie: &candidateTrie,
 		mintCntTrie:   &mintCntTrie,
-		db:			d.db,
+		db:            d.db,
 	}
 }
 
