@@ -300,6 +300,7 @@ func (d *Dpos) updateConfirmedBlockHeader(chain consensus.ChainReader) error {
 			log.Debug("Dpos fast return", "current", curHeader.Number.String(), "confirmed", d.confirmedBlockHeader.Number.String(), "witnessCount", len(validatorMap))
 			return nil
 		}
+		//TODO: 这里需要关注Validator丢块的情况吗？ 不需要!
 		validatorMap[curHeader.Validator] = true
 		if len(validatorMap) >= consensusSize {
 			d.confirmedBlockHeader = curHeader
@@ -334,6 +335,7 @@ func (s *Dpos) storeConfirmedBlockHeader(db ethdb.Database) error {
 	return db.Put(confirmedBlockHead, s.confirmedBlockHeader.Hash().Bytes())
 }
 
+//only called by the worker: added by harold
 func (d *Dpos) Prepare(chain consensus.ChainReader, header *types.Header) error {
 	header.Nonce = types.BlockNonce{}
 	number := header.Number.Uint64()
@@ -374,6 +376,7 @@ func (d *Dpos) Finalize(chain consensus.ChainReader, header *types.Header, state
 		DposContext: dposContext,
 		TimeStamp:   header.Time.Int64(),
 	}
+	//TODO: use a genesis config for this timestamp
 	if timeOfFirstBlock == 0 {
 		if firstBlockHeader := chain.GetHeaderByNumber(1); firstBlockHeader != nil {
 			timeOfFirstBlock = firstBlockHeader.Time.Int64()
