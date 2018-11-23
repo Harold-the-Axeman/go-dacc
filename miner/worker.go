@@ -838,6 +838,8 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 
 	var coalescedLogs []*types.Log
 
+	var startCommitTransactions = time.Now()
+	log.Info("----startCommitTransactions----")
 	for {
 		// In the following three cases, we will interrupt the execution of the transaction.
 		// (1) new head block event arrival, the interrupt signal is 1
@@ -915,6 +917,7 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 			txs.Shift()
 		}
 	}
+	log.Info("----endCommitTransactions----", "Cost", time.Since(startCommitTransactions))
 
 	if !w.isRunning() && len(coalescedLogs) > 0 {
 		// We don't push the pendingLogsEvent while we are mining. The reason is that
