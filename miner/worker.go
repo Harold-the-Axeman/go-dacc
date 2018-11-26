@@ -491,22 +491,22 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 				w.resubmitHook(minRecommit, recommit)
 			}
 
-		case adjust := <-w.resubmitAdjustCh:
+		case <-w.resubmitAdjustCh:
 			log.Warn("resubmitAdjustCh", "Now", time.Now().Unix())
 			// Adjust resubmit interval by feedback.
-			if adjust.inc {
-				before := recommit
-				recalcRecommit(float64(recommit.Nanoseconds())/adjust.ratio, true)
-				log.Trace("Increase miner recommit interval", "from", before, "to", recommit)
-			} else {
-				before := recommit
-				recalcRecommit(float64(minRecommit.Nanoseconds()), false)
-				log.Trace("Decrease miner recommit interval", "from", before, "to", recommit)
-			}
-
-			if w.resubmitHook != nil {
-				w.resubmitHook(minRecommit, recommit)
-			}
+			//if adjust.inc {
+			//	before := recommit
+			//	recalcRecommit(float64(recommit.Nanoseconds())/adjust.ratio, true)
+			//	log.Trace("Increase miner recommit interval", "from", before, "to", recommit)
+			//} else {
+			//	before := recommit
+			//	recalcRecommit(float64(minRecommit.Nanoseconds()), false)
+			//	log.Trace("Decrease miner recommit interval", "from", before, "to", recommit)
+			//}
+			//
+			//if w.resubmitHook != nil {
+			//	w.resubmitHook(minRecommit, recommit)
+			//}
 
 		case <-w.exitCh:
 			log.Warn("exitCh", "Now", time.Now().Unix())
