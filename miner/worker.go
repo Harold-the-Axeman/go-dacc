@@ -422,7 +422,8 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 	}
 
 	// DPOS ticker for block producing, added by Harold
-	ticker := time.NewTicker(time.Second)
+	//ticker := time.NewTicker(time.Second)
+	tickerRep := time.NewTimer(time.Second)
 
 	for {
 		select {
@@ -446,7 +447,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			//self.quitCh = make(chan struct{}, 1)
 
 		// DPOS block producing ticker
-		case now := <-ticker.C:
+		case now := <-tickerRep.C:
 			log.Warn("Ticker", "Now", now.Unix())
 			//TODO: ticker will always run here, temporary fix here.
 			if atomic.LoadInt32(&w.running) == 1 {
@@ -460,6 +461,9 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 				commit(false, commitInterruptNone) //NOTE: replace call mintBlock in the task loop
 				log.Warn("End commit", "Cost", time.Since(beginCommit))
 			}
+			// for the next block 
+			tickerRep.Reset(time.Second)
+
 
 		case <-timer.C:
 			log.Warn("timer.C", "Now", time.Now().Unix())
