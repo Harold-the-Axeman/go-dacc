@@ -454,8 +454,11 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 				var beginClearPending = time.Now()
 				clearPending(w.chain.CurrentBlock().NumberU64()) //NOTE: this line in not need here
 				log.Warn("End clearPending", "Cost", time.Since(beginClearPending))
-				timestamp = now.Unix()             // TODO: NEED CHECK, possible bug: time.Now().Unix() or now, which one?
+				timestamp = now.Unix() // TODO: NEED CHECK, possible bug: time.Now().Unix() or now, which one?
+				log.Warn("Begin commit")
+				var beginCommit = time.Now()
 				commit(false, commitInterruptNone) //NOTE: replace call mintBlock in the task loop
+				log.Warn("End commit", "Cost", time.Since(beginCommit))
 			}
 
 		case <-timer.C:
