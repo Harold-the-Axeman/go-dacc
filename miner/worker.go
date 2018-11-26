@@ -427,6 +427,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 	for {
 		select {
 		case <-w.startCh:
+			log.Warn("startCh", "Now", time.Now().Unix())
 			/*clearPending(w.chain.CurrentBlock().NumberU64())
 			timestamp = time.Now().Unix()
 			commit(false, commitInterruptNewHead)*/
@@ -434,6 +435,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			//NOTE: we need do noting here
 
 		case <-w.chainHeadCh: //head := <-w.chainHeadCh:
+			log.Warn("chainHeadCh", "Now", time.Now().Unix())
 			/*clearPending(head.Block.NumberU64())
 			timestamp = time.Now().Unix()
 			commit(false, commitInterruptNewHead)*/
@@ -457,6 +459,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			}
 
 		case <-timer.C:
+			log.Warn("timer.C", "Now", time.Now().Unix())
 			// If mining is running resubmit a new work cycle periodically to pull in
 			// higher priced transactions. Disable this overhead for pending blocks.
 
@@ -472,6 +475,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			}*/
 
 		case interval := <-w.resubmitIntervalCh:
+			log.Warn("resubmitIntervalCh", "Now", time.Now().Unix())
 			// Adjust resubmit interval explicitly by user.
 			if interval < minRecommitInterval {
 				log.Warn("Sanitizing miner recommit interval", "provided", interval, "updated", minRecommitInterval)
@@ -485,6 +489,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			}
 
 		case adjust := <-w.resubmitAdjustCh:
+			log.Warn("resubmitAdjustCh", "Now", time.Now().Unix())
 			// Adjust resubmit interval by feedback.
 			if adjust.inc {
 				before := recommit
@@ -501,6 +506,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			}
 
 		case <-w.exitCh:
+			log.Warn("exitCh", "Now", time.Now().Unix())
 			return
 		}
 	}
