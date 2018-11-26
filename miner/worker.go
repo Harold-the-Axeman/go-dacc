@@ -467,6 +467,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 
 		case <-timer.C:
 			log.Warn("timer.C", "Now", time.Now().Unix())
+			timer.Reset(2 * time.Second)
 			// If mining is running resubmit a new work cycle periodically to pull in
 			// higher priced transactions. Disable this overhead for pending blocks.
 
