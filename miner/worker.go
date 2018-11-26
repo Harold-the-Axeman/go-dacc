@@ -515,7 +515,10 @@ func (w *worker) mainLoop() {
 		case req := <-w.newWorkCh:
 			// change by Shara
 			// NOTE, added by harold: mintBlock here, check the event channel above in the newWorkLoop
+			log.Info("Begin mintBlock")
+			var beginMintBlock = time.Now()
 			w.mintBlock(*req)
+			log.Info("End mintBlock", "Cost", time.Since(beginMintBlock))
 			//w.createNewWork(req.interrupt, req.noempty, req.timestamp)
 			// end change by Shara
 

@@ -24,9 +24,7 @@ import (
 	"github.com/daccproject/go-dacc/core/types"
 	"github.com/daccproject/go-dacc/core/vm"
 	"github.com/daccproject/go-dacc/crypto"
-	"github.com/daccproject/go-dacc/log"
 	"github.com/daccproject/go-dacc/params"
-	"time"
 )
 
 // StateProcessor is a basic Processor, which takes care of transitioning
@@ -69,8 +67,6 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 	}
 	// Set block dpos context
 	// Iterate over and process the individual transactions
-	log.Info("----Start---- range txs")
-	var startRange = time.Now()
 	for i, tx := range block.Transactions() {
 		statedb.Prepare(tx.Hash(), block.Hash(), i)
 		//receipt, _, err := ApplyTransaction(p.config, p.bc, nil, gp, statedb, header, tx, usedGas, cfg)
@@ -81,7 +77,6 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 		receipts = append(receipts, receipt)
 		allLogs = append(allLogs, receipt.Logs...)
 	}
-	log.Info("----End---- range txs", "Cost", time.Since(startRange))
 	// Finalize the block, applying any consensus engine specific extras (e.g. block rewards)
 	//p.engine.Finalize(p.bc, header, statedb, block.Transactions(), block.Uncles(), receipts)
 	p.engine.Finalize(p.bc, header, statedb, block.Transactions(), block.Uncles(), receipts, block.DposCtx())
