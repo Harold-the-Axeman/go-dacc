@@ -447,9 +447,12 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 		case now := <-ticker.C:
 			//TODO: ticker will always run here, temporary fix here.
 			if atomic.LoadInt32(&w.running) == 1 {
+				log.Warn("Begin clearPending")
+				var beginClearPending = time.Now()
 				clearPending(w.chain.CurrentBlock().NumberU64()) //NOTE: this line in not need here
-				timestamp = now.Unix()                           // TODO: NEED CHECK, possible bug: time.Now().Unix() or now, which one?
-				commit(false, commitInterruptNone)               //NOTE: replace call mintBlock in the task loop
+				log.Warn("End clearPending", "Cost", time.Since(beginClearPending))
+				timestamp = now.Unix()             // TODO: NEED CHECK, possible bug: time.Now().Unix() or now, which one?
+				commit(false, commitInterruptNone) //NOTE: replace call mintBlock in the task loop
 			}
 
 		case <-timer.C:
