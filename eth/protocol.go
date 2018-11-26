@@ -108,14 +108,18 @@ type txPool interface {
 	SubscribeNewTxsEvent(chan<- core.NewTxsEvent) event.Subscription
 }
 
+// change by Shara - remove TD
 // statusData is the network packet for the status message.
 type statusData struct {
 	ProtocolVersion uint32
 	NetworkId       uint64
-	TD              *big.Int
-	CurrentBlock    common.Hash
-	GenesisBlock    common.Hash
+	// TD              *big.Int
+	Number       *big.Int // current block number
+	CurrentBlock common.Hash
+	GenesisBlock common.Hash
 }
+
+// end change by Shara
 
 // newBlockHashesData is the network packet for the block announcements.
 type newBlockHashesData []struct {
@@ -167,11 +171,15 @@ func (hn *hashOrNumber) DecodeRLP(s *rlp.Stream) error {
 	return err
 }
 
+// change by Shara - remove TD
 // newBlockData is the network packet for the block propagation message.
 type newBlockData struct {
 	Block *types.Block
-	TD    *big.Int
+	// TD    *big.Int
+	Number *big.Int
 }
+
+// end change by Shara
 
 // blockBody represents the data content of a single block.
 type blockBody struct {

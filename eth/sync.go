@@ -161,7 +161,7 @@ func (pm *ProtocolManager) syncer() {
 }
 
 // synchronise tries to sync up our local block chain with a remote peer.
-func (pm *ProtocolManager) synchronise(peer *peer) {
+func (pm *ProtocolManager) synchronise(peer *peer) { // 同步peer节点的区块
 	// Short circuit if no peers are available
 	if peer == nil {
 		return
@@ -190,7 +190,11 @@ func (pm *ProtocolManager) synchronise(peer *peer) {
 	}
 
 	if mode == downloader.FastSync {
+		// Change by Shara - remove TD
 		// Make sure the peer's total difficulty we are synchronizing is higher.
+		// if pm.blockchain.GetTdByHash(pm.blockchain.CurrentFastBlock().Hash()).Cmp(pTd) >= 0 {
+		//	return
+		// }
 		if pm.blockchain.GetTdByHash(pm.blockchain.CurrentFastBlock().Hash()).Cmp(pTd) >= 0 {
 			return
 		}

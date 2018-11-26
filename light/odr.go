@@ -150,7 +150,9 @@ func (req *ChtRequest) StoreResult(db ethdb.Database) {
 	hash, num := req.Header.Hash(), req.Header.Number.Uint64()
 
 	rawdb.WriteHeader(db, req.Header)
-	rawdb.WriteTd(db, hash, num, req.Td)
+	// change by Shara - remove TD
+	//rawdb.WriteTd(db, hash, num, req.Td)
+	// end change by Shara
 	rawdb.WriteCanonicalHash(db, hash, num)
 }
 

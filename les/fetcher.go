@@ -252,7 +252,9 @@ func (f *lightFetcher) announce(p *peer, head *announceData) {
 		p.Log().Debug("Announcement from unknown peer")
 		return
 	}
-
+	// Change by Shara - remove TD
+	//if fp.lastAnnounced != nil && head.Td.Cmp(fp.lastAnnounced.td) <= 0 {
+	//
 	if fp.lastAnnounced != nil && head.Td.Cmp(fp.lastAnnounced.td) <= 0 {
 		// announced tds should be strictly monotonic
 		p.Log().Debug("Received non-monotonic td", "current", head.Td, "previous", fp.lastAnnounced.td)

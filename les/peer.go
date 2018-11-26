@@ -101,12 +101,14 @@ func (p *peer) queueSend(f func()) {
 	p.sendQueue.queue(f)
 }
 
+// change by Shara - remove TD
 // Info gathers and returns a collection of metadata known about a peer.
 func (p *peer) Info() *eth.PeerInfo {
 	return &eth.PeerInfo{
-		Version:    p.version,
-		Difficulty: p.Td(),
-		Head:       fmt.Sprintf("%x", p.Head()),
+		Version: p.version,
+		//Difficulty: p.Td(),
+		Number: p.Td(),
+		Head:   fmt.Sprintf("%x", p.Head()),
 	}
 }
 

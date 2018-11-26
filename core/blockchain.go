@@ -245,16 +245,18 @@ func (bc *BlockChain) loadLastState() error {
 		}
 	}
 
+	// Change by Shara - remove TD
 	// Issue a status log for the user
 	currentFastBlock := bc.CurrentFastBlock()
 
-	headerTd := bc.GetTd(currentHeader.Hash(), currentHeader.Number.Uint64())
-	blockTd := bc.GetTd(currentBlock.Hash(), currentBlock.NumberU64())
-	fastTd := bc.GetTd(currentFastBlock.Hash(), currentFastBlock.NumberU64())
+	//headerTd := bc.GetTd(currentHeader.Hash(), currentHeader.Number.Uint64())
+	//blockTd := bc.GetTd(currentBlock.Hash(), currentBlock.NumberU64())
+	//fastTd := bc.GetTd(currentFastBlock.Hash(), currentFastBlock.NumberU64())
 
-	log.Info("Loaded most recent local header", "number", currentHeader.Number, "hash", currentHeader.Hash(), "td", headerTd)
-	log.Info("Loaded most recent local full block", "number", currentBlock.Number(), "hash", currentBlock.Hash(), "td", blockTd)
-	log.Info("Loaded most recent local fast block", "number", currentFastBlock.Number(), "hash", currentFastBlock.Hash(), "td", fastTd)
+	log.Info("Loaded most recent local header", "number", currentHeader.Number, "hash", currentHeader.Hash())
+	log.Info("Loaded most recent local full block", "number", currentBlock.Number(), "hash", currentBlock.Hash())
+	log.Info("Loaded most recent local fast block", "number", currentFastBlock.Number(), "hash", currentFastBlock.Hash())
+	// End change by Shara - remove TD
 
 	return nil
 }
@@ -402,10 +404,13 @@ func (bc *BlockChain) ResetWithGenesisBlock(genesis *types.Block) error {
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
 
+	// change by Shara - remove TD
 	// Prepare the genesis block and reinitialise the chain
-	if err := bc.hc.WriteTd(genesis.Hash(), genesis.NumberU64(), genesis.Difficulty()); err != nil {
-		log.Crit("Failed to write genesis block TD", "err", err)
-	}
+	//if err := bc.hc.WriteTd(genesis.Hash(), genesis.NumberU64(), genesis.Difficulty()); err != nil {
+	//log.Crit("Failed to write genesis block TD", "err", err)
+	//}
+	// end change by Shara
+
 	rawdb.WriteBlock(bc.db, genesis)
 
 	bc.genesisBlock = genesis
@@ -844,7 +849,10 @@ func (bc *BlockChain) InsertReceiptChain(blockChain types.Blocks, receiptChain [
 	head := blockChain[len(blockChain)-1]
 	if td := bc.GetTd(head.Hash(), head.NumberU64()); td != nil { // Rewind may have occurred, skip in that case
 		currentFastBlock := bc.CurrentFastBlock()
-		if bc.GetTd(currentFastBlock.Hash(), currentFastBlock.NumberU64()).Cmp(td) < 0 {
+		// change by Shara  - remove TD
+		//if bc.GetTd(currentFastBlock.Hash(), currentFastBlock.NumberU64()).Cmp(td) < 0 {
+		if currentFastBlock.NumberU64() < head.NumberU64() {
+			// end change by Shara
 			rawdb.WriteHeadFastBlockHash(bc.db, head.Hash())
 			bc.currentFastBlock.Store(head)
 		}
@@ -866,13 +874,17 @@ var lastWrite uint64
 // WriteBlockWithoutState writes only the block and its metadata to the database,
 // but does not write any state. This is used to construct competing side forks
 // up to the point where they exceed the canonical total difficulty.
-func (bc *BlockChain) WriteBlockWithoutState(block *types.Block, td *big.Int) (err error) {
+// change by Shara - remove TD
+//func (bc *BlockChain) WriteBlockWithoutState(block *types.Block, td *big.Int) (err error) {
+func (bc *BlockChain) WriteBlockWithoutState(block *types.Block) (err error) {
+	// end change by Shara
 	bc.wg.Add(1)
 	defer bc.wg.Done()
-
-	if err := bc.hc.WriteTd(block.Hash(), block.NumberU64(), td); err != nil {
-		return err
-	}
+	// change by Shara - remove TD
+	//if err := bc.hc.WriteTd(block.Hash(), block.NumberU64(), td); err != nil {
+	//	return err
+	//}
+	// end change by Shara
 	rawdb.WriteBlock(bc.db, block)
 
 	return nil
@@ -894,12 +906,15 @@ func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.
 
 	currentBlock := bc.CurrentBlock()
 	localTd := bc.GetTd(currentBlock.Hash(), currentBlock.NumberU64())
-	externTd := new(big.Int).Add(block.Difficulty(), ptd)
+	// change by Shara - remove TD
+	//externTd := new(big.Int).Add(block.Difficulty(), ptd)
+	externTd := block.Number()
 
 	// Irrelevant of the canonical status, write the block itself to the database
-	if err := bc.hc.WriteTd(block.Hash(), block.NumberU64(), externTd); err != nil {
-		return NonStatTy, err
-	}
+	// if err := bc.hc.WriteTd(block.Hash(), block.NumberU64(), externTd); err != nil {
+	//	return NonStatTy, err
+	// }
+	// end change by Shara
 	rawdb.WriteBlock(bc.db, block)
 
 	if _, err := block.DposContext.CommitTo(); err != nil {
@@ -1107,35 +1122,43 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 		case err == consensus.ErrPrunedAncestor:
 			// Block competing with the canonical chain, store in the db, but don't process
 			// until the competitor TD goes above the canonical TD
-			currentBlock := bc.CurrentBlock()
-			localTd := bc.GetTd(currentBlock.Hash(), currentBlock.NumberU64())
-			externTd := new(big.Int).Add(bc.GetTd(block.ParentHash(), block.NumberU64()-1), block.Difficulty())
-			if localTd.Cmp(externTd) > 0 {
-				if err = bc.WriteBlockWithoutState(block, externTd); err != nil {
-					return i, events, coalescedLogs, err
-				}
-				continue
-			}
-			// Competitor chain beat canonical, gather all blocks from the common ancestor
-			var winner []*types.Block
-
-			parent := bc.GetBlock(block.ParentHash(), block.NumberU64()-1)
-			for !bc.HasState(parent.Root()) {
-				winner = append(winner, parent)
-				parent = bc.GetBlock(parent.ParentHash(), parent.NumberU64()-1)
-			}
-			for j := 0; j < len(winner)/2; j++ {
-				winner[j], winner[len(winner)-1-j] = winner[len(winner)-1-j], winner[j]
-			}
-			// Import all the pruned blocks to make the state available
-			bc.chainmu.Unlock()
-			_, evs, logs, err := bc.insertChain(winner)
-			bc.chainmu.Lock()
-			events, coalescedLogs = evs, logs
-
-			if err != nil {
+			// Changes by Shara - remove TD
+			// externTd := new(big.Int).Add(bc.GetTd(block.ParentHash(), block.NumberU64()-1), block.Difficulty())
+			if err = bc.WriteBlockWithoutState(block); err != nil {
 				return i, events, coalescedLogs, err
 			}
+			/*
+				currentBlock := bc.CurrentBlock()
+				localTd := bc.GetTd(currentBlock.Hash(), currentBlock.NumberU64())
+				externTd := new(big.Int).Add(bc.GetTd(block.ParentHash(), block.NumberU64()-1), block.Difficulty())
+				if localTd.Cmp(externTd) > 0 {
+					if err = bc.WriteBlockWithoutState(block, externTd); err != nil {
+						return i, events, coalescedLogs, err
+					}
+					continue
+				}
+
+				// Competitor chain beat canonical, gather all blocks from the common ancestor
+				var winner []*types.Block
+
+				parent := bc.GetBlock(block.ParentHash(), block.NumberU64()-1)
+				for !bc.HasState(parent.Root()) {
+					winner = append(winner, parent)
+					parent = bc.GetBlock(parent.ParentHash(), parent.NumberU64()-1)
+				}
+				for j := 0; j < len(winner)/2; j++ {
+					winner[j], winner[len(winner)-1-j] = winner[len(winner)-1-j], winner[j]
+				}
+				// Import all the pruned blocks to make the state available
+				bc.chainmu.Unlock()
+				_, evs, logs, err := bc.insertChain(winner)
+				bc.chainmu.Lock()
+				events, coalescedLogs = evs, logs
+
+				if err != nil {
+					return i, events, coalescedLogs, err
+				} */
+			// End Changes by Shara
 
 		case err != nil:
 			bc.reportBlock(block, nil, err)
@@ -1205,9 +1228,13 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 			bc.gcproc += proctime
 
 		case SideStatTy:
-			log.Debug("Inserted forked block", "number", block.Number(), "hash", block.Hash(), "diff", block.Difficulty(), "elapsed",
+			// change by Shara - remove TD
+			//log.Debug("Inserted forked block", "number", block.Number(), "hash", block.Hash(), "diff", block.Difficulty(), "elapsed",
+			//	common.PrettyDuration(time.Since(bstart)), "txs", len(block.Transactions()), "gas", block.GasUsed(), "uncles", len(block.Uncles()))
+			log.Debug("Inserted forked block", "number", block.Number(), "hash", block.Hash(), "elapsed",
 				common.PrettyDuration(time.Since(bstart)), "txs", len(block.Transactions()), "gas", block.GasUsed(), "uncles", len(block.Uncles()))
 
+			// end change by Shara
 			blockInsertTimer.UpdateSince(bstart)
 			//events = append(events, ChainSideEvent{block})
 		}

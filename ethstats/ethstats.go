@@ -553,6 +553,7 @@ func (s *Service) assembleBlockStats(block *types.Block) *blockStats {
 	// Assemble and return the block stats
 	author, _ := s.engine.Author(header)
 
+	// change by Shara - remove TD
 	return &blockStats{
 		Number:     header.Number,
 		Hash:       header.Hash(),
@@ -561,13 +562,14 @@ func (s *Service) assembleBlockStats(block *types.Block) *blockStats {
 		Miner:      author,
 		GasUsed:    header.GasUsed,
 		GasLimit:   header.GasLimit,
-		Diff:       header.Difficulty.String(),
-		TotalDiff:  td.String(),
-		Txs:        txs,
-		TxHash:     header.TxHash,
-		Root:       header.Root,
-		Uncles:     uncles,
+		//Diff:       header.Difficulty.String(),
+		TotalDiff: td.String(),
+		Txs:       txs,
+		TxHash:    header.TxHash,
+		Root:      header.Root,
+		Uncles:    uncles,
 	}
+	// end change by Shara
 }
 
 // reportHistory retrieves the most recent batch of blocks and reports it to the

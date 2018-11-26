@@ -254,7 +254,9 @@ func ReadTd(db DatabaseReader, hash common.Hash, number uint64) *big.Int {
 	return td
 }
 
+// change by Shara - remove TD
 // WriteTd stores the total difficulty of a block into the database.
+/*
 func WriteTd(db DatabaseWriter, hash common.Hash, number uint64, td *big.Int) {
 	data, err := rlp.EncodeToBytes(td)
 	if err != nil {
@@ -264,6 +266,8 @@ func WriteTd(db DatabaseWriter, hash common.Hash, number uint64, td *big.Int) {
 		log.Crit("Failed to store block total difficulty", "err", err)
 	}
 }
+*/
+// end change by Shara
 
 // DeleteTd removes all block total difficulty data associated with a hash.
 func DeleteTd(db DatabaseDeleter, hash common.Hash, number uint64) {

@@ -250,14 +250,16 @@ func (g *Genesis) ToBlock(db ethdb.Database) *types.Block {
 		//MixDigest:  g.Mixhash,
 		//Coinbase:   g.Coinbase,
 		//Root:       root,
-		Number:      new(big.Int).SetUint64(g.Number),
-		Nonce:       types.EncodeNonce(g.Nonce),
-		Time:        new(big.Int).SetUint64(g.Timestamp),
-		ParentHash:  g.ParentHash,
-		Extra:       g.ExtraData,
-		GasLimit:    g.GasLimit,
-		GasUsed:     g.GasUsed,
-		Difficulty:  g.Difficulty,
+		Number:     new(big.Int).SetUint64(g.Number),
+		Nonce:      types.EncodeNonce(g.Nonce),
+		Time:       new(big.Int).SetUint64(g.Timestamp),
+		ParentHash: g.ParentHash,
+		Extra:      g.ExtraData,
+		GasLimit:   g.GasLimit,
+		GasUsed:    g.GasUsed,
+		// change by Shara - remove TD
+		// Difficulty:  g.Difficulty,
+		// end change by Shara
 		MixDigest:   g.Mixhash,
 		Coinbase:    g.Coinbase,
 		Root:        root,
@@ -266,9 +268,11 @@ func (g *Genesis) ToBlock(db ethdb.Database) *types.Block {
 	if g.GasLimit == 0 {
 		head.GasLimit = params.GenesisGasLimit
 	}
-	if g.Difficulty == nil {
-		head.Difficulty = params.GenesisDifficulty
-	}
+	// change by Shara - remove TD
+	//if g.Difficulty == nil {
+	//	head.Difficulty = params.GenesisDifficulty
+	// }
+	// end change by Shara
 	statedb.Commit(false)
 	statedb.Database().TrieDB().Commit(root, true)
 
@@ -290,7 +294,9 @@ func (g *Genesis) Commit(db ethdb.Database) (*types.Block, error) {
 	if block.Number().Sign() != 0 {
 		return nil, fmt.Errorf("can't commit genesis block with number > 0")
 	}
-	rawdb.WriteTd(db, block.Hash(), block.NumberU64(), g.Difficulty)
+	// change by Shara - remove TD
+	// rawdb.WriteTd(db, block.Hash(), block.NumberU64(), g.Difficulty)
+	// end change by Shara
 	rawdb.WriteBlock(db, block)
 	rawdb.WriteReceipts(db, block.Hash(), block.NumberU64(), nil)
 	rawdb.WriteCanonicalHash(db, block.Hash(), block.NumberU64())

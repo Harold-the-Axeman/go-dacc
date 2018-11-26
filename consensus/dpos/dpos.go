@@ -116,7 +116,9 @@ func sigHash(header *types.Header) (hash common.Hash) {
 		header.TxHash,
 		header.ReceiptHash,
 		header.Bloom,
-		header.Difficulty,
+		// change by Shara - remove TD
+		//header.Difficulty,
+		// end change by Shara
 		header.Number,
 		header.GasLimit,
 		header.GasUsed,
@@ -167,10 +169,12 @@ func (d *Dpos) verifyHeader(chain consensus.ChainReader, header *types.Header, p
 	if header.MixDigest != (common.Hash{}) {
 		return errInvalidMixDigest
 	}
+	// Change by Shara - remove TD
 	// Difficulty always 1
-	if header.Difficulty.Uint64() != 1 {
-		return errInvalidDifficulty
-	}
+	//if header.Difficulty.Uint64() != 1 {
+	//	return errInvalidDifficulty
+	//}
+	// end change by Shara
 	// Ensure that the block doesn't contain any uncles which are meaningless in DPoS
 	if header.UncleHash != uncleHash {
 		return errInvalidUncleHash
@@ -343,7 +347,9 @@ func (d *Dpos) Prepare(chain consensus.ChainReader, header *types.Header) error 
 	if parent == nil {
 		return consensus.ErrUnknownAncestor
 	}
-	header.Difficulty = d.CalcDifficulty(chain, header.Time.Uint64(), parent)
+	// change by Shara - remove TD
+	//header.Difficulty = d.CalcDifficulty(chain, header.Time.Uint64(), parent)
+	// end change by Shara
 	header.Validator = d.signer
 	return nil
 }
