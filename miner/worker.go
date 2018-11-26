@@ -390,26 +390,26 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 		atomic.StoreInt32(&w.newTxs, 0)
 	}
 	// recalcRecommit recalculates the resubmitting interval upon feedback.
-	recalcRecommit := func(target float64, inc bool) {
-		var (
-			prev = float64(recommit.Nanoseconds())
-			next float64
-		)
-		if inc {
-			next = prev*(1-intervalAdjustRatio) + intervalAdjustRatio*(target+intervalAdjustBias)
-			// Recap if interval is larger than the maximum time interval
-			if next > float64(maxRecommitInterval.Nanoseconds()) {
-				next = float64(maxRecommitInterval.Nanoseconds())
-			}
-		} else {
-			next = prev*(1-intervalAdjustRatio) + intervalAdjustRatio*(target-intervalAdjustBias)
-			// Recap if interval is less than the user specified minimum
-			if next < float64(minRecommit.Nanoseconds()) {
-				next = float64(minRecommit.Nanoseconds())
-			}
-		}
-		recommit = time.Duration(int64(next))
-	}
+	//recalcRecommit := func(target float64, inc bool) {
+	//	var (
+	//		prev = float64(recommit.Nanoseconds())
+	//		next float64
+	//	)
+	//	if inc {
+	//		next = prev*(1-intervalAdjustRatio) + intervalAdjustRatio*(target+intervalAdjustBias)
+	//		// Recap if interval is larger than the maximum time interval
+	//		if next > float64(maxRecommitInterval.Nanoseconds()) {
+	//			next = float64(maxRecommitInterval.Nanoseconds())
+	//		}
+	//	} else {
+	//		next = prev*(1-intervalAdjustRatio) + intervalAdjustRatio*(target-intervalAdjustBias)
+	//		// Recap if interval is less than the user specified minimum
+	//		if next < float64(minRecommit.Nanoseconds()) {
+	//			next = float64(minRecommit.Nanoseconds())
+	//		}
+	//	}
+	//	recommit = time.Duration(int64(next))
+	//}
 	// clearPending cleans the stale pending tasks.
 	clearPending := func(number uint64) {
 		w.pendingMu.Lock()
