@@ -376,8 +376,8 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 		timestamp   int64      // timestamp for each round of mining.
 	)
 
-	timer := time.NewTimer(0)
-	<-timer.C // discard the initial tick
+	timer := time.NewTimer(2 * time.Second)
+	//<-timer.C // discard the initial tick
 
 	// commit aborts in-flight transaction execution with given signal and resubmits a new one.
 	commit := func(noempty bool, s int32) {
@@ -386,7 +386,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 		}
 		interrupt = new(int32)
 		w.newWorkCh <- &newWorkReq{interrupt: interrupt, noempty: noempty, timestamp: timestamp}
-		timer.Reset(recommit)
+		//timer.Reset(recommit)
 		atomic.StoreInt32(&w.newTxs, 0)
 	}
 	// recalcRecommit recalculates the resubmitting interval upon feedback.
@@ -463,6 +463,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 
 		case <-timer.C:
 			log.Warn("timer.C", "Now", time.Now().Unix())
+			timer.Reset(2 * time.Second)
 			// If mining is running resubmit a new work cycle periodically to pull in
 			// higher priced transactions. Disable this overhead for pending blocks.
 
@@ -491,8 +492,8 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 				w.resubmitHook(minRecommit, recommit)
 			}
 
-		case <-w.resubmitAdjustCh:
-			log.Warn("resubmitAdjustCh", "Now", time.Now().Unix())
+		case d := <-w.resubmitAdjustCh:
+			log.Warn("resubmitAdjustCh", "Now", time.Now().Unix(), "Data", d)
 			// Adjust resubmit interval by feedback.
 			//if adjust.inc {
 			//	before := recommit
