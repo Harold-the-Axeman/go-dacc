@@ -445,8 +445,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 
 		// DPOS block producing ticker
 		case now := <-ticker.C:
-			log.Warn("Begin ticker")
-			var beginTicker = time.Now()
+			log.Warn("Ticker", "Now", now.Unix())
 			//TODO: ticker will always run here, temporary fix here.
 			if atomic.LoadInt32(&w.running) == 1 {
 				log.Warn("Begin clearPending")
@@ -456,7 +455,6 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 				timestamp = now.Unix()             // TODO: NEED CHECK, possible bug: time.Now().Unix() or now, which one?
 				commit(false, commitInterruptNone) //NOTE: replace call mintBlock in the task loop
 			}
-			log.Warn("End ticker", "Cost", time.Since(beginTicker))
 
 		case <-timer.C:
 			// If mining is running resubmit a new work cycle periodically to pull in
