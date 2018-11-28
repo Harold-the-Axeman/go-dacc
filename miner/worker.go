@@ -168,7 +168,7 @@ type worker struct {
 
 	current        *environment                 // An environment for current running cycle.
 	//possibleUncles map[common.Hash]*types.Block // A set of side blocks as the possible uncle blocks.
-	unconfirmed    *unconfirmedBlocks           // A set of locally mined blocks pending canonicalness confirmations.
+	//unconfirmed    *unconfirmedBlocks           // A set of locally mined blocks pending canonicalness confirmations.
 
 	mu       sync.RWMutex // The lock used to protect the coinbase and extra fields
 	coinbase common.Address
@@ -208,7 +208,7 @@ func newWorker(config *params.ChainConfig, engine consensus.Engine, eth Backend,
 		gasFloor:       gasFloor,
 		gasCeil:        gasCeil,
 		//possibleUncles: make(map[common.Hash]*types.Block),
-		unconfirmed:    newUnconfirmedBlocks(eth.BlockChain(), miningLogAtDepth),
+		//unconfirmed:    newUnconfirmedBlocks(eth.BlockChain(), miningLogAtDepth),
 		pendingTasks:   make(map[common.Hash]*task),
 		txsCh:          make(chan core.NewTxsEvent, txChanSize),
 		chainHeadCh:    make(chan core.ChainHeadEvent, chainHeadChanSize),
@@ -716,7 +716,7 @@ func (w *worker) resultLoop() {
 			w.chain.PostChainEvents(events, logs)
 
 			// Insert the block into the set of pending ones to resultLoop for confirmations
-			w.unconfirmed.Insert(block.NumberU64(), block.Hash())
+			//w.unconfirmed.Insert(block.NumberU64(), block.Hash())
 
 		case <-w.exitCh:
 			return
@@ -1125,7 +1125,7 @@ func (w *worker) commit(start time.Time) error {
 		}*/
 		select {
 		case w.taskCh <- &task{receipts: receipts, state: s, block: block, createdAt: time.Now()}:
-			w.unconfirmed.Shift(block.NumberU64() - 1)
+			//w.unconfirmed.Shift(block.NumberU64() - 1)
 
 			feesWei := new(big.Int)
 			for i, tx := range block.Transactions() {
