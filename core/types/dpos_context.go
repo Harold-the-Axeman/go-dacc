@@ -7,17 +7,13 @@ import (
 
 	"github.com/daccproject/go-dacc/common"
 	"github.com/daccproject/go-dacc/crypto/sha3"
-<<<<<<< HEAD
 	"github.com/daccproject/go-dacc/ethdb"
 	"github.com/daccproject/go-dacc/log"
-=======
->>>>>>> 68eb5976ffdff37a07e635799eeb5b43e173c98c
 	"github.com/daccproject/go-dacc/rlp"
 	"github.com/daccproject/go-dacc/trie"
 )
 
 type DposContext struct {
-<<<<<<< HEAD
 	epochTrie     *trie.Trie // 记录每个周期的验证人,就一条数据，k: []byte("validator") v: 经过rlp处理后的validators列表
 	delegateTrie  *trie.Trie // 记录验证人以及对应投票人，k: append(candidate, delegator...) v: delegator
 	voteTrie      *trie.Trie // 记录投票人对应验证人, k: delegator v: candidate
@@ -25,16 +21,6 @@ type DposContext struct {
 	mintCntTrie   *trie.Trie // 记录验证人在周期内的出块数, k: append(第几个周期, validator.Bytes()...) v: 出块数
 
 	db ethdb.Database
-=======
-	epochTrie     *trie.Trie
-	delegateTrie  *trie.Trie
-	voteTrie      *trie.Trie
-	candidateTrie *trie.Trie
-	mintCntTrie   *trie.Trie
-
-	//db ethdb.Database
-	db *trie.Database
->>>>>>> 68eb5976ffdff37a07e635799eeb5b43e173c98c
 }
 
 var (
@@ -45,7 +31,6 @@ var (
 	mintCntPrefix   = []byte("mintCnt-")
 )
 
-<<<<<<< HEAD
 func NewEpochTrie(root common.Hash, diskdb ethdb.Database) (*trie.Trie, error) {
 	return trie.NewTrieWithPrefix(root, epochPrefix, trie.NewDatabase(diskdb))
 }
@@ -67,29 +52,6 @@ func NewMintCntTrie(root common.Hash, diskdb ethdb.Database) (*trie.Trie, error)
 }
 
 func NewDposContext(db ethdb.Database) (*DposContext, error) {
-=======
-func NewEpochTrie(root common.Hash, db *trie.Database) (*trie.Trie, error) {
-	return trie.NewTrieWithPrefix(root, epochPrefix, db)
-}
-
-func NewDelegateTrie(root common.Hash, db *trie.Database) (*trie.Trie, error) {
-	return trie.NewTrieWithPrefix(root, delegatePrefix, db)
-}
-
-func NewVoteTrie(root common.Hash, db *trie.Database) (*trie.Trie, error) {
-	return trie.NewTrieWithPrefix(root, votePrefix, db)
-}
-
-func NewCandidateTrie(root common.Hash, db *trie.Database) (*trie.Trie, error) {
-	return trie.NewTrieWithPrefix(root, candidatePrefix, db)
-}
-
-func NewMintCntTrie(root common.Hash, db *trie.Database) (*trie.Trie, error) {
-	return trie.NewTrieWithPrefix(root, mintCntPrefix, db)
-}
-
-func NewDposContext(db *trie.Database) (*DposContext, error) {
->>>>>>> 68eb5976ffdff37a07e635799eeb5b43e173c98c
 	epochTrie, err := NewEpochTrie(common.Hash{}, db)
 	if err != nil {
 		return nil, err
@@ -120,40 +82,25 @@ func NewDposContext(db *trie.Database) (*DposContext, error) {
 	}, nil
 }
 
-<<<<<<< HEAD
 func NewDposContextFromProto(db ethdb.Database, ctxProto *DposContextProto) (*DposContext, error) {
 	epochTrie, err := NewEpochTrie(ctxProto.EpochHash, db)
 	if err != nil {
 		log.Info("error epochTrie:" + err.Error())
-=======
-func NewDposContextFromProto(db *trie.Database, ctxProto *DposContextProto) (*DposContext, error) {
-	epochTrie, err := NewEpochTrie(ctxProto.EpochHash, db)
-	if err != nil {
->>>>>>> 68eb5976ffdff37a07e635799eeb5b43e173c98c
 		return nil, err
 	}
 	delegateTrie, err := NewDelegateTrie(ctxProto.DelegateHash, db)
 	if err != nil {
-<<<<<<< HEAD
 		log.Info("error delegateTrie:" + err.Error())
-=======
->>>>>>> 68eb5976ffdff37a07e635799eeb5b43e173c98c
 		return nil, err
 	}
 	voteTrie, err := NewVoteTrie(ctxProto.VoteHash, db)
 	if err != nil {
-<<<<<<< HEAD
 		log.Info("error voteTrie:" + err.Error())
-=======
->>>>>>> 68eb5976ffdff37a07e635799eeb5b43e173c98c
 		return nil, err
 	}
 	candidateTrie, err := NewCandidateTrie(ctxProto.CandidateHash, db)
 	if err != nil {
-<<<<<<< HEAD
 		log.Info("error candidateTrie:" + err.Error())
-=======
->>>>>>> 68eb5976ffdff37a07e635799eeb5b43e173c98c
 		return nil, err
 	}
 	mintCntTrie, err := NewMintCntTrie(ctxProto.MintCntHash, db)
@@ -182,10 +129,7 @@ func (d *DposContext) Copy() *DposContext {
 		voteTrie:      &voteTrie,
 		candidateTrie: &candidateTrie,
 		mintCntTrie:   &mintCntTrie,
-<<<<<<< HEAD
 		db:            d.db,
-=======
->>>>>>> 68eb5976ffdff37a07e635799eeb5b43e173c98c
 	}
 }
 
@@ -358,7 +302,6 @@ func (d *DposContext) UnDelegate(delegatorAddr, candidateAddr common.Address) er
 	return d.voteTrie.TryDelete(delegator)
 }
 
-<<<<<<< HEAD
 func (d *DposContext) CommitTo() (*DposContextProto, error) {
 	epochRoot, err := d.epochTrie.Commit(nil)
 	if err != nil {
@@ -416,29 +359,6 @@ func (d *DposContext) CommitTo() (*DposContextProto, error) {
 		if err != nil {
 			return nil, err
 		}*/
-=======
-func (d *DposContext) CommitTo(dbw trie.DatabaseWriter) (*DposContextProto, error) {
-	epochRoot, err := d.epochTrie.CommitTo(dbw)
-	if err != nil {
-		return nil, err
-	}
-	delegateRoot, err := d.delegateTrie.CommitTo(dbw)
-	if err != nil {
-		return nil, err
-	}
-	voteRoot, err := d.voteTrie.CommitTo(dbw)
-	if err != nil {
-		return nil, err
-	}
-	candidateRoot, err := d.candidateTrie.CommitTo(dbw)
-	if err != nil {
-		return nil, err
-	}
-	mintCntRoot, err := d.mintCntTrie.CommitTo(dbw)
-	if err != nil {
-		return nil, err
-	}
->>>>>>> 68eb5976ffdff37a07e635799eeb5b43e173c98c
 	return &DposContextProto{
 		EpochHash:     epochRoot,
 		DelegateHash:  delegateRoot,
@@ -453,21 +373,14 @@ func (d *DposContext) DelegateTrie() *trie.Trie           { return d.delegateTri
 func (d *DposContext) VoteTrie() *trie.Trie               { return d.voteTrie }
 func (d *DposContext) EpochTrie() *trie.Trie              { return d.epochTrie }
 func (d *DposContext) MintCntTrie() *trie.Trie            { return d.mintCntTrie }
-<<<<<<< HEAD
 func (d *DposContext) DB() ethdb.Database                 { return d.db }
-=======
-func (d *DposContext) DB() *trie.Database                 { return d.db }
->>>>>>> 68eb5976ffdff37a07e635799eeb5b43e173c98c
 func (dc *DposContext) SetEpoch(epoch *trie.Trie)         { dc.epochTrie = epoch }
 func (dc *DposContext) SetDelegate(delegate *trie.Trie)   { dc.delegateTrie = delegate }
 func (dc *DposContext) SetVote(vote *trie.Trie)           { dc.voteTrie = vote }
 func (dc *DposContext) SetCandidate(candidate *trie.Trie) { dc.candidateTrie = candidate }
 func (dc *DposContext) SetMintCnt(mintCnt *trie.Trie)     { dc.mintCntTrie = mintCnt }
 
-<<<<<<< HEAD
 // GetValidators 通过DposContext返回epochTrie中的validators
-=======
->>>>>>> 68eb5976ffdff37a07e635799eeb5b43e173c98c
 func (dc *DposContext) GetValidators() ([]common.Address, error) {
 	var validators []common.Address
 	key := []byte("validator")
