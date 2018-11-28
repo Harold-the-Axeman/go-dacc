@@ -126,7 +126,7 @@ const (
 // newWorkReq represents a request for new sealing work submitting with relative interrupt notifier.
 type newWorkReq struct {
 	//interrupt *int32
-	noempty   bool
+	//noempty   bool
 	timestamp int64
 	//now int64  // used by mintBlock
 }
@@ -163,10 +163,10 @@ type worker struct {
 	newWorkCh          chan *newWorkReq
 	taskCh             chan *task
 	resultCh           chan *types.Block
-	startCh            chan struct{}
+	//startCh            chan struct{}
 	exitCh             chan struct{}
-	resubmitIntervalCh chan time.Duration
-	resubmitAdjustCh   chan *intervalAdjust
+	//resubmitIntervalCh chan time.Duration
+	//resubmitAdjustCh   chan *intervalAdjust
 
 	current        *environment                 // An environment for current running cycle.
 	possibleUncles map[common.Hash]*types.Block // A set of side blocks as the possible uncle blocks.
@@ -221,9 +221,9 @@ func newWorker(config *params.ChainConfig, engine consensus.Engine, eth Backend,
 		taskCh:             make(chan *task),
 		resultCh:           make(chan *types.Block, resultQueueSize),
 		exitCh:             make(chan struct{}),
-		startCh:            make(chan struct{}, 1),
-		resubmitIntervalCh: make(chan time.Duration),
-		resubmitAdjustCh:   make(chan *intervalAdjust, resubmitAdjustChanSize),
+		//startCh:            make(chan struct{}, 1),
+		//resubmitIntervalCh: make(chan time.Duration),
+		//resubmitAdjustCh:   make(chan *intervalAdjust, resubmitAdjustChanSize),
 	}
 	// Subscribe NewTxsEvent for tx pool
 	worker.txsSub = eth.TxPool().SubscribeNewTxsEvent(worker.txsCh)
@@ -240,12 +240,13 @@ func newWorker(config *params.ChainConfig, engine consensus.Engine, eth Backend,
 	}
 
 	go worker.mainLoop()
-	go worker.newWorkLoop(recommit)
+	//go worker.newWorkLoop(recommit)
+	go worker.newWorkLoop()
 	go worker.resultLoop()
 	go worker.taskLoop()
 
 	// Submit first work to initialize pending state.
-	worker.startCh <- struct{}{}
+	//worker.startCh <- struct{}{}
 
 	return worker
 }
@@ -266,7 +267,7 @@ func (w *worker) setExtra(extra []byte) {
 
 // setRecommitInterval updates the interval for miner sealing work recommitting.
 func (w *worker) setRecommitInterval(interval time.Duration) {
-	w.resubmitIntervalCh <- interval
+	//w.resubmitIntervalCh <- interval
 }
 
 // pending returns the pending state and corresponding block.
@@ -291,7 +292,7 @@ func (w *worker) pendingBlock() *types.Block {
 // start sets the running status as 1 and triggers new work submitting.
 func (w *worker) start() {
 	atomic.StoreInt32(&w.running, 1)
-	w.startCh <- struct{}{}
+	//w.startCh <- struct{}{}
 }
 
 // Add by Shara , copy from meitu
@@ -318,7 +319,7 @@ func (self *worker) mintBlock(req newWorkReq) {
 	}
 	// Add by Shara
 	//self.createNewWork(req.interrupt, req.noempty, req.timestamp)
-	self.createNewWork(req.noempty, req.timestamp)
+	self.createNewWork(req.timestamp)
 	//work, err := self.createNewWork()
 	// End add by Shara
 	/*if err != nil {
@@ -370,10 +371,11 @@ func (w *worker) close() {
 }
 
 // newWorkLoop is a standalone goroutine to submit new mining work upon received events.
-func (w *worker) newWorkLoop(recommit time.Duration) {
+//func (w *worker) newWorkLoop(recommit time.Duration) {
+func (w *worker) newWorkLoop() {
 	var (
 		//interrupt   *int32
-		minRecommit = recommit // minimal resubmit interval specified by user.
+		//minRecommit = recommit // minimal resubmit interval specified by user.
 		timestamp   int64      // timestamp for each round of mining.
 	)
 
@@ -383,18 +385,18 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 
 	// commit aborts in-flight transaction execution with given signal and resubmits a new one.
 	//commit := func(noempty bool, s int32) {
-	commit := func(noempty bool) {
+	commit := func() {
 		/*if interrupt != nil {
 			atomic.StoreInt32(interrupt, s)
 		}*/
 		//interrupt = new(int32)
 		//w.newWorkCh <- &newWorkReq{interrupt: interrupt, noempty: noempty, timestamp: timestamp}
-		w.newWorkCh <- &newWorkReq{noempty: noempty, timestamp: timestamp}
+		w.newWorkCh <- &newWorkReq{timestamp: timestamp}
 		//timer.Reset(recommit)
 		atomic.StoreInt32(&w.newTxs, 0)
 	}
 	// recalcRecommit recalculates the resubmitting interval upon feedback.
-	recalcRecommit := func(target float64, inc bool) {
+	/*recalcRecommit := func(target float64, inc bool) {
 		var (
 			prev = float64(recommit.Nanoseconds())
 			next float64
@@ -413,7 +415,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			}
 		}
 		recommit = time.Duration(int64(next))
-	}
+	}*/
 	// clearPending cleans the stale pending tasks.
 	clearPending := func(number uint64) {
 		w.pendingMu.Lock()
@@ -430,7 +432,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 
 	for {
 		select {
-		case <-w.startCh:
+		//case <-w.startCh:
 			//TODO: start the timer here, can be remove use the running tag
 			/*clearPending(w.chain.CurrentBlock().NumberU64())
 			timestamp = time.Now().Unix()
@@ -455,7 +457,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 				clearPending(w.chain.CurrentBlock().NumberU64()) //NOTE
 				timestamp = now.Unix()                           // TODO: NEED CHECK, possible bug: time.Now().Unix() or now, which one?
 				//commit(false, commitInterruptNone)
-				commit(false)
+				commit()
 			}
 
 		//case <-timer.C:
@@ -473,7 +475,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 				commit(true, commitInterruptResubmit)
 			}*/
 
-		case interval := <-w.resubmitIntervalCh:
+		/*case interval := <-w.resubmitIntervalCh:
 			// Adjust resubmit interval explicitly by user.
 			if interval < minRecommitInterval {
 				log.Warn("Sanitizing miner recommit interval", "provided", interval, "updated", minRecommitInterval)
@@ -484,9 +486,9 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 
 			if w.resubmitHook != nil {
 				w.resubmitHook(minRecommit, recommit)
-			}
+			}*/
 
-		case adjust := <-w.resubmitAdjustCh:
+	/*	case adjust := <-w.resubmitAdjustCh:
 			// Adjust resubmit interval by feedback.
 			if adjust.inc {
 				before := recommit
@@ -500,7 +502,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 
 			if w.resubmitHook != nil {
 				w.resubmitHook(minRecommit, recommit)
-			}
+			}*/
 
 		case <-w.exitCh:
 			return
@@ -953,7 +955,7 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 // Change by Shara , change commitNewWork func name to createNewWork
 //NOTE: change return value: check (*environment, error)  remove by harold
 //func (w *worker) createNewWork(interrupt *int32, noempty bool, timestamp int64) {
-func (w *worker) createNewWork(noempty bool, timestamp int64) {
+func (w *worker) createNewWork(timestamp int64) {
 
 	w.mu.RLock()
 	defer w.mu.RUnlock()
@@ -1079,7 +1081,9 @@ func (w *worker) createNewWork(noempty bool, timestamp int64) {
 		}
 
 	}
-	if !noempty && len(remoteTxs) == 0 && len(localTxs) == 0 {
+	//NOTE: noempty is always false
+	//if !noempty && len(remoteTxs) == 0 && len(localTxs) == 0 {
+	if len(pending) == 0 {
 		w.commit(uncles, nil, false, tstart)
 	} else {
 		w.commit(uncles, w.fullTaskHook, true, tstart)
