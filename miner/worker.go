@@ -320,10 +320,10 @@ func (self *worker) mintBlock(req newWorkReq) {
 	self.createNewWork(req.interrupt, req.noempty, req.timestamp)
 	//work, err := self.createNewWork()
 	// End add by Shara
-	if err != nil {
+	/*if err != nil {
 		log.Error("Failed to create the new work", "err", err)
 		return
-	}
+	}*/
 
 	//NOTE: the following code is moved to the task/result loop  added by harold
 	/*result, err := self.engine.Seal(self.chain, work.Block, self.resultCh, self.quitCh)
@@ -449,7 +449,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 		case now := <-ticker.C:
 			//TODO: ticker will always run here, temporary fix here.
 			if atomic.LoadInt32(&w.running) == 1 {
-				clearPending(w.chain.CurrentBlock().NumberU64()) //NOTE: this line in not need here
+				clearPending(w.chain.CurrentBlock().NumberU64()) //NOTE
 				timestamp = now.Unix()                           // TODO: NEED CHECK, possible bug: time.Now().Unix() or now, which one?
 				commit(false, commitInterruptNone)               //NOTE: replace call mintBlock in the task loop
 			}
@@ -720,14 +720,13 @@ func (w *worker) resultLoop() {
 }
 
 // makeCurrent creates a new environment for the current cycle.
+// header is the new block
 func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 	state, err := w.chain.StateAt(parent.Root())
 	if err != nil {
 		return err
 	}
 	// Add by Shara
-	//log.Info("parent number:" + parent.Number().String())
-	//log.Info(parent.Header().DposContext.EpochHash.String())
 	dposContext, err := types.NewDposContextFromProto(w.eth.ChainDb(), parent.Header().DposContext)
 	if err != nil {
 		return err
@@ -830,6 +829,7 @@ func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Addres
 	return receipt.Logs, nil
 }
 
+// interrupt: nil in txsCh, commitInterruptNone in ticker ?
 func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coinbase common.Address, interrupt *int32) bool {
 	// Short circuit if current is nil
 	if w.current == nil {
@@ -958,6 +958,7 @@ func (w *worker) createNewWork(interrupt *int32, noempty bool, timestamp int64) 
 		timestamp = parent.Time().Int64() + 1
 	}
 	// this will ensure we're not going off too far in the future
+	// TODO: possible bug, we should not allow this happened
 	if now := time.Now().Unix(); timestamp > now+1 {
 		wait := time.Duration(timestamp-now) * time.Second
 		log.Info("Mining too far in the future", "wait", common.PrettyDuration(wait))
@@ -986,6 +987,7 @@ func (w *worker) createNewWork(interrupt *int32, noempty bool, timestamp int64) 
 		return
 	}
 	// TODO: remove theDAO hard fork logic, need recheck
+	// the extra is used by DPOS by now
 	// If we are care about TheDAO hard-fork check whether to override the extra-data or not
 	//if daoBlock := w.config.DAOForkBlock; daoBlock != nil {
 	//	// Check whether the block is among the fork extra-override range
@@ -1007,6 +1009,7 @@ func (w *worker) createNewWork(interrupt *int32, noempty bool, timestamp int64) 
 	}
 	// Create the current work task and check any fork transitions needed
 	env := w.current
+	//TODO: possible remove
 	if w.config.DAOForkSupport && w.config.DAOForkBlock != nil && w.config.DAOForkBlock.Cmp(header.Number) == 0 {
 		misc.ApplyDAOHardFork(env.state)
 	}
@@ -1037,7 +1040,12 @@ func (w *worker) createNewWork(interrupt *int32, noempty bool, timestamp int64) 
 
 	// Fill the block with all available pending transactions.
 	pending, err := w.eth.TxPool().Pending()
-	if err == nil && len(pending) == 0 {
+	if err != nil {
+		log.Error("Failed to fetch pending transactions", "err", err)
+		return
+	}
+	//TODO: possible bugs, need to remove here
+	if len(pending) == 0 {
 		w.updateSnapshot()
 	}
 	// Short circuit if there is no available pending transactions
