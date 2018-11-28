@@ -17,7 +17,6 @@
 package miner
 
 import (
-	"errors"
 	"math/big"
 	"sync"
 	"sync/atomic"
@@ -34,7 +33,6 @@ import (
 	"github.com/daccproject/go-dacc/event"
 	"github.com/daccproject/go-dacc/log"
 	"github.com/daccproject/go-dacc/params"
-	"github.com/deckarep/golang-set"
 )
 
 const (
@@ -87,9 +85,9 @@ type environment struct {
 	// Add by Shara
 	dposContext *types.DposContext
 	// end Add by Shara
-	ancestors mapset.Set    // ancestor set (used for checking uncle parent validity)
-	family    mapset.Set    // family set (used for checking uncle invalidity)
-	uncles    mapset.Set    // uncle set
+	//ancestors mapset.Set    // ancestor set (used for checking uncle parent validity)
+	//family    mapset.Set    // family set (used for checking uncle invalidity)
+	//uncles    mapset.Set    // uncle set
 	tcount    int           // tx count in cycle
 	gasPool   *core.GasPool // available gas used to pack transactions
 
@@ -169,7 +167,7 @@ type worker struct {
 	//resubmitAdjustCh   chan *intervalAdjust
 
 	current        *environment                 // An environment for current running cycle.
-	possibleUncles map[common.Hash]*types.Block // A set of side blocks as the possible uncle blocks.
+	//possibleUncles map[common.Hash]*types.Block // A set of side blocks as the possible uncle blocks.
 	unconfirmed    *unconfirmedBlocks           // A set of locally mined blocks pending canonicalness confirmations.
 
 	mu       sync.RWMutex // The lock used to protect the coinbase and extra fields
@@ -209,7 +207,7 @@ func newWorker(config *params.ChainConfig, engine consensus.Engine, eth Backend,
 		chain:          eth.BlockChain(),
 		gasFloor:       gasFloor,
 		gasCeil:        gasCeil,
-		possibleUncles: make(map[common.Hash]*types.Block),
+		//possibleUncles: make(map[common.Hash]*types.Block),
 		unconfirmed:    newUnconfirmedBlocks(eth.BlockChain(), miningLogAtDepth),
 		pendingTasks:   make(map[common.Hash]*task),
 		txsCh:          make(chan core.NewTxsEvent, txChanSize),
@@ -585,7 +583,7 @@ func (w *worker) mainLoop() {
 				}*/
 				//TODO: Check here, follow the meitu methods: should not call createNewWork directly:
 				// Possible bug here, tx will missing?
-				// the whole case can be ignore
+				// the whole case can be ignore?
 			}
 			atomic.AddInt32(&w.newTxs, int32(len(ev.Txs)))
 
@@ -746,20 +744,20 @@ func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 		// Add by Shara
 		dposContext: dposContext,
 		// End by Shara
-		ancestors: mapset.NewSet(),
-		family:    mapset.NewSet(),
-		uncles:    mapset.NewSet(),
+		//ancestors: mapset.NewSet(),
+		//family:    mapset.NewSet(),
+		//uncles:    mapset.NewSet(),
 		header:    header,
 	}
 
 	// when 08 is processed ancestors contain 07 (quick block)
-	for _, ancestor := range w.chain.GetBlocksFromHash(parent.Hash(), 7) {
+	/*for _, ancestor := range w.chain.GetBlocksFromHash(parent.Hash(), 7) {
 		for _, uncle := range ancestor.Uncles() {
 			env.family.Add(uncle.Hash())
 		}
 		env.family.Add(ancestor.Hash())
 		env.ancestors.Add(ancestor.Hash())
-	}
+	}*/
 
 	// Keep track of transactions which return errors so they can be removed
 	env.tcount = 0
@@ -768,7 +766,7 @@ func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 }
 
 // commitUncle adds the given block to uncle block set, returns error if failed to add.
-func (w *worker) commitUncle(env *environment, uncle *types.Header) error {
+/*func (w *worker) commitUncle(env *environment, uncle *types.Header) error {
 	hash := uncle.Hash()
 	if env.uncles.Contains(hash) {
 		return errors.New("uncle not unique")
@@ -784,7 +782,7 @@ func (w *worker) commitUncle(env *environment, uncle *types.Header) error {
 	}
 	env.uncles.Add(uncle.Hash())
 	return nil
-}
+}*/
 
 // updateSnapshot updates pending snapshot block and state.
 // Note this function assumes the current variable is thread safe.
@@ -792,7 +790,7 @@ func (w *worker) updateSnapshot() {
 	w.snapshotMu.Lock()
 	defer w.snapshotMu.Unlock()
 
-	var uncles []*types.Header
+	/*var uncles []*types.Header
 	w.current.uncles.Each(func(item interface{}) bool {
 		hash, ok := item.(common.Hash)
 		if !ok {
@@ -804,12 +802,13 @@ func (w *worker) updateSnapshot() {
 		}
 		uncles = append(uncles, uncle.Header())
 		return false
-	})
+	})*/
 
 	w.snapshotBlock = types.NewBlock(
 		w.current.header,
 		w.current.txs,
-		uncles,
+		//uncles,
+		nil,
 		w.current.receipts,
 	)
 
@@ -1023,7 +1022,7 @@ func (w *worker) createNewWork(timestamp int64) {
 		misc.ApplyDAOHardFork(env.state)
 	}
 	// Accumulate the uncles for the current block
-	for hash, uncle := range w.possibleUncles {
+	/*for hash, uncle := range w.possibleUncles {
 		if uncle.NumberU64()+staleThreshold <= header.Number.Uint64() {
 			delete(w.possibleUncles, hash)
 		}
@@ -1039,7 +1038,7 @@ func (w *worker) createNewWork(timestamp int64) {
 			log.Debug("Committing new uncle to block", "hash", hash)
 			uncles = append(uncles, uncle.Header())
 		}
-	}
+	}*/
 
 	//if !noempty {
 	//	// Create an empty block based on temporary copied state for sealing in advance without waiting block
@@ -1081,19 +1080,22 @@ func (w *worker) createNewWork(timestamp int64) {
 		}
 
 	}
-	//NOTE: noempty is always false, so remove it 
+	//NOTE: noempty is always false, so remove it
 	//if !noempty && len(remoteTxs) == 0 && len(localTxs) == 0 {
 	if len(pending) == 0 {
-		w.commit(uncles, nil, false, tstart)
+		//w.commit(uncles, nil, false, tstart)
+		w.commit(false, tstart)
 	} else {
-		w.commit(uncles, w.fullTaskHook, true, tstart)
+		//w.commit(uncles, w.fullTaskHook, true, tstart)
+		w.commit( true, tstart)
 	}
 }
 
 // commit runs any post-transaction state modifications, assembles the final block
 // and commits new work if consensus engine is running.
 // TODO: remove uncles, interval
-func (w *worker) commit(uncles []*types.Header, interval func(), update bool, start time.Time) error {
+//func (w *worker) commit(uncles []*types.Header, interval func(), update bool, start time.Time) error {
+func (w *worker) commit(update bool, start time.Time) error {
 	// Deep copy receipts here to avoid interaction between different tasks.
 	receipts := make([]*types.Receipt, len(w.current.receipts))
 	for i, l := range w.current.receipts {
@@ -1106,7 +1108,8 @@ func (w *worker) commit(uncles []*types.Header, interval func(), update bool, st
 	// Change by Shara
 	//work := w.current
 
-	block, err := w.engine.Finalize(w.chain, w.current.header, s, w.current.txs, uncles, w.current.receipts, dc)
+	//lock, err := w.engine.Finalize(w.chain, w.current.header, s, w.current.txs, uncles, w.current.receipts, dc)
+	block, err := w.engine.Finalize(w.chain, w.current.header, s, w.current.txs, nil, w.current.receipts, dc)
 	if err != nil {
 		log.Info("worker.commit.finalize", err.Error())
 		return err
@@ -1116,9 +1119,9 @@ func (w *worker) commit(uncles []*types.Header, interval func(), update bool, st
 	// End change by Shara
 
 	if w.isRunning() {
-		if interval != nil {
+		/*if interval != nil {
 			interval()
-		}
+		}*/
 		select {
 		case w.taskCh <- &task{receipts: receipts, state: s, block: block, createdAt: time.Now()}:
 			w.unconfirmed.Shift(block.NumberU64() - 1)
@@ -1130,7 +1133,9 @@ func (w *worker) commit(uncles []*types.Header, interval func(), update bool, st
 			feesEth := new(big.Float).Quo(new(big.Float).SetInt(feesWei), new(big.Float).SetInt(big.NewInt(params.Ether)))
 
 			log.Info("Commit new mining work", "number", block.Number(), "sealhash", w.engine.SealHash(block.Header()),
-				"uncles", len(uncles), "txs", w.current.tcount, "gas", block.GasUsed(), "fees", feesEth, "elapsed", common.PrettyDuration(time.Since(start)))
+				"txs", w.current.tcount, "gas", block.GasUsed(), "fees", feesEth, "elapsed", common.PrettyDuration(time.Since(start)))
+			//log.Info("Commit new mining work", "number", block.Number(), "sealhash", w.engine.SealHash(block.Header()),
+			//	"uncles", len(uncles), "txs", w.current.tcount, "gas", block.GasUsed(), "fees", feesEth, "elapsed", common.PrettyDuration(time.Since(start)))
 
 		case <-w.exitCh:
 			log.Info("Worker has exited")
