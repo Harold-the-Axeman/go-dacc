@@ -1081,7 +1081,7 @@ func (w *worker) createNewWork(timestamp int64) {
 		}
 
 	}
-	//NOTE: noempty is always false
+	//NOTE: noempty is always false, so remove it 
 	//if !noempty && len(remoteTxs) == 0 && len(localTxs) == 0 {
 	if len(pending) == 0 {
 		w.commit(uncles, nil, false, tstart)
