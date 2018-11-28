@@ -376,8 +376,9 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 		timestamp   int64      // timestamp for each round of mining.
 	)
 
-	timer := time.NewTimer(0)
-	<-timer.C // discard the initial tick
+	//TODO: remove timer in the newWork loop
+	//timer := time.NewTimer(0)
+	//<-timer.C // discard the initial tick
 
 	// commit aborts in-flight transaction execution with given signal and resubmits a new one.
 	commit := func(noempty bool, s int32) {
@@ -386,7 +387,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 		}
 		interrupt = new(int32)
 		w.newWorkCh <- &newWorkReq{interrupt: interrupt, noempty: noempty, timestamp: timestamp}
-		timer.Reset(recommit)
+		//timer.Reset(recommit)
 		atomic.StoreInt32(&w.newTxs, 0)
 	}
 	// recalcRecommit recalculates the resubmitting interval upon feedback.
@@ -427,6 +428,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 	for {
 		select {
 		case <-w.startCh:
+			//TODO: start the timer here, can be remove use the running tag
 			/*clearPending(w.chain.CurrentBlock().NumberU64())
 			timestamp = time.Now().Unix()
 			commit(false, commitInterruptNewHead)*/
@@ -452,7 +454,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 				commit(false, commitInterruptNone)               //NOTE: replace call mintBlock in the task loop
 			}
 
-		case <-timer.C:
+		//case <-timer.C:
 			// If mining is running resubmit a new work cycle periodically to pull in
 			// higher priced transactions. Disable this overhead for pending blocks.
 
@@ -574,7 +576,9 @@ func (w *worker) mainLoop() {
 				/*if w.config.Clique != nil && w.config.Clique.Period == 0 {
 					 w.commitNewWork(nil, false, time.Now().Unix())
 				}*/
-				//TODO: Check here, follow the meitu methods: should not call createNewWork directly: Possible bug here, tx will missing?
+				//TODO: Check here, follow the meitu methods: should not call createNewWork directly:
+				// Possible bug here, tx will missing?
+				// the whole case can be ignore
 			}
 			atomic.AddInt32(&w.newTxs, int32(len(ev.Txs)))
 
