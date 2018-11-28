@@ -1052,10 +1052,10 @@ func (w *worker) createNewWork(timestamp int64) {
 		log.Error("Failed to fetch pending transactions", "err", err)
 		return
 	}
-	//TODO: possible bugs, need to remove here
-	if len(pending) == 0 {
+
+	/*if len(pending) == 0 {
 		w.updateSnapshot()
-	}
+	}*/
 	// Short circuit if there is no available pending transactions
 	// Split the pending transactions into locals and remotes
 	localTxs, remoteTxs := make(map[common.Address]types.Transactions), pending
@@ -1082,20 +1082,21 @@ func (w *worker) createNewWork(timestamp int64) {
 	}
 	//NOTE: noempty is always false, so remove it
 	//if !noempty && len(remoteTxs) == 0 && len(localTxs) == 0 {
-	if len(pending) == 0 {
+	/*if len(pending) == 0 {
 		// w.commit(uncles, nil, false, tstart)
 		w.commit(false, tstart)
 	} else {
 		// w.commit(uncles, w.fullTaskHook, true, tstart)
 		w.commit( true, tstart)
-	}
+	}*/
+	w.commit(tstart)
 }
 
 // commit runs any post-transaction state modifications, assembles the final block
 // and commits new work if consensus engine is running.
 // TODO: remove uncles, interval
 //func (w *worker) commit(uncles []*types.Header, interval func(), update bool, start time.Time) error {
-func (w *worker) commit(update bool, start time.Time) error {
+func (w *worker) commit(start time.Time) error {
 	// Deep copy receipts here to avoid interaction between different tasks.
 	receipts := make([]*types.Receipt, len(w.current.receipts))
 	for i, l := range w.current.receipts {
@@ -1141,8 +1142,9 @@ func (w *worker) commit(update bool, start time.Time) error {
 			log.Info("Worker has exited")
 		}
 	}
-	if update {
+	/*if update {
 		w.updateSnapshot()
-	}
+	}*/
+	w.updateSnapshot()
 	return nil
 }
