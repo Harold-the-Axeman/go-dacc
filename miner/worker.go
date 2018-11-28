@@ -1083,10 +1083,10 @@ func (w *worker) createNewWork(timestamp int64) {
 	//NOTE: noempty is always false, so remove it
 	//if !noempty && len(remoteTxs) == 0 && len(localTxs) == 0 {
 	if len(pending) == 0 {
-		//w.commit(uncles, nil, false, tstart)
+		// w.commit(uncles, nil, false, tstart)
 		w.commit(false, tstart)
 	} else {
-		//w.commit(uncles, w.fullTaskHook, true, tstart)
+		// w.commit(uncles, w.fullTaskHook, true, tstart)
 		w.commit( true, tstart)
 	}
 }
