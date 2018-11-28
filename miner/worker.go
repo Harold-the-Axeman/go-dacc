@@ -125,7 +125,7 @@ const (
 
 // newWorkReq represents a request for new sealing work submitting with relative interrupt notifier.
 type newWorkReq struct {
-	interrupt *int32
+	//interrupt *int32
 	noempty   bool
 	timestamp int64
 	//now int64  // used by mintBlock
@@ -317,7 +317,8 @@ func (self *worker) mintBlock(req newWorkReq) {
 		return
 	}
 	// Add by Shara
-	self.createNewWork(req.interrupt, req.noempty, req.timestamp)
+	//self.createNewWork(req.interrupt, req.noempty, req.timestamp)
+	self.createNewWork(req.noempty, req.timestamp)
 	//work, err := self.createNewWork()
 	// End add by Shara
 	/*if err != nil {
@@ -371,7 +372,7 @@ func (w *worker) close() {
 // newWorkLoop is a standalone goroutine to submit new mining work upon received events.
 func (w *worker) newWorkLoop(recommit time.Duration) {
 	var (
-		interrupt   *int32
+		//interrupt   *int32
 		minRecommit = recommit // minimal resubmit interval specified by user.
 		timestamp   int64      // timestamp for each round of mining.
 	)
@@ -381,12 +382,14 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 	//<-timer.C // discard the initial tick
 
 	// commit aborts in-flight transaction execution with given signal and resubmits a new one.
-	commit := func(noempty bool, s int32) {
-		if interrupt != nil {
+	//commit := func(noempty bool, s int32) {
+	commit := func(noempty bool) {
+		/*if interrupt != nil {
 			atomic.StoreInt32(interrupt, s)
-		}
-		interrupt = new(int32)
-		w.newWorkCh <- &newWorkReq{interrupt: interrupt, noempty: noempty, timestamp: timestamp}
+		}*/
+		//interrupt = new(int32)
+		//w.newWorkCh <- &newWorkReq{interrupt: interrupt, noempty: noempty, timestamp: timestamp}
+		w.newWorkCh <- &newWorkReq{noempty: noempty, timestamp: timestamp}
 		//timer.Reset(recommit)
 		atomic.StoreInt32(&w.newTxs, 0)
 	}
@@ -451,7 +454,8 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			if atomic.LoadInt32(&w.running) == 1 {
 				clearPending(w.chain.CurrentBlock().NumberU64()) //NOTE
 				timestamp = now.Unix()                           // TODO: NEED CHECK, possible bug: time.Now().Unix() or now, which one?
-				commit(false, commitInterruptNone)               //NOTE: replace call mintBlock in the task loop
+				//commit(false, commitInterruptNone)
+				commit(false)
 			}
 
 		//case <-timer.C:
@@ -569,7 +573,8 @@ func (w *worker) mainLoop() {
 					txs[acc] = append(txs[acc], tx)
 				}
 				txset := types.NewTransactionsByPriceAndNonce(w.current.signer, txs)
-				w.commitTransactions(txset, coinbase, nil)
+				//w.commitTransactions(txset, coinbase, nil)
+				w.commitTransactions(txset, coinbase)
 				w.updateSnapshot()
 			} else {
 				// If we're mining, but nothing is being processed, wake on new transactions
@@ -830,7 +835,8 @@ func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Addres
 }
 
 // interrupt: nil in txsCh, commitInterruptNone in ticker ?
-func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coinbase common.Address, interrupt *int32) bool {
+//func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coinbase common.Address, interrupt *int32) bool {
+func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coinbase common.Address) bool {
 	// Short circuit if current is nil
 	if w.current == nil {
 		return true
@@ -849,7 +855,7 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 		// (3) worker recreate the mining block with any newly arrived transactions, the interrupt signal is 2.
 		// For the first two cases, the semi-finished work will be discarded.
 		// For the third case, the semi-finished work will be submitted to the consensus engine.
-		if interrupt != nil && atomic.LoadInt32(interrupt) != commitInterruptNone {
+		/*if interrupt != nil && atomic.LoadInt32(interrupt) != commitInterruptNone {
 			// Notify resubmit loop to increase resubmitting interval due to too frequent commits.
 			if atomic.LoadInt32(interrupt) == commitInterruptResubmit {
 				ratio := float64(w.current.header.GasLimit-w.current.gasPool.Gas()) / float64(w.current.header.GasLimit)
@@ -862,7 +868,7 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 				}
 			}
 			return atomic.LoadInt32(interrupt) == commitInterruptNewHead
-		}
+		}*/
 		// If we don't have enough gas for any further transactions then we're done
 		if w.current.gasPool.Gas() < params.TxGas {
 			log.Trace("Not enough gas for further transactions", "have", w.current.gasPool, "want", params.TxGas)
@@ -937,16 +943,17 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 	}
 	// Notify resubmit loop to decrease resubmitting interval if current interval is larger
 	// than the user-specified one.
-	if interrupt != nil {
+	/*if interrupt != nil {
 		w.resubmitAdjustCh <- &intervalAdjust{inc: false}
-	}
+	}*/
 	return false
 }
 
 // commitNewWork generates several new sealing tasks based on the parent block.
 // Change by Shara , change commitNewWork func name to createNewWork
 //NOTE: change return value: check (*environment, error)  remove by harold
-func (w *worker) createNewWork(interrupt *int32, noempty bool, timestamp int64) {
+//func (w *worker) createNewWork(interrupt *int32, noempty bool, timestamp int64) {
+func (w *worker) createNewWork(noempty bool, timestamp int64) {
 
 	w.mu.RLock()
 	defer w.mu.RUnlock()
@@ -1059,15 +1066,18 @@ func (w *worker) createNewWork(interrupt *int32, noempty bool, timestamp int64) 
 	}
 	if len(localTxs) > 0 {
 		txs := types.NewTransactionsByPriceAndNonce(env.signer, localTxs)
-		if w.commitTransactions(txs, w.coinbase, interrupt) {
+		//if w.commitTransactions(txs, w.coinbase, interrupt) {
+		if w.commitTransactions(txs, w.coinbase) {
 			return
 		}
 	}
 	if len(remoteTxs) > 0 {
 		txs := types.NewTransactionsByPriceAndNonce(env.signer, remoteTxs)
-		if w.commitTransactions(txs, w.coinbase, interrupt) {
+		//if w.commitTransactions(txs, w.coinbase, interrupt) {
+		if w.commitTransactions(txs, w.coinbase) {
 			return
 		}
+
 	}
 	if !noempty && len(remoteTxs) == 0 && len(localTxs) == 0 {
 		w.commit(uncles, nil, false, tstart)
