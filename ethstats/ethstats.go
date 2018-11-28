@@ -533,7 +533,9 @@ func (s *Service) assembleBlockStats(block *types.Block) *blockStats {
 			block = s.eth.BlockChain().CurrentBlock()
 		}
 		header = block.Header()
-		td = s.eth.BlockChain().GetTd(header.Hash(), header.Number.Uint64())
+		// change by Shara - remove TD
+		//td = s.eth.BlockChain().GetTd(header.Hash(), header.Number.Uint64())
+		// end change by Shara
 
 		txs = make([]txStats, len(block.Transactions()))
 		for i, tx := range block.Transactions() {
@@ -547,7 +549,9 @@ func (s *Service) assembleBlockStats(block *types.Block) *blockStats {
 		} else {
 			header = s.les.BlockChain().CurrentHeader()
 		}
-		td = s.les.BlockChain().GetTd(header.Hash(), header.Number.Uint64())
+		// change by Shara - remove TD
+		//td = s.les.BlockChain().GetTd(header.Hash(), header.Number.Uint64())
+		// end change by Shara
 		txs = []txStats{}
 	}
 	// Assemble and return the block stats

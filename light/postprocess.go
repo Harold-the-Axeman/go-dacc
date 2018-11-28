@@ -147,10 +147,14 @@ var (
 )
 
 // ChtNode structures are stored in the Canonical Hash Trie in an RLP encoded format
+// change by Shara - remove TD
 type ChtNode struct {
 	Hash common.Hash
-	Td   *big.Int
+	//Td   *big.Int
+	Number *big.Int
 }
+
+// end change by Shara
 
 // GetChtRoot reads the CHT root associated to the given section from the database
 // Note that sectionIdx is specified according to LES/1 CHT section size.
@@ -242,13 +246,20 @@ func (c *ChtIndexerBackend) Process(ctx context.Context, header *types.Header) e
 	hash, num := header.Hash(), header.Number.Uint64()
 	c.lastHash = hash
 
-	td := rawdb.ReadTd(c.diskdb, hash, num)
-	if td == nil {
-		panic(nil)
-	}
+	// change by Shara - remove TD
+	/*
+		td := rawdb.ReadTd(c.diskdb, hash, num)
+		if td == nil {
+			panic(nil)
+		}
+	*/
+	// end change by Shara
 	var encNumber [8]byte
 	binary.BigEndian.PutUint64(encNumber[:], num)
-	data, _ := rlp.EncodeToBytes(ChtNode{hash, td})
+	// change by Shara - remove TD
+	// data, _ := rlp.EncodeToBytes(ChtNode{hash, td})
+	data, _ := rlp.EncodeToBytes(ChtNode{hash, header.Number})
+	// end change by Shara
 	c.trie.Update(encNumber[:], data)
 	return nil
 }

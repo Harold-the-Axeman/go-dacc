@@ -20,7 +20,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/daccproject/go-dacc/core/rawdb"
 	"github.com/daccproject/go-dacc/eth/downloader"
 	"github.com/daccproject/go-dacc/light"
 )
@@ -54,11 +53,16 @@ func (pm *ProtocolManager) syncer() {
 	}
 }
 
+// change by Shara - remove TD
 func (pm *ProtocolManager) needToSync(peerHead blockInfo) bool {
 	head := pm.blockchain.CurrentHeader()
-	currentTd := rawdb.ReadTd(pm.chainDb, head.Hash(), head.Number.Uint64())
-	return currentTd != nil && peerHead.Td.Cmp(currentTd) > 0
+	currentNumber := head.Number
+	//currentTd := rawdb.ReadTd(pm.chainDb, head.Hash(), head.Number.Uint64())
+	//return currentTd != nil && peerHead.Td.Cmp(currentTd) > 0
+	return currentNumber != nil && peerHead.Number > currentNumber.Uint64()
 }
+
+// end change by Shara
 
 // synchronise tries to sync up our local block chain with a remote peer.
 func (pm *ProtocolManager) synchronise(peer *peer) {
@@ -75,5 +79,8 @@ func (pm *ProtocolManager) synchronise(peer *peer) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	pm.blockchain.(*light.LightChain).SyncCht(ctx)
-	pm.downloader.Synchronise(peer.id, peer.Head(), peer.Td(), downloader.LightSync)
+	// change by Shara - remove TD
+	//pm.downloader.Synchronise(peer.id, peer.Head(), peer.Td(), downloader.LightSync)
+	pm.downloader.Synchronise(peer.id, peer.Head(), peer.Number(), downloader.LightSync)
+	// end change by Shara
 }

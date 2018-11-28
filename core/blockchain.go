@@ -847,16 +847,16 @@ func (bc *BlockChain) InsertReceiptChain(blockChain types.Blocks, receiptChain [
 	// Update the head fast sync block if better
 	bc.mu.Lock()
 	head := blockChain[len(blockChain)-1]
-	if td := bc.GetTd(head.Hash(), head.NumberU64()); td != nil { // Rewind may have occurred, skip in that case
-		currentFastBlock := bc.CurrentFastBlock()
-		// change by Shara  - remove TD
-		//if bc.GetTd(currentFastBlock.Hash(), currentFastBlock.NumberU64()).Cmp(td) < 0 {
-		if currentFastBlock.NumberU64() < head.NumberU64() {
-			// end change by Shara
-			rawdb.WriteHeadFastBlockHash(bc.db, head.Hash())
-			bc.currentFastBlock.Store(head)
-		}
+	// change by Shara  - remove TD
+	//if td := bc.GetTd(head.Hash(), head.NumberU64()); td != nil { // Rewind may have occurred, skip in that case
+	currentFastBlock := bc.CurrentFastBlock()
+	//if bc.GetTd(currentFastBlock.Hash(), currentFastBlock.NumberU64()).Cmp(td) < 0 {
+	if currentFastBlock.NumberU64() < head.NumberU64() {
+		// end change by Shara
+		rawdb.WriteHeadFastBlockHash(bc.db, head.Hash())
+		bc.currentFastBlock.Store(head)
 	}
+	//}
 	bc.mu.Unlock()
 
 	log.Info("Imported new block receipts",
@@ -895,20 +895,24 @@ func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.
 	bc.wg.Add(1)
 	defer bc.wg.Done()
 
+	// change by Shara - remove TD
 	// Calculate the total difficulty of the block
-	ptd := bc.GetTd(block.ParentHash(), block.NumberU64()-1)
-	if ptd == nil {
-		return NonStatTy, consensus.ErrUnknownAncestor
-	}
+	/*
+		ptd := bc.GetTd(block.ParentHash(), block.NumberU64()-1)
+		if ptd == nil {
+			return NonStatTy, consensus.ErrUnknownAncestor
+		}
+	*/
 	// Make sure no inconsistent state is leaked during insertion
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
 
 	currentBlock := bc.CurrentBlock()
-	localTd := bc.GetTd(currentBlock.Hash(), currentBlock.NumberU64())
 	// change by Shara - remove TD
+	//localTd := bc.GetTd(currentBlock.Hash(), currentBlock.NumberU64())
+	localNumber := currentBlock.Number()
 	//externTd := new(big.Int).Add(block.Difficulty(), ptd)
-	externTd := block.Number()
+	externNumber := block.Number()
 
 	// Irrelevant of the canonical status, write the block itself to the database
 	// if err := bc.hc.WriteTd(block.Hash(), block.NumberU64(), externTd); err != nil {
@@ -981,9 +985,14 @@ func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.
 	// If the total difficulty is higher than our known, add it to the canonical chain
 	// Second clause in the if statement reduces the vulnerability to selfish mining.
 	// Please refer to http://www.cs.cornell.edu/~ie53/publications/btcProcFC.pdf
-	reorg := externTd.Cmp(localTd) > 0
+	// change by Shara - remove TD
+	//reorg := externTd.Cmp(localTd) > 0
+	reorg := externNumber.Cmp(localNumber) > 0
+
 	currentBlock = bc.CurrentBlock()
-	if !reorg && externTd.Cmp(localTd) == 0 {
+	if !reorg && externNumber.Cmp(localNumber) == 0 {
+		//if !reorg && externTd.Cmp(localTd) == 0 {
+		// end change by Shara
 		// Split same-difficulty blocks by number, then at random
 		reorg = block.NumberU64() < currentBlock.NumberU64() || (block.NumberU64() == currentBlock.NumberU64() && mrand.Float64() < 0.5)
 	}
@@ -1547,17 +1556,19 @@ func (bc *BlockChain) CurrentHeader() *types.Header {
 	return bc.hc.CurrentHeader()
 }
 
+// change by Shara - remove TD
 // GetTd retrieves a block's total difficulty in the canonical chain from the
 // database by hash and number, caching it if found.
-func (bc *BlockChain) GetTd(hash common.Hash, number uint64) *big.Int {
-	return bc.hc.GetTd(hash, number)
-}
+//func (bc *BlockChain) GetTd(hash common.Hash, number uint64) *big.Int {
+//	return bc.hc.GetTd(hash, number)
+//}
 
 // GetTdByHash retrieves a block's total difficulty in the canonical chain from the
 // database by hash, caching it if found.
-func (bc *BlockChain) GetTdByHash(hash common.Hash) *big.Int {
-	return bc.hc.GetTdByHash(hash)
-}
+//func (bc *BlockChain) GetTdByHash(hash common.Hash) *big.Int {
+//	return bc.hc.GetTdByHash(hash)
+//}
+// end change by Shara
 
 // GetHeader retrieves a block header from the database by hash and number,
 // caching it if found.

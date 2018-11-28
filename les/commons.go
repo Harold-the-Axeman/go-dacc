@@ -42,12 +42,15 @@ type lesCommons struct {
 // NodeInfo represents a short summary of the Ethereum sub-protocol metadata
 // known about the host peer.
 type NodeInfo struct {
-	Network    uint64                  `json:"network"`    // Ethereum network ID (1=Frontier, 2=Morden, Ropsten=3, Rinkeby=4)
-	Difficulty *big.Int                `json:"difficulty"` // Total difficulty of the host's blockchain
-	Genesis    common.Hash             `json:"genesis"`    // SHA3 hash of the host's genesis block
-	Config     *params.ChainConfig     `json:"config"`     // Chain configuration for the fork rules
-	Head       common.Hash             `json:"head"`       // SHA3 hash of the host's best owned block
-	CHT        light.TrustedCheckpoint `json:"cht"`        // Trused CHT checkpoint for fast catchup
+	Network uint64 `json:"network"` // Ethereum network ID (1=Frontier, 2=Morden, Ropsten=3, Rinkeby=4)
+	// change by Shara - remove TD
+	//Difficulty *big.Int `json:"difficulty"` // Total difficulty of the host's blockchain
+	Number *big.Int `json:"difficulty"` // Current Block Number of the host's blockchain
+	// end change by Shara
+	Genesis common.Hash             `json:"genesis"` // SHA3 hash of the host's genesis block
+	Config  *params.ChainConfig     `json:"config"`  // Chain configuration for the fork rules
+	Head    common.Hash             `json:"head"`    // SHA3 hash of the host's best owned block
+	CHT     light.TrustedCheckpoint `json:"cht"`     // Trused CHT checkpoint for fast catchup
 }
 
 // makeProtocols creates protocol descriptors for the given LES versions.
@@ -108,13 +111,16 @@ func (c *lesCommons) nodeInfo() interface{} {
 
 	chain := c.protocolManager.blockchain
 	head := chain.CurrentHeader()
-	hash := head.Hash()
+	// change by Shara - remove TD
+	//hash := head.Hash()
 	return &NodeInfo{
-		Network:    c.config.NetworkId,
-		Difficulty: chain.GetTd(hash, head.Number.Uint64()),
-		Genesis:    chain.Genesis().Hash(),
-		Config:     chain.Config(),
-		Head:       chain.CurrentHeader().Hash(),
-		CHT:        cht,
+		Network: c.config.NetworkId,
+		// Difficulty: chain.GetTd(hash, head.Number.Uint64()),
+		Number: head.Number,
+		// end change by Shara
+		Genesis: chain.Genesis().Hash(),
+		Config:  chain.Config(),
+		Head:    chain.CurrentHeader().Hash(),
+		CHT:     cht,
 	}
 }

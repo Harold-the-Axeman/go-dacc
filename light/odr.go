@@ -21,7 +21,6 @@ package light
 import (
 	"context"
 	"errors"
-	"math/big"
 
 	"github.com/daccproject/go-dacc/common"
 	"github.com/daccproject/go-dacc/core"
@@ -141,8 +140,10 @@ type ChtRequest struct {
 	ChtNum, BlockNum uint64
 	ChtRoot          common.Hash
 	Header           *types.Header
-	Td               *big.Int
-	Proof            *NodeSet
+	// change by Shara - remove TD
+	//Td               *big.Int
+	// end change by Shara
+	Proof *NodeSet
 }
 
 // StoreResult stores the retrieved data in local database

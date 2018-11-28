@@ -864,7 +864,9 @@ func (s *PublicBlockChainAPI) rpcOutputBlock(b *types.Block, inclTx bool, fullTx
 	if err != nil {
 		return nil, err
 	}
-	fields["totalDifficulty"] = (*hexutil.Big)(s.b.GetTd(b.Hash()))
+	// change by Shara - remove TD
+	//fields["totalDifficulty"] = (*hexutil.Big)(s.b.GetTd(b.Hash()))
+	// end change by Shara
 	return fields, err
 }
 

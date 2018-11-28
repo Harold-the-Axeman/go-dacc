@@ -138,11 +138,13 @@ func (hc *HeaderChain) WriteHeader(header *types.Header) (status WriteStatus, er
 		number = header.Number.Uint64()
 	)
 	// Calculate the total difficulty of the header
-	ptd := hc.GetTd(header.ParentHash, number-1)
-	if ptd == nil {
-		return NonStatTy, consensus.ErrUnknownAncestor
-	}
-	// change by Shara - remove TD
+	// change by Shara - remove TD ,
+	// TODO: check ErrUnknownAncestor error
+	/*
+		ptd := hc.GetTd(header.ParentHash, number-1)
+		if ptd == nil {
+			return NonStatTy, consensus.ErrUnknownAncestor
+		}*/
 	//localTd := hc.GetTd(hc.currentHeaderHash, hc.CurrentHeader().Number.Uint64())
 	//externTd := new(big.Int).Add(header.Difficulty, ptd)
 
@@ -152,7 +154,7 @@ func (hc *HeaderChain) WriteHeader(header *types.Header) (status WriteStatus, er
 	//}
 	rawdb.WriteHeader(hc.chainDb, header)
 
-	// change by Shara - remove TD , TODO : waiting for review
+	// end change by Shara - remove TD , TODO : waiting for review
 	// If the total difficulty is higher than our known, add it to the canonical chain
 	// Second clause in the if statement reduces the vulnerability to selfish mining.
 	// Please refer to http://www.cs.cornell.edu/~ie53/publications/btcProcFC.pdf
@@ -352,8 +354,10 @@ func (hc *HeaderChain) GetAncestor(hash common.Hash, number, ancestor uint64, ma
 	return hash, number
 }
 
+// change by Shara - remove TD
 // GetTd retrieves a block's total difficulty in the canonical chain from the
 // database by hash and number, caching it if found.
+/*
 func (hc *HeaderChain) GetTd(hash common.Hash, number uint64) *big.Int {
 	// Short circuit if the td's already in the cache, retrieve otherwise
 	if cached, ok := hc.tdCache.Get(hash); ok {
@@ -366,18 +370,20 @@ func (hc *HeaderChain) GetTd(hash common.Hash, number uint64) *big.Int {
 	// Cache the found body for next time and return
 	hc.tdCache.Add(hash, td)
 	return td
-}
+}*/
+// end change by Shara
 
+// change by Shara - remove TD
 // GetTdByHash retrieves a block's total difficulty in the canonical chain from the
 // database by hash, caching it if found.
-func (hc *HeaderChain) GetTdByHash(hash common.Hash) *big.Int {
+/*func (hc *HeaderChain) GetTdByHash(hash common.Hash) *big.Int {
 	number := hc.GetBlockNumber(hash)
 	if number == nil {
 		return nil
 	}
 	return hc.GetTd(hash, *number)
-}
-
+}*/
+// end change by Shara
 // Change by Shara - remove TD
 // WriteTd stores a block's total difficulty into the database, also caching it
 // along the way.

@@ -24,7 +24,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math/big"
 
 	"github.com/daccproject/go-dacc/common"
 	"github.com/daccproject/go-dacc/core"
@@ -138,7 +137,7 @@ type announceData struct {
 	Hash   common.Hash // Hash of one particular block being announced
 	Number uint64      // Number of one particular block being announced
 	// change by Shara - remove TD
-	Td *big.Int // Total difficulty of one particular block being announced
+	// Td *big.Int // Total difficulty of one particular block being announced
 	// end change by Shara
 	ReorgDepth uint64
 	Update     keyValueList
@@ -178,7 +177,9 @@ func (a *announceData) checkSignature(pubKey *ecdsa.PublicKey) error {
 type blockInfo struct {
 	Hash   common.Hash // Hash of one particular block being announced
 	Number uint64      // Number of one particular block being announced
-	Td     *big.Int    // Total difficulty of one particular block being announced
+	// change by Shara
+	//Td     *big.Int    // Total difficulty of one particular block being announced
+	// end change by Shara
 }
 
 // getBlockHeadersData represents a block header query.

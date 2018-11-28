@@ -260,10 +260,14 @@ func (pm *ProtocolManager) handle(p *peer) error {
 		genesis = pm.blockchain.Genesis()
 		head    = pm.blockchain.CurrentHeader()
 		hash    = head.Hash()
-		number  = head.Number.Uint64()
-		td      = pm.blockchain.GetTd(hash, number)
+		// change by Shara - remove TD
+		// number  = head.Number.Uint64()
+		//td      = pm.blockchain.GetTd(hash, number)
+
 	)
-	if err := p.Handshake(pm.networkID, td, hash, genesis.Hash()); err != nil {
+	//if err := p.Handshake(pm.networkID, td, hash, genesis.Hash()); err != nil {
+	// end change by Shara
+	if err := p.Handshake(pm.networkID, head.Number, hash, genesis.Hash()); err != nil {
 		p.Log().Debug("Ethereum handshake failed", "err", err)
 		return err
 	}
@@ -426,26 +430,30 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		if err := msg.Decode(&headers); err != nil {
 			return errResp(ErrDecode, "msg %v: %v", msg, err)
 		}
+		// change by Shara - remove TD
+		// TODO: check DAO
 		// If no headers were received, but we're expending a DAO fork check, maybe it's that
-		if len(headers) == 0 && p.forkDrop != nil {
-			// Possibly an empty reply to the fork header checks, sanity check TDs
-			verifyDAO := true
+		/*
+			if len(headers) == 0 && p.forkDrop != nil {
+				// Possibly an empty reply to the fork header checks, sanity check TDs
+				verifyDAO := true
 
-			// If we already have a DAO header, we can check the peer's TD against it. If
-			// the peer's ahead of this, it too must have a reply to the DAO check
-			if daoHeader := pm.blockchain.GetHeaderByNumber(pm.chainconfig.DAOForkBlock.Uint64()); daoHeader != nil {
-				if _, td := p.Head(); td.Cmp(pm.blockchain.GetTd(daoHeader.Hash(), daoHeader.Number.Uint64())) >= 0 {
-					verifyDAO = false
+				// If we already have a DAO header, we can check the peer's TD against it. If
+				// the peer's ahead of this, it too must have a reply to the DAO check
+				if daoHeader := pm.blockchain.GetHeaderByNumber(pm.chainconfig.DAOForkBlock.Uint64()); daoHeader != nil {
+					if _, td := p.Head(); td.Cmp(pm.blockchain.GetTd(daoHeader.Hash(), daoHeader.Number.Uint64())) >= 0 {
+						verifyDAO = false
+					}
 				}
-			}
-			// If we're seemingly on the same chain, disable the drop timer
-			if verifyDAO {
-				p.Log().Debug("Seems to be on the same side of the DAO fork")
-				p.forkDrop.Stop()
-				p.forkDrop = nil
-				return nil
-			}
-		}
+				// If we're seemingly on the same chain, disable the drop timer
+				if verifyDAO {
+					p.Log().Debug("Seems to be on the same side of the DAO fork")
+					p.forkDrop.Stop()
+					p.forkDrop = nil
+					return nil
+				}
+			}*/
+		// end change by Shara
 		// Filter out any explicitly requested headers, deliver the rest to the downloader
 		filter := len(headers) == 1
 		if filter {
@@ -650,20 +658,23 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 			trueHead = request.Block.ParentHash()
 			// change by Shara - remove TD
 			//trueTD   = new(big.Int).Sub(request.TD, request.Block.Difficulty())
-			trueTD = request.Block.Number()
+			trueNumber = request.Block.Number()
 			// end change by Shara
 		)
+		// change by Shara - remove TD
 		// Update the peers total difficulty if better than the previous
-		if _, td := p.Head(); trueTD.Cmp(td) > 0 {
-			p.SetHead(trueHead, trueTD)
-
+		//if _, td := p.Head(); trueTD.Cmp(td) > 0 {
+		if _, number := p.Head(); trueNumber.Cmp(number) > 0 {
+			//p.SetHead(trueHead, trueTD)
+			p.SetHead(trueHead, number)
+			// end change by Shara
 			// Schedule a sync if above ours. Note, this will not fire a sync for a gap of
 			// a singe block (as the true TD is below the propagated block), however this
 			// scenario should easily be covered by the fetcher.
 			currentBlock := pm.blockchain.CurrentBlock()
 			// change by Shara - remove TD
 			//if trueTD.Cmp(pm.blockchain.GetTd(currentBlock.Hash(), currentBlock.NumberU64())) > 0 {
-			if trueTD.Cmp(currentBlock.Number()) > 0 {
+			if trueNumber.Cmp(currentBlock.Number()) > 0 {
 				go pm.synchronise(p)
 			}
 		}
@@ -779,21 +790,27 @@ func (pm *ProtocolManager) txBroadcastLoop() {
 // NodeInfo represents a short summary of the Ethereum sub-protocol metadata
 // known about the host peer.
 type NodeInfo struct {
-	Network    uint64              `json:"network"`    // Ethereum network ID (1=Frontier, 2=Morden, Ropsten=3, Rinkeby=4)
-	Difficulty *big.Int            `json:"difficulty"` // Total difficulty of the host's blockchain
-	Genesis    common.Hash         `json:"genesis"`    // SHA3 hash of the host's genesis block
-	Config     *params.ChainConfig `json:"config"`     // Chain configuration for the fork rules
-	Head       common.Hash         `json:"head"`       // SHA3 hash of the host's best owned block
+	Network uint64 `json:"network"` // Ethereum network ID (1=Frontier, 2=Morden, Ropsten=3, Rinkeby=4)
+	// change by Shara - remove TD
+	//Difficulty *big.Int            `json:"difficulty"` // Total difficulty of the host's blockchain
+	Number *big.Int `json:number`
+	// end change by Shara
+	Genesis common.Hash         `json:"genesis"` // SHA3 hash of the host's genesis block
+	Config  *params.ChainConfig `json:"config"`  // Chain configuration for the fork rules
+	Head    common.Hash         `json:"head"`    // SHA3 hash of the host's best owned block
 }
 
 // NodeInfo retrieves some protocol metadata about the running host node.
 func (pm *ProtocolManager) NodeInfo() *NodeInfo {
 	currentBlock := pm.blockchain.CurrentBlock()
 	return &NodeInfo{
-		Network:    pm.networkID,
-		Difficulty: pm.blockchain.GetTd(currentBlock.Hash(), currentBlock.NumberU64()),
-		Genesis:    pm.blockchain.Genesis().Hash(),
-		Config:     pm.blockchain.Config(),
-		Head:       currentBlock.Hash(),
+		Network: pm.networkID,
+		// change by Shara - remove TD
+		// Difficulty: pm.blockchain.GetTd(currentBlock.Hash(), currentBlock.NumberU64()),
+		Number: currentBlock.Number(),
+		// end change by Shara
+		Genesis: pm.blockchain.Genesis().Hash(),
+		Config:  pm.blockchain.Config(),
+		Head:    currentBlock.Hash(),
 	}
 }

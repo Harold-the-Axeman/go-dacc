@@ -168,12 +168,19 @@ func (pm *ProtocolManager) synchronise(peer *peer) { // 同步peer节点的区�
 	}
 	// Make sure the peer's TD is higher than our own
 	currentBlock := pm.blockchain.CurrentBlock()
-	td := pm.blockchain.GetTd(currentBlock.Hash(), currentBlock.NumberU64())
-
-	pHead, pTd := peer.Head()
-	if pTd.Cmp(td) <= 0 {
+	// change by Shara - remove TD
+	// td := pm.blockchain.GetTd(currentBlock.Hash(), currentBlock.NumberU64())
+	number := currentBlock.Number()
+	/*
+		pHead, pTd := peer.Head()
+		if pTd.Cmp(td) <= 0 {
+			return
+		}*/
+	pHead, pNumber := peer.Head()
+	if pNumber.Cmp(number) <= 0 {
 		return
 	}
+
 	// Otherwise try to sync with the downloader
 	mode := downloader.FullSync
 	if atomic.LoadUint32(&pm.fastSync) == 1 {
@@ -195,13 +202,17 @@ func (pm *ProtocolManager) synchronise(peer *peer) { // 同步peer节点的区�
 		// if pm.blockchain.GetTdByHash(pm.blockchain.CurrentFastBlock().Hash()).Cmp(pTd) >= 0 {
 		//	return
 		// }
-		if pm.blockchain.GetTdByHash(pm.blockchain.CurrentFastBlock().Hash()).Cmp(pTd) >= 0 {
+		if pm.blockchain.CurrentFastBlock().Number().Cmp(pNumber) >= 0 {
 			return
 		}
+		// end change by Shara
 	}
 
 	// Run the sync cycle, and disable fast sync if we've went past the pivot block
-	if err := pm.downloader.Synchronise(peer.id, pHead, pTd, mode); err != nil {
+	// change by Shara - remove TD
+	// if err := pm.downloader.Synchronise(peer.id, pHead, pTd, mode); err != nil {
+	if err := pm.downloader.Synchronise(peer.id, pHead, pNumber, mode); err != nil {
+		// end change by Shara
 		return
 	}
 	if atomic.LoadUint32(&pm.fastSync) == 1 {

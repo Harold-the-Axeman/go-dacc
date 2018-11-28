@@ -159,10 +159,11 @@ type Block struct {
 	hash atomic.Value
 	size atomic.Value
 
+	// change by Shara - remove TD
 	// Td is used by package core to store the total difficulty
 	// of the chain up to and including the block.
-	td *big.Int
-
+	// td *big.Int
+	// end change by Shara
 	// These fields are used by package eth to track
 	// inter-peer block relay.
 	ReceivedAt   time.Time
@@ -171,12 +172,14 @@ type Block struct {
 	DposContext *DposContext
 }
 
+// change by Shara - remove TD
 // DeprecatedTd is an old relic for extracting the TD of a block. It is in the
 // code solely to facilitate upgrading the database from the old format to the
 // new, after which it should be deleted. Do not use!
-func (b *Block) DeprecatedTd() *big.Int {
-	return b.td
-}
+//func (b *Block) DeprecatedTd() *big.Int {
+//	return b.td
+//}
+// end change by Shara
 
 // [deprecated by eth/63]
 // StorageBlock defines the RLP encoding of a Block stored in the
@@ -208,7 +211,10 @@ type storageblock struct {
 // are ignored and set to values derived from the given txs, uncles
 // and receipts.
 func NewBlock(header *Header, txs []*Transaction, uncles []*Header, receipts []*Receipt) *Block {
-	b := &Block{header: CopyHeader(header), td: new(big.Int)}
+	// change by Shara - remove TD
+	// b := &Block{header: CopyHeader(header), td: new(big.Int)}
+	b := &Block{header: CopyHeader(header)}
+	// end change by Shara
 
 	// TODO: panic if len(txs) != len(receipts)
 	if len(txs) == 0 {
@@ -295,16 +301,19 @@ func (b *Block) EncodeRLP(w io.Writer) error {
 	})
 }
 
+// change by Shara - remove TD
 // [deprecated by eth/63]
 func (b *StorageBlock) DecodeRLP(s *rlp.Stream) error {
 	var sb storageblock
 	if err := s.Decode(&sb); err != nil {
 		return err
 	}
-	b.header, b.uncles, b.transactions, b.td = sb.Header, sb.Uncles, sb.Txs, sb.TD
+	// b.header, b.uncles, b.transactions, b.td = sb.Header, sb.Uncles, sb.Txs, sb.TD
+	b.header, b.uncles, b.transactions = sb.Header, sb.Uncles, sb.Txs
 	return nil
 }
 
+// end change by Shara
 // TODO: copies
 
 func (b *Block) Uncles() []*Header          { return b.uncles }
