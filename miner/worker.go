@@ -88,8 +88,8 @@ type environment struct {
 	//ancestors mapset.Set    // ancestor set (used for checking uncle parent validity)
 	//family    mapset.Set    // family set (used for checking uncle invalidity)
 	//uncles    mapset.Set    // uncle set
-	tcount    int           // tx count in cycle
-	gasPool   *core.GasPool // available gas used to pack transactions
+	tcount  int           // tx count in cycle
+	gasPool *core.GasPool // available gas used to pack transactions
 
 	header   *types.Header
 	txs      []*types.Transaction
@@ -158,15 +158,15 @@ type worker struct {
 	// end Change by Shara
 
 	// Channels
-	newWorkCh          chan *newWorkReq
-	taskCh             chan *task
-	resultCh           chan *types.Block
+	newWorkCh chan *newWorkReq
+	taskCh    chan *task
+	resultCh  chan *types.Block
 	//startCh            chan struct{}
-	exitCh             chan struct{}
+	exitCh chan struct{}
 	//resubmitIntervalCh chan time.Duration
 	//resubmitAdjustCh   chan *intervalAdjust
 
-	current        *environment                 // An environment for current running cycle.
+	current *environment // An environment for current running cycle.
 	//possibleUncles map[common.Hash]*types.Block // A set of side blocks as the possible uncle blocks.
 	//unconfirmed    *unconfirmedBlocks           // A set of locally mined blocks pending canonicalness confirmations.
 
@@ -200,25 +200,25 @@ type worker struct {
 
 func newWorker(config *params.ChainConfig, engine consensus.Engine, eth Backend, mux *event.TypeMux, recommit time.Duration, gasFloor, gasCeil uint64) *worker {
 	worker := &worker{
-		config:         config,
-		engine:         engine,
-		eth:            eth,
-		mux:            mux,
-		chain:          eth.BlockChain(),
-		gasFloor:       gasFloor,
-		gasCeil:        gasCeil,
+		config:   config,
+		engine:   engine,
+		eth:      eth,
+		mux:      mux,
+		chain:    eth.BlockChain(),
+		gasFloor: gasFloor,
+		gasCeil:  gasCeil,
 		//possibleUncles: make(map[common.Hash]*types.Block),
 		//unconfirmed:    newUnconfirmedBlocks(eth.BlockChain(), miningLogAtDepth),
-		pendingTasks:   make(map[common.Hash]*task),
-		txsCh:          make(chan core.NewTxsEvent, txChanSize),
-		chainHeadCh:    make(chan core.ChainHeadEvent, chainHeadChanSize),
+		pendingTasks: make(map[common.Hash]*task),
+		txsCh:        make(chan core.NewTxsEvent, txChanSize),
+		chainHeadCh:  make(chan core.ChainHeadEvent, chainHeadChanSize),
 		// Change by Shara
 		// chainSideCh:        make(chan core.ChainSideEvent, chainSideChanSize),
 		// Change by Shara
-		newWorkCh:          make(chan *newWorkReq),
-		taskCh:             make(chan *task),
-		resultCh:           make(chan *types.Block, resultQueueSize),
-		exitCh:             make(chan struct{}),
+		newWorkCh: make(chan *newWorkReq),
+		taskCh:    make(chan *task),
+		resultCh:  make(chan *types.Block, resultQueueSize),
+		exitCh:    make(chan struct{}),
 		//startCh:            make(chan struct{}, 1),
 		//resubmitIntervalCh: make(chan time.Duration),
 		//resubmitAdjustCh:   make(chan *intervalAdjust, resubmitAdjustChanSize),
@@ -374,7 +374,7 @@ func (w *worker) newWorkLoop() {
 	var (
 		//interrupt   *int32
 		//minRecommit = recommit // minimal resubmit interval specified by user.
-		timestamp   int64      // timestamp for each round of mining.
+		timestamp int64 // timestamp for each round of mining.
 	)
 
 	//TODO: remove timer in the newWork loop
@@ -431,12 +431,12 @@ func (w *worker) newWorkLoop() {
 	for {
 		select {
 		//case <-w.startCh:
-			//TODO: start the timer here, can be remove use the running tag
-			/*clearPending(w.chain.CurrentBlock().NumberU64())
-			timestamp = time.Now().Unix()
-			commit(false, commitInterruptNewHead)*/
+		//TODO: start the timer here, can be remove use the running tag
+		/*clearPending(w.chain.CurrentBlock().NumberU64())
+		timestamp = time.Now().Unix()
+		commit(false, commitInterruptNewHead)*/
 
-			//NOTE: we need do noting here
+		//NOTE: we need do noting here
 
 		case <-w.chainHeadCh: //head := <-w.chainHeadCh:
 			/*clearPending(head.Block.NumberU64())
@@ -459,34 +459,34 @@ func (w *worker) newWorkLoop() {
 			}
 
 		//case <-timer.C:
-			// If mining is running resubmit a new work cycle periodically to pull in
-			// higher priced transactions. Disable this overhead for pending blocks.
+		// If mining is running resubmit a new work cycle periodically to pull in
+		// higher priced transactions. Disable this overhead for pending blocks.
 
-			//NOTE: we do not need this in DPOS, but Block Producing need timeout!
-			/*if w.isRunning() && (w.config.Clique == nil || w.config.Clique.Period > 0) {
-				// End Change by Shara
-				// Short circuit if no new transaction arrives.
-				if atomic.LoadInt32(&w.newTxs) == 0 {
-					timer.Reset(recommit)
-					continue
-				}
-				commit(true, commitInterruptResubmit)
-			}*/
+		//NOTE: we do not need this in DPOS, but Block Producing need timeout!
+		/*if w.isRunning() && (w.config.Clique == nil || w.config.Clique.Period > 0) {
+			// End Change by Shara
+			// Short circuit if no new transaction arrives.
+			if atomic.LoadInt32(&w.newTxs) == 0 {
+				timer.Reset(recommit)
+				continue
+			}
+			commit(true, commitInterruptResubmit)
+		}*/
 
 		/*case interval := <-w.resubmitIntervalCh:
-			// Adjust resubmit interval explicitly by user.
-			if interval < minRecommitInterval {
-				log.Warn("Sanitizing miner recommit interval", "provided", interval, "updated", minRecommitInterval)
-				interval = minRecommitInterval
-			}
-			log.Info("Miner recommit interval update", "from", minRecommit, "to", interval)
-			minRecommit, recommit = interval, interval
+		// Adjust resubmit interval explicitly by user.
+		if interval < minRecommitInterval {
+			log.Warn("Sanitizing miner recommit interval", "provided", interval, "updated", minRecommitInterval)
+			interval = minRecommitInterval
+		}
+		log.Info("Miner recommit interval update", "from", minRecommit, "to", interval)
+		minRecommit, recommit = interval, interval
 
-			if w.resubmitHook != nil {
-				w.resubmitHook(minRecommit, recommit)
-			}*/
+		if w.resubmitHook != nil {
+			w.resubmitHook(minRecommit, recommit)
+		}*/
 
-	/*	case adjust := <-w.resubmitAdjustCh:
+		/*	case adjust := <-w.resubmitAdjustCh:
 			// Adjust resubmit interval by feedback.
 			if adjust.inc {
 				before := recommit
@@ -681,6 +681,8 @@ func (w *worker) resultLoop() {
 				receipts = make([]*types.Receipt, len(task.receipts))
 				logs     []*types.Log
 			)
+			var beginReceipts = time.Now()
+			log.Warn("Begin receipts")
 			for i, receipt := range task.receipts {
 				receipts[i] = new(types.Receipt)
 				*receipts[i] = *receipt
@@ -691,6 +693,7 @@ func (w *worker) resultLoop() {
 				}
 				logs = append(logs, receipt.Logs...)
 			}
+			log.Warn("End receipts", "Cost", time.Since(beginReceipts))
 			// Commit block and state to database.
 			stat, err := w.chain.WriteBlockWithState(block, receipts, task.state)
 			if err != nil {
@@ -747,7 +750,7 @@ func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 		//ancestors: mapset.NewSet(),
 		//family:    mapset.NewSet(),
 		//uncles:    mapset.NewSet(),
-		header:    header,
+		header: header,
 	}
 
 	// when 08 is processed ancestors contain 07 (quick block)
