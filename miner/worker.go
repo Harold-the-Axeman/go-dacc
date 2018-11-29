@@ -59,19 +59,19 @@ const (
 
 	// minRecommitInterval is the minimal time interval to recreate the mining block with
 	// any newly arrived transactions.
-	minRecommitInterval = 1 * time.Second
+	//minRecommitInterval = 1 * time.Second
 
 	// maxRecommitInterval is the maximum time interval to recreate the mining block with
 	// any newly arrived transactions.
-	maxRecommitInterval = 15 * time.Second
+	//maxRecommitInterval = 15 * time.Second
 
 	// intervalAdjustRatio is the impact a single interval adjustment has on sealing work
 	// resubmitting interval.
-	intervalAdjustRatio = 0.1
+	//intervalAdjustRatio = 0.1
 
 	// intervalAdjustBias is applied during the new resubmit interval calculation in favor of
 	// increasing upper limit or decreasing lower limit so that the limit can be reachable.
-	intervalAdjustBias = 200 * 1000.0 * 1000.0
+	//intervalAdjustBias = 200 * 1000.0 * 1000.0
 
 	// staleThreshold is the maximum depth of the acceptable stale block.
 	staleThreshold = 7
@@ -232,10 +232,10 @@ func newWorker(config *params.ChainConfig, engine consensus.Engine, eth Backend,
 	// End Change by Shara
 
 	// Sanitize recommit interval if the user-specified one is too short.
-	if recommit < minRecommitInterval {
+	/*if recommit < minRecommitInterval {
 		log.Warn("Sanitizing miner recommit interval", "provided", recommit, "updated", minRecommitInterval)
 		recommit = minRecommitInterval
-	}
+	}*/
 
 	go worker.mainLoop()
 	//go worker.newWorkLoop(recommit)
