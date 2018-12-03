@@ -428,7 +428,6 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 	for {
 		select {
 		case <-w.startCh:
-			log.Warn("startCh", "Now", time.Now().Unix())
 			/*clearPending(w.chain.CurrentBlock().NumberU64())
 			timestamp = time.Now().Unix()
 			commit(false, commitInterruptNewHead)*/
@@ -436,7 +435,6 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			//NOTE: we need do noting here
 
 		case <-w.chainHeadCh: //head := <-w.chainHeadCh:
-			log.Warn("chainHeadCh", "Now", time.Now().Unix())
 			/*clearPending(head.Block.NumberU64())
 			timestamp = time.Now().Unix()
 			commit(false, commitInterruptNewHead)*/
@@ -448,26 +446,16 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 
 		// DPOS block producing ticker
 		case now := <-tickerRep.C:
-			log.Warn("Ticker", "Now", now.Unix())
 			//TODO: ticker will always run here, temporary fix here.
 			if atomic.LoadInt32(&w.running) == 1 {
-				log.Warn("Begin clearPending")
-				var beginClearPending = time.Now()
 				clearPending(w.chain.CurrentBlock().NumberU64()) //NOTE: this line in not need here
-				log.Warn("End clearPending", "Cost", time.Since(beginClearPending))
-				timestamp = now.Unix() // TODO: NEED CHECK, possible bug: time.Now().Unix() or now, which one?
-				log.Warn("Begin commit")
-				var beginCommit = time.Now()
-				commit(false, commitInterruptNone) //NOTE: replace call mintBlock in the task loop
-				log.Warn("End commit", "Cost", time.Since(beginCommit))
+				timestamp = now.Unix()                           // TODO: NEED CHECK, possible bug: time.Now().Unix() or now, which one?
+				commit(false, commitInterruptNone)               //NOTE: replace call mintBlock in the task loop
 			}
-			// for the next block 
+			// for the next block
 			tickerRep.Reset(time.Second)
 
-
 		case <-timer.C:
-			log.Warn("timer.C", "Now", time.Now().Unix())
-			timer.Reset(2 * time.Second)
 			// If mining is running resubmit a new work cycle periodically to pull in
 			// higher priced transactions. Disable this overhead for pending blocks.
 
@@ -483,7 +471,6 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			}*/
 
 		case interval := <-w.resubmitIntervalCh:
-			log.Warn("resubmitIntervalCh", "Now", time.Now().Unix())
 			// Adjust resubmit interval explicitly by user.
 			if interval < minRecommitInterval {
 				log.Warn("Sanitizing miner recommit interval", "provided", interval, "updated", minRecommitInterval)
@@ -497,7 +484,6 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			}
 
 		case <-w.resubmitAdjustCh:
-			log.Warn("resubmitAdjustCh", "Now", time.Now().Unix())
 			// Adjust resubmit interval by feedback.
 			//if adjust.inc {
 			//	before := recommit
@@ -514,7 +500,6 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			//}
 
 		case <-w.exitCh:
-			log.Warn("exitCh", "Now", time.Now().Unix())
 			return
 		}
 	}
@@ -533,10 +518,7 @@ func (w *worker) mainLoop() {
 		case req := <-w.newWorkCh:
 			// change by Shara
 			// NOTE, added by harold: mintBlock here, check the event channel above in the newWorkLoop
-			log.Info("Begin mintBlock")
-			var beginMintBlock = time.Now()
 			w.mintBlock(*req)
-			log.Info("End mintBlock", "Cost", time.Since(beginMintBlock))
 			//w.createNewWork(req.interrupt, req.noempty, req.timestamp)
 			// end change by Shara
 
@@ -859,8 +841,6 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 
 	var coalescedLogs []*types.Log
 
-	var startCommitTransactions = time.Now()
-	log.Info("----startCommitTransactions----")
 	for {
 		// In the following three cases, we will interrupt the execution of the transaction.
 		// (1) new head block event arrival, the interrupt signal is 1
@@ -938,7 +918,6 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 			txs.Shift()
 		}
 	}
-	log.Info("----endCommitTransactions----", "Cost", time.Since(startCommitTransactions))
 
 	if !w.isRunning() && len(coalescedLogs) > 0 {
 		// We don't push the pendingLogsEvent while we are mining. The reason is that
