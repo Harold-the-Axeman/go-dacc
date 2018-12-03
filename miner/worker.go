@@ -681,8 +681,6 @@ func (w *worker) resultLoop() {
 				receipts = make([]*types.Receipt, len(task.receipts))
 				logs     []*types.Log
 			)
-			var beginReceipts = time.Now()
-			log.Warn("Begin receipts")
 			for i, receipt := range task.receipts {
 				receipts[i] = new(types.Receipt)
 				*receipts[i] = *receipt
@@ -693,9 +691,11 @@ func (w *worker) resultLoop() {
 				}
 				logs = append(logs, receipt.Logs...)
 			}
-			log.Warn("End receipts", "Cost", time.Since(beginReceipts))
 			// Commit block and state to database.
+			var beginWriteBlock = time.Now()
+			log.Warn("Begin WriteBlockWithState")
 			stat, err := w.chain.WriteBlockWithState(block, receipts, task.state)
+			log.Warn("End WriteBlockWithState", "Cost", time.Since(beginWriteBlock))
 			if err != nil {
 				log.Error("Failed writing block to chain", "err", err)
 				continue
