@@ -1103,6 +1103,11 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 		if err == nil {
 			err = bc.Validator().ValidateBody(block)
 		}
+		// remvoe log
+		if err != nil {
+			log.Warn("varify body err", err)
+		}
+
 		switch {
 		case err == ErrKnownBlock:
 			// Block and state both already known. However if the current block is below
@@ -1186,24 +1191,33 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 			return i, events, coalescedLogs, err
 		}
 		state, err := state.New(parent.Root(), bc.stateCache)
+
 		if err != nil {
+			// remove log
+			log.Warn("err state new:", err)
 			return i, events, coalescedLogs, err
 		}
 		// Process block using the parent state as reference point.
 		receipts, logs, usedGas, err := bc.processor.Process(block, state, bc.vmConfig)
 		if err != nil {
+			// remove log
+			log.Warn("err:receipts", err)
 			bc.reportBlock(block, receipts, err)
 			return i, events, coalescedLogs, err
 		}
 		// Validate the state using the default validator
 		err = bc.Validator().ValidateState(block, parent, state, receipts, usedGas)
 		if err != nil {
+			// remove log
+			log.Warn("err:ValidateState", err)
 			bc.reportBlock(block, receipts, err)
 			return i, events, coalescedLogs, err
 		}
 		// Validate the dpos state using the default validator
 		err = bc.Validator().ValidateDposState(block)
 		if err != nil {
+			// remove log
+			log.Warn("err:ValidateDposState", err)
 			bc.reportBlock(block, receipts, err)
 			return i, events, coalescedLogs, err
 		}

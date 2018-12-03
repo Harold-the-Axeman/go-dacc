@@ -176,7 +176,7 @@ func (hn *hashOrNumber) DecodeRLP(s *rlp.Stream) error {
 type newBlockData struct {
 	Block *types.Block
 	// TD    *big.Int
-	Number *big.Int
+	// Number *big.Int
 }
 
 // end change by Shara

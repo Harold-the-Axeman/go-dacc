@@ -328,7 +328,7 @@ func (d *Downloader) Synchronise(id string, head common.Hash, number *big.Int, m
 	case errTimeout, errBadPeer, errStallingPeer,
 		errEmptyHeaderSet, errPeersUnavailable, errTooOld,
 		errInvalidAncestor, errInvalidChain:
-		log.Warn("Synchronisation failed, dropping peer", "peer", id, "err", err)
+		log.Warn("Synchronisation failed, dropping peer", "peer", id, "blocknumber", number, "err", err)
 		if d.dropPeer == nil {
 			// The dropPeer method is nil when `--copydb` is used for a local copy.
 			// Timeouts can occur if e.g. compaction hits at the wrong time, and can be ignored
@@ -428,6 +428,7 @@ func (d *Downloader) syncWithPeer(p *peerConnection, hash common.Hash, number *b
 	}
 	// change by Shara - remove TD
 	//log.Debug("Synchronising with the network", "peer", p.id, "eth", p.version, "head", hash, "td", td, "mode", d.mode)
+	log.Warn("Synchronising with the network", "peer", p.id, "eth", p.version, "head", hash, "number", number, "mode", d.mode)
 	log.Debug("Synchronising with the network", "peer", p.id, "eth", p.version, "head", hash, "number", number, "mode", d.mode)
 	// end change by Shara
 
@@ -782,6 +783,7 @@ func (d *Downloader) findAncestor(p *peerConnection, height uint64) (uint64, err
 func (d *Downloader) fetchHeaders(p *peerConnection, from uint64, pivot uint64) error {
 	p.log.Debug("Directing header downloads", "origin", from)
 	defer p.log.Debug("Header download terminated")
+	defer p.log.Warn("Header download terminated")
 
 	// Create a timeout timer, and the associated header fetcher
 	skeleton := true            // Skeleton assembly phase or finishing up
@@ -958,7 +960,6 @@ func (d *Downloader) fetchBodies(from uint64) error {
 	err := d.fetchParts(errCancelBodyFetch, d.bodyCh, deliver, d.bodyWakeCh, expire,
 		d.queue.PendingBlocks, d.queue.InFlightBlocks, d.queue.ShouldThrottleBlocks, d.queue.ReserveBodies,
 		d.bodyFetchHook, fetch, d.queue.CancelBodies, capacity, d.peers.BodyIdlePeers, setIdle, "bodies")
-
 	log.Debug("Block body download terminated", "err", err)
 	return err
 }
@@ -967,6 +968,8 @@ func (d *Downloader) fetchBodies(from uint64) error {
 // available peers, reserving a chunk of receipts for each, waiting for delivery
 // and also periodically checking for timeouts.
 func (d *Downloader) fetchReceipts(from uint64) error {
+	// remvoe log
+	log.Warn("Downloading transaction receipts", "origin", from)
 	log.Debug("Downloading transaction receipts", "origin", from)
 
 	var (
@@ -982,7 +985,6 @@ func (d *Downloader) fetchReceipts(from uint64) error {
 	err := d.fetchParts(errCancelReceiptFetch, d.receiptCh, deliver, d.receiptWakeCh, expire,
 		d.queue.PendingReceipts, d.queue.InFlightReceipts, d.queue.ShouldThrottleReceipts, d.queue.ReserveReceipts,
 		d.receiptFetchHook, fetch, d.queue.CancelReceipts, capacity, d.peers.ReceiptIdlePeers, setIdle, "receipts")
-
 	log.Debug("Transaction receipt download terminated", "err", err)
 	return err
 }
@@ -1036,6 +1038,7 @@ func (d *Downloader) fetchParts(errCancel error, deliveryCh chan dataPack, deliv
 			if peer := d.peers.Peer(packet.PeerId()); peer != nil {
 				// Deliver the received chunk of data and check chain validity
 				accepted, err := deliver(packet)
+				log.Warn("err invalid chain")
 				if err == errInvalidChain {
 					return err
 				}
