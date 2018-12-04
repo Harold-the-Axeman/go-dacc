@@ -45,7 +45,7 @@ var DefaultConfig = Config{
 	//},
 	//NetworkId:     1,
 	SyncMode:      downloader.FullSync,
-	NetworkId:     1919,
+	NetworkId:     1,
 	LightPeers:    100,
 	DatabaseCache: 768,
 	TrieCache:     256,
