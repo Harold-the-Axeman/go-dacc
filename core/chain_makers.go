@@ -151,7 +151,9 @@ func (b *BlockGen) OffsetTime(seconds int64) {
 	if b.header.Time.Cmp(b.parent.Header().Time) <= 0 {
 		panic("block time out of range")
 	}
-	b.header.Difficulty = b.engine.CalcDifficulty(b.chainReader, b.header.Time.Uint64(), b.parent.Header())
+	// change by Shara - remove TD
+	// b.header.Difficulty = b.engine.CalcDifficulty(b.chainReader, b.header.Time.Uint64(), b.parent.Header())
+	// end change by Shara
 }
 
 // GenerateChain creates a chain of n blocks. The first block's
@@ -249,10 +251,12 @@ func makeHeader(chain consensus.ChainReader, parent *types.Block, state *state.S
 		//GasLimit: CalcGasLimit(parent, parent.GasLimit(), parent.GasLimit()),
 		//Number:   new(big.Int).Add(parent.Number(), common.Big1),
 		//Time:     time,
-		Root:        state.IntermediateRoot(chain.Config().IsEIP158(parent.Number())),
-		ParentHash:  parent.Hash(),
-		Coinbase:    parent.Coinbase(),
-		Difficulty:  parent.Difficulty(),
+		Root:       state.IntermediateRoot(chain.Config().IsEIP158(parent.Number())),
+		ParentHash: parent.Hash(),
+		Coinbase:   parent.Coinbase(),
+		// change by Shara - remove TD
+		//Difficulty:  parent.Difficulty(),
+		// end by Shara
 		DposContext: &types.DposContextProto{},
 		GasLimit:    CalcGasLimit(parent, parent.GasLimit(), parent.GasLimit()),
 		Number:      new(big.Int).Add(parent.Number(), common.Big1),

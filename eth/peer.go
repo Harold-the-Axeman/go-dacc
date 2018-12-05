@@ -58,18 +58,23 @@ const (
 	handshakeTimeout = 5 * time.Second
 )
 
+// change by Shara - remove TD
 // PeerInfo represents a short summary of the Ethereum sub-protocol metadata known
 // about a connected peer.
 type PeerInfo struct {
-	Version    int      `json:"version"`    // Ethereum protocol version negotiated
-	Difficulty *big.Int `json:"difficulty"` // Total difficulty of the peer's blockchain
-	Head       string   `json:"head"`       // SHA3 hash of the peer's best owned block
+	Version int `json:"version"` // Ethereum protocol version negotiated
+	//Difficulty *big.Int `json:"difficulty"` // Total difficulty of the peer's blockchain
+	Number *big.Int `json:"number"` // peer's blockchain current block number
+	Head   string   `json:"head"`   // SHA3 hash of the peer's best owned block
 }
+
+// end change by Shara
 
 // propEvent is a block propagation, waiting for its turn in the broadcast queue.
 type propEvent struct {
 	block *types.Block
-	td    *big.Int
+	//td    *big.Int
+	number *big.Int
 }
 
 type peer struct {
@@ -82,7 +87,10 @@ type peer struct {
 	forkDrop *time.Timer // Timed connection dropper if forks aren't validated in time
 
 	head common.Hash
-	td   *big.Int
+	// change by Shara - remove TD
+	// td   *big.Int
+	number *big.Int
+	// end change by Shara
 	lock sync.RWMutex
 
 	knownTxs    mapset.Set                // Set of transaction hashes known to be known by this peer
@@ -121,10 +129,18 @@ func (p *peer) broadcast() {
 			p.Log().Trace("Broadcast transactions", "count", len(txs))
 
 		case prop := <-p.queuedProps:
-			if err := p.SendNewBlock(prop.block, prop.td); err != nil {
+			// change by Shara - remove TD
+			//if err := p.SendNewBlock(prop.block, prop.td); err != nil {
+			//	return
+			//}
+			// end change by Shara
+			if err := p.SendNewBlock(prop.block); err != nil {
 				return
 			}
-			p.Log().Trace("Propagated block", "number", prop.block.Number(), "hash", prop.block.Hash(), "td", prop.td)
+			// change by Shara - remove TD
+			// p.Log().Trace("Propagated block", "number", prop.block.Number(), "hash", prop.block.Hash(), "td", prop.td)
+			p.Log().Trace("Propagated block", "number", prop.block.Number(), "hash", prop.block.Hash())
+			// end change by Shara
 
 		case block := <-p.queuedAnns:
 			if err := p.SendNewBlockHashes([]common.Hash{block.Hash()}, []uint64{block.NumberU64()}); err != nil {
@@ -143,35 +159,54 @@ func (p *peer) close() {
 	close(p.term)
 }
 
+// Change by Shara - remove TD
 // Info gathers and returns a collection of metadata known about a peer.
 func (p *peer) Info() *PeerInfo {
-	hash, td := p.Head()
-
+	hash, number := p.Head()
+	/*
+		return &PeerInfo{
+			Version:    p.version,
+			Difficulty: td,
+			Head:       hash.Hex(),
+		}*/
 	return &PeerInfo{
-		Version:    p.version,
-		Difficulty: td,
-		Head:       hash.Hex(),
+		Version: p.version,
+		Number:  number,
+		Head:    hash.Hex(),
 	}
 }
 
+// end change by Shara
+
+// Change by Shara - remove TD
 // Head retrieves a copy of the current head hash and total difficulty of the
 // peer.
-func (p *peer) Head() (hash common.Hash, td *big.Int) {
+// func (p *peer) Head() (hash common.Hash, td *big.Int) {
+func (p *peer) Head() (hash common.Hash, number *big.Int) {
+
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 
 	copy(hash[:], p.head[:])
-	return hash, new(big.Int).Set(p.td)
+	//return hash, new(big.Int).Set(p.td)
+	return hash, new(big.Int).Set(p.number)
 }
 
+// end change by Shara
+
+// change by Shara - remove TD
 // SetHead updates the head hash and total difficulty of the peer.
-func (p *peer) SetHead(hash common.Hash, td *big.Int) {
+// func (p *peer) SetHead(hash common.Hash, td *big.Int) {
+func (p *peer) SetHead(hash common.Hash, number *big.Int) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
 	copy(p.head[:], hash[:])
-	p.td.Set(td)
+	// p.td.Set(td)
+	p.number.Set(number)
 }
+
+// end change by Shara
 
 // MarkBlock marks a block as known for the peer, ensuring that the block will
 // never be propagated to this particular peer.
@@ -242,21 +277,30 @@ func (p *peer) AsyncSendNewBlockHash(block *types.Block) {
 }
 
 // SendNewBlock propagates an entire block to a remote peer.
-func (p *peer) SendNewBlock(block *types.Block, td *big.Int) error {
+// change by Shara - remove TD
+// func (p *peer) SendNewBlock(block *types.Block, td *big.Int) error {
+func (p *peer) SendNewBlock(block *types.Block) error {
 	p.knownBlocks.Add(block.Hash())
-	return p2p.Send(p.rw, NewBlockMsg, []interface{}{block, td})
+	//return p2p.Send(p.rw, NewBlockMsg, []interface{}{block, td})
+	return p2p.Send(p.rw, NewBlockMsg, []interface{}{block})
 }
 
+// end change by Shara
+
+// change by Shara - remove TD
 // AsyncSendNewBlock queues an entire block for propagation to a remote peer. If
 // the peer's broadcast queue is full, the event is silently dropped.
-func (p *peer) AsyncSendNewBlock(block *types.Block, td *big.Int) {
+//func (p *peer) AsyncSendNewBlock(block *types.Block, td *big.Int) {
+func (p *peer) AsyncSendNewBlock(block *types.Block) {
 	select {
-	case p.queuedProps <- &propEvent{block: block, td: td}:
+	case p.queuedProps <- &propEvent{block: block, number: block.Number()}:
 		p.knownBlocks.Add(block.Hash())
 	default:
 		p.Log().Debug("Dropping block propagation", "number", block.NumberU64(), "hash", block.Hash())
 	}
 }
+
+// end change by Shara
 
 // SendBlockHeaders sends a batch of block headers to the remote peer.
 func (p *peer) SendBlockHeaders(headers []*types.Header) error {
@@ -329,7 +373,11 @@ func (p *peer) RequestReceipts(hashes []common.Hash) error {
 
 // Handshake executes the eth protocol handshake, negotiating version number,
 // network IDs, difficulties, head and genesis blocks.
-func (p *peer) Handshake(network uint64, td *big.Int, head common.Hash, genesis common.Hash) error {
+// change by Shara - remove TD
+//func (p *peer) Handshake(network uint64, td *big.Int, head common.Hash, genesis common.Hash) error {
+func (p *peer) Handshake(network uint64, number *big.Int, head common.Hash, genesis common.Hash) error {
+	// end change by Shara
+
 	// Send out own handshake in a new thread
 	errc := make(chan error, 2)
 	var status statusData // safe to read after two values have been received from errc
@@ -338,9 +386,12 @@ func (p *peer) Handshake(network uint64, td *big.Int, head common.Hash, genesis 
 		errc <- p2p.Send(p.rw, StatusMsg, &statusData{
 			ProtocolVersion: uint32(p.version),
 			NetworkId:       network,
-			TD:              td,
-			CurrentBlock:    head,
-			GenesisBlock:    genesis,
+			// change by Shara - remove TD
+			// TD:              td,
+			Number: number,
+			// end change by Shara
+			CurrentBlock: head,
+			GenesisBlock: genesis,
 		})
 	}()
 	go func() {
@@ -358,7 +409,10 @@ func (p *peer) Handshake(network uint64, td *big.Int, head common.Hash, genesis 
 			return p2p.DiscReadTimeout
 		}
 	}
-	p.td, p.head = status.TD, status.CurrentBlock
+	// change by Shara -remove TD
+	// p.td, p.head = status.TD, status.CurrentBlock
+	p.number, p.head = status.Number, status.CurrentBlock
+	// end change by Shara
 	return nil
 }
 

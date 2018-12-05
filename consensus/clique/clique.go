@@ -675,9 +675,9 @@ func (c *Clique) CalcDifficulty(chain consensus.ChainReader, time uint64, parent
 // current signer.
 func CalcDifficulty(snap *Snapshot, signer common.Address) *big.Int {
 	if snap.inturn(snap.Number+1, signer) {
-		return new(big.Int).Set(diffInTurn)
+		return new(big.Int).Set(diffInTurn) // 2
 	}
-	return new(big.Int).Set(diffNoTurn)
+	return new(big.Int).Set(diffNoTurn) // 1
 }
 
 // SealHash returns the hash of a block prior to it being sealed.

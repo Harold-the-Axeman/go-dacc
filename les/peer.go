@@ -101,12 +101,14 @@ func (p *peer) queueSend(f func()) {
 	p.sendQueue.queue(f)
 }
 
+// change by Shara - remove TD
 // Info gathers and returns a collection of metadata known about a peer.
 func (p *peer) Info() *eth.PeerInfo {
 	return &eth.PeerInfo{
-		Version:    p.version,
-		Difficulty: p.Td(),
-		Head:       fmt.Sprintf("%x", p.Head()),
+		Version: p.version,
+		//Difficulty: p.Td(),
+		Number: p.Number(),
+		Head:   fmt.Sprintf("%x", p.Head()),
 	}
 }
 
@@ -119,6 +121,8 @@ func (p *peer) Head() (hash common.Hash) {
 	return hash
 }
 
+// change by Shara - remove TD
+/*
 func (p *peer) HeadAndTd() (hash common.Hash, td *big.Int) {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
@@ -126,14 +130,29 @@ func (p *peer) HeadAndTd() (hash common.Hash, td *big.Int) {
 	copy(hash[:], p.headInfo.Hash[:])
 	return hash, p.headInfo.Td
 }
+*/
+
+func (p *peer) HeadAndNumber() (hash common.Hash, number *big.Int) {
+	p.lock.RLock()
+	defer p.lock.RUnlock()
+
+	copy(hash[:], p.headInfo.Hash[:])
+	return hash, new(big.Int).SetUint64(p.headInfo.Number)
+}
+
+// end change by Shara
 
 func (p *peer) headBlockInfo() blockInfo {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
-
-	return blockInfo{Hash: p.headInfo.Hash, Number: p.headInfo.Number, Td: p.headInfo.Td}
+	// change by Shara - remove TD
+	//return blockInfo{Hash: p.headInfo.Hash, Number: p.headInfo.Number, Td: p.headInfo.Td}
+	return blockInfo{Hash: p.headInfo.Hash, Number: p.headInfo.Number}
+	// end change by Shara
 }
 
+// change by Shara - remove TD
+/*
 // Td retrieves the current total difficulty of a peer.
 func (p *peer) Td() *big.Int {
 	p.lock.RLock()
@@ -141,6 +160,16 @@ func (p *peer) Td() *big.Int {
 
 	return new(big.Int).Set(p.headInfo.Td)
 }
+*/
+
+func (p *peer) Number() *big.Int {
+	p.lock.RLock()
+	defer p.lock.RUnlock()
+
+	return new(big.Int).SetUint64(p.headInfo.Number)
+}
+
+// end change by Shara
 
 // waitBefore implements distPeer interface
 func (p *peer) waitBefore(maxCost uint64) (time.Duration, float64) {
@@ -393,14 +422,19 @@ func (p *peer) sendReceiveHandshake(sendList keyValueList) (keyValueList, error)
 
 // Handshake executes the les protocol handshake, negotiating version number,
 // network IDs, difficulties, head and genesis blocks.
-func (p *peer) Handshake(td *big.Int, head common.Hash, headNum uint64, genesis common.Hash, server *LesServer) error {
+// change by Shara - remove TD
+// func (p *peer) Handshake(td *big.Int, head common.Hash, headNum uint64, genesis common.Hash, server *LesServer) error {
+func (p *peer) Handshake(head common.Hash, headNum uint64, genesis common.Hash, server *LesServer) error {
+	// end change by Shara
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
 	var send keyValueList
 	send = send.add("protocolVersion", uint64(p.version))
 	send = send.add("networkId", p.network)
-	send = send.add("headTd", td)
+	// change by Shara - remove TD
+	//send = send.add("headTd", td)
+	// end change by Shara
 	send = send.add("headHash", head)
 	send = send.add("headNum", headNum)
 	send = send.add("genesisHash", genesis)
@@ -490,8 +524,10 @@ func (p *peer) Handshake(td *big.Int, head common.Hash, headNum uint64, genesis 
 		p.fcServer = flowcontrol.NewServerNode(params)
 		p.fcCosts = MRC.decode()
 	}
-
-	p.headInfo = &announceData{Td: rTd, Hash: rHash, Number: rNum}
+	// change by Shara - remove TD
+	//p.headInfo = &announceData{Td: rTd, Hash: rHash, Number: rNum}
+	p.headInfo = &announceData{Hash: rHash, Number: rNum}
+	// end change by Shara
 	return nil
 }
 
@@ -623,13 +659,24 @@ func (ps *peerSet) BestPeer() *peer {
 
 	var (
 		bestPeer *peer
-		bestTd   *big.Int
+		// change by Shara - remove TD
+		//bestTd   *big.Int
+		bestNumber *big.Int
 	)
+
+	/*
+		for _, p := range ps.peers {
+			if td := p.Td(); bestPeer == nil || td.Cmp(bestTd) > 0 {
+				bestPeer, bestTd = p, td
+			}
+		}
+	*/
 	for _, p := range ps.peers {
-		if td := p.Td(); bestPeer == nil || td.Cmp(bestTd) > 0 {
-			bestPeer, bestTd = p, td
+		if number := p.Number(); bestPeer == nil || number.Cmp(bestNumber) > 0 {
+			bestPeer, bestNumber = p, number
 		}
 	}
+	// end change by Shara
 	return bestPeer
 }
 

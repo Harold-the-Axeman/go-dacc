@@ -18,6 +18,7 @@
 package les
 
 import (
+	"context"
 	"math/big"
 	"sync"
 	"time"
@@ -44,8 +45,11 @@ type lightFetcher struct {
 	odr   *LesOdr
 	chain *light.LightChain
 
-	lock            sync.Mutex // lock protects access to the fetcher's internal state variables except sent requests
-	maxConfirmedTd  *big.Int
+	lock sync.Mutex // lock protects access to the fetcher's internal state variables except sent requests
+	// change by Shara - remove TD
+	//maxConfirmedTd  *big.Int
+	maxConfirmedNumber *big.Int
+	// end change by Shara
 	peers           map[*peer]*fetcherPeerInfo
 	lastUpdateStats *updateStatsEntry
 	syncing         bool
@@ -62,10 +66,13 @@ type lightFetcher struct {
 type fetcherPeerInfo struct {
 	root, lastAnnounced *fetcherTreeNode
 	nodeCnt             int
-	confirmedTd         *big.Int
-	bestConfirmed       *fetcherTreeNode
-	nodeByHash          map[common.Hash]*fetcherTreeNode
-	firstUpdateStats    *updateStatsEntry
+	// change by Shara - remove TD
+	// confirmedTd     *big.Int
+	confirmedNumber *big.Int
+	// end change by Shara
+	bestConfirmed    *fetcherTreeNode
+	nodeByHash       map[common.Hash]*fetcherTreeNode
+	firstUpdateStats *updateStatsEntry
 }
 
 // fetcherTreeNode is a node of a tree that holds information about blocks recently
@@ -80,9 +87,11 @@ type fetcherPeerInfo struct {
 // canonizing new heads. It also helps to always download the minimum necessary
 // amount of headers with a single request.
 type fetcherTreeNode struct {
-	hash             common.Hash
-	number           uint64
-	td               *big.Int
+	hash   common.Hash
+	number uint64
+	// change by Shara - remove TD
+	// td *big.Int
+	// end change by Shara
 	known, requested bool
 	parent           *fetcherTreeNode
 	children         []*fetcherTreeNode
@@ -107,16 +116,19 @@ type fetchResponse struct {
 // newLightFetcher creates a new light fetcher
 func newLightFetcher(pm *ProtocolManager) *lightFetcher {
 	f := &lightFetcher{
-		pm:             pm,
-		chain:          pm.blockchain.(*light.LightChain),
-		odr:            pm.odr,
-		peers:          make(map[*peer]*fetcherPeerInfo),
-		deliverChn:     make(chan fetchResponse, 100),
-		requested:      make(map[uint64]fetchRequest),
-		timeoutChn:     make(chan uint64),
-		requestChn:     make(chan bool, 100),
-		syncDone:       make(chan *peer),
-		maxConfirmedTd: big.NewInt(0),
+		pm:         pm,
+		chain:      pm.blockchain.(*light.LightChain),
+		odr:        pm.odr,
+		peers:      make(map[*peer]*fetcherPeerInfo),
+		deliverChn: make(chan fetchResponse, 100),
+		requested:  make(map[uint64]fetchRequest),
+		timeoutChn: make(chan uint64),
+		requestChn: make(chan bool, 100),
+		syncDone:   make(chan *peer),
+		// change by Shara - remove TD
+		//maxConfirmedTd:     big.NewInt(0),
+		maxConfirmedNumber: big.NewInt(0),
+		// end change by Shara
 	}
 	pm.peers.notify(f)
 
@@ -252,10 +264,14 @@ func (f *lightFetcher) announce(p *peer, head *announceData) {
 		p.Log().Debug("Announcement from unknown peer")
 		return
 	}
+	// Change by Shara - remove TD
+	//if fp.lastAnnounced != nil && head.Td.Cmp(fp.lastAnnounced.td) <= 0 {
+	if fp.lastAnnounced != nil && head.Number <= fp.lastAnnounced.number {
 
-	if fp.lastAnnounced != nil && head.Td.Cmp(fp.lastAnnounced.td) <= 0 {
 		// announced tds should be strictly monotonic
-		p.Log().Debug("Received non-monotonic td", "current", head.Td, "previous", fp.lastAnnounced.td)
+		//p.Log().Debug("Received non-monotonic td", "current", head.Td, "previous", fp.lastAnnounced.td)
+		p.Log().Debug("Received non-monotonic td", "current", head.Number, "previous", fp.lastAnnounced.number)
+		// end change by Shara
 		go f.pm.removePeer(p.id)
 		return
 	}
@@ -301,7 +317,10 @@ func (f *lightFetcher) announce(p *peer, head *announceData) {
 			fp.root = newRoot
 			if newRoot == nil || !f.checkKnownNode(p, newRoot) {
 				fp.bestConfirmed = nil
-				fp.confirmedTd = nil
+				// change by Shara - remove TD
+				//fp.confirmedTd = nil
+				// end change by Shara
+				fp.confirmedNumber = nil
 			}
 
 			if n == nil {
@@ -316,7 +335,10 @@ func (f *lightFetcher) announce(p *peer, head *announceData) {
 				fp.nodeCnt++
 			}
 			n.hash = head.Hash
-			n.td = head.Td
+			// change by Shara - remove TD
+			//n.td = head.Td
+			n.number = head.Number
+			// end change by Shara
 			fp.nodeByHash[n.hash] = n
 		}
 	}
@@ -325,12 +347,17 @@ func (f *lightFetcher) announce(p *peer, head *announceData) {
 		if fp.root != nil {
 			fp.deleteNode(fp.root)
 		}
-		n = &fetcherTreeNode{hash: head.Hash, number: head.Number, td: head.Td}
+		// change by Shara - remove TD
+		//n = &fetcherTreeNode{hash: head.Hash, number: head.Number, td: head.Td}
+		n = &fetcherTreeNode{hash: head.Hash, number: head.Number}
+
 		fp.root = n
 		fp.nodeCnt++
 		fp.nodeByHash[n.hash] = n
 		fp.bestConfirmed = nil
-		fp.confirmedTd = nil
+		//fp.confirmedTd = nil
+		fp.confirmedNumber = nil
+		// end change by Shara
 	}
 
 	f.checkKnownNode(p, n)
@@ -403,25 +430,41 @@ func (f *lightFetcher) nextRequest() (*distReq, uint64) {
 		bestHash   common.Hash
 		bestAmount uint64
 	)
-	bestTd := f.maxConfirmedTd
+	// change by Shara - remove TD
+	//bestTd := f.maxConfirmedTd
+	bestNumber := f.maxConfirmedNumber
+	// end change by Shara
 	bestSyncing := false
 
 	for p, fp := range f.peers {
 		for hash, n := range fp.nodeByHash {
-			if !f.checkKnownNode(p, n) && !n.requested && (bestTd == nil || n.td.Cmp(bestTd) >= 0) {
+			// change by Shara - remove TD
+			//if !f.checkKnownNode(p, n) && !n.requested && (bestTd == nil || n.td.Cmp(bestTd) >= 0) {
+			if !f.checkKnownNode(p, n) && !n.requested && (bestNumber == nil || n.number >= bestNumber.Uint64()) {
+
 				amount := f.requestAmount(p, n)
-				if bestTd == nil || n.td.Cmp(bestTd) > 0 || amount < bestAmount {
+				//if bestTd == nil || n.td.Cmp(bestTd) > 0 || amount < bestAmount {
+				if bestNumber == nil || n.number > bestNumber.Uint64() || amount < bestAmount {
 					bestHash = hash
 					bestAmount = amount
-					bestTd = n.td
+					//bestTd = n.td
+					bestNumber = big.NewInt(0).SetUint64(n.number)
 					bestSyncing = fp.bestConfirmed == nil || fp.root == nil || !f.checkKnownNode(p, fp.root)
 				}
 			}
+			// end change by Shara
 		}
 	}
-	if bestTd == f.maxConfirmedTd {
+	// change by Shara - remvoe TD
+	/*
+		if bestTd == f.maxConfirmedTd {
+			return nil, 0
+		}
+	*/
+	if bestNumber == f.maxConfirmedNumber {
 		return nil, 0
 	}
+	// end change by Shara
 
 	f.syncing = bestSyncing
 
@@ -518,35 +561,55 @@ func (f *lightFetcher) processResponse(req fetchRequest, resp fetchResponse) boo
 		log.Debug("Failed to insert header chain", "err", err)
 		return false
 	}
-	tds := make([]*big.Int, len(headers))
-	for i, header := range headers {
-		td := f.chain.GetTd(header.Hash(), header.Number.Uint64())
-		if td == nil {
-			log.Debug("Total difficulty not found for header", "index", i+1, "number", header.Number, "hash", header.Hash())
-			return false
-		}
-		tds[i] = td
-	}
-	f.newHeaders(headers, tds)
+	// change by Shara - remove TD
+	/*
+		tds := make([]*big.Int, len(headers))
+		for i, header := range headers {
+
+			td := f.chain.GetTd(header.Hash(), header.Number.Uint64())
+
+			if td == nil {
+				log.Debug("Total difficulty not found for header", "index", i+1, "number", header.Number, "hash", header.Hash())
+				return false
+			}
+			tds[i] = td
+		}*/
+	// end change by Shara
+	// change by Shara - remove TD
+	//f.newHeaders(headers, tds)
+	f.newHeaders(headers)
+	// end change by Shara
 	return true
 }
 
 // newHeaders updates the block trees of all active peers according to a newly
 // downloaded and validated batch or headers
-func (f *lightFetcher) newHeaders(headers []*types.Header, tds []*big.Int) {
-	var maxTd *big.Int
+// change by Shara  - remove TD
+//func (f *lightFetcher) newHeaders(headers []*types.Header, tds []*big.Int) {
+func (f *lightFetcher) newHeaders(headers []*types.Header) {
+	//var maxTd *big.Int
+	var maxNumber *big.Int
+	// end change by Shara
 	for p, fp := range f.peers {
-		if !f.checkAnnouncedHeaders(fp, headers, tds) {
+		// change by Shara - remove TD
+		//if !f.checkAnnouncedHeaders(fp, headers, tds) {
+		if !f.checkAnnouncedHeaders(fp, headers) {
+
 			p.Log().Debug("Inconsistent announcement")
 			go f.pm.removePeer(p.id)
 		}
-		if fp.confirmedTd != nil && (maxTd == nil || maxTd.Cmp(fp.confirmedTd) > 0) {
-			maxTd = fp.confirmedTd
+
+		//if fp.confirmedTd != nil && (maxTd == nil || maxTd.Cmp(fp.confirmedTd) > 0) {
+		if fp.confirmedNumber != nil && (maxNumber == nil || maxNumber.Cmp(fp.confirmedNumber) > 0) {
+			maxNumber = fp.confirmedNumber
 		}
+
 	}
-	if maxTd != nil {
-		f.updateMaxConfirmedTd(maxTd)
+	if maxNumber != nil {
+		// f.updateMaxConfirmedTd(maxNumber)
+		f.updateMaxConfirmedNumber(maxNumber)
 	}
+	// end change by Shara
 }
 
 // checkAnnouncedHeaders updates peer's block tree if necessary after validating
@@ -555,7 +618,10 @@ func (f *lightFetcher) newHeaders(headers []*types.Header, tds []*big.Int) {
 // sets it and its parents to known (even those which are older than the currently
 // validated ones). Return value shows if all hashes, numbers and Tds matched
 // correctly to the announced values (otherwise the peer should be dropped).
-func (f *lightFetcher) checkAnnouncedHeaders(fp *fetcherPeerInfo, headers []*types.Header, tds []*big.Int) bool {
+// change by Shara - remove TD
+//func (f *lightFetcher) checkAnnouncedHeaders(fp *fetcherPeerInfo, headers []*types.Header, tds []*big.Int) bool {
+func (f *lightFetcher) checkAnnouncedHeaders(fp *fetcherPeerInfo, headers []*types.Header) bool {
+	// end change by Shara
 	var (
 		n      *fetcherTreeNode
 		header *types.Header
@@ -570,7 +636,9 @@ func (f *lightFetcher) checkAnnouncedHeaders(fp *fetcherPeerInfo, headers []*typ
 			}
 			// we ran out of recently delivered headers but have not reached a node known by this peer yet, continue matching
 			hash, number := header.ParentHash, header.Number.Uint64()-1
-			td = f.chain.GetTd(hash, number)
+			// change by Shara - remove TD
+			// td = f.chain.GetTd(hash, number)
+			// end change by Shara
 			header = f.chain.GetHeader(hash, number)
 			if header == nil || td == nil {
 				log.Error("Missing parent of validated header", "hash", hash, "number", number)
@@ -578,7 +646,9 @@ func (f *lightFetcher) checkAnnouncedHeaders(fp *fetcherPeerInfo, headers []*typ
 			}
 		} else {
 			header = headers[i]
-			td = tds[i]
+			// change by Shara - remove TD
+			// td = tds[i]
+			// end change by Shara
 		}
 		hash := header.Hash()
 		number := header.Number.Uint64()
@@ -586,22 +656,29 @@ func (f *lightFetcher) checkAnnouncedHeaders(fp *fetcherPeerInfo, headers []*typ
 			n = fp.nodeByHash[hash]
 		}
 		if n != nil {
-			if n.td == nil {
-				// node was unannounced
-				if nn := fp.nodeByHash[hash]; nn != nil {
-					// if there was already a node with the same hash, continue there and drop this one
-					nn.children = append(nn.children, n.children...)
-					n.children = nil
-					fp.deleteNode(n)
-					n = nn
-				} else {
-					n.hash = hash
-					n.td = td
-					fp.nodeByHash[hash] = n
+			// change by Shara  - remove TD
+			/*
+				if n.td == nil {
+					// node was unannounced
+					if nn := fp.nodeByHash[hash]; nn != nil {
+						// if there was already a node with the same hash, continue there and drop this one
+						nn.children = append(nn.children, n.children...)
+						n.children = nil
+						fp.deleteNode(n)
+						n = nn
+					} else {
+						n.hash = hash
+						n.td = td
+						fp.nodeByHash[hash] = n
+					}
 				}
-			}
+			*/
+			// end change by Shara
 			// check if it matches the header
-			if n.hash != hash || n.number != number || n.td.Cmp(td) != 0 {
+			// change by Shara  - remove TD
+			// if n.hash != hash || n.number != number || n.td.Cmp(td) != 0 {
+			if n.hash != hash || n.number != number {
+				// end change by Shara
 				// peer has previously made an invalid announcement
 				return false
 			}
@@ -610,10 +687,13 @@ func (f *lightFetcher) checkAnnouncedHeaders(fp *fetcherPeerInfo, headers []*typ
 				return true
 			}
 			n.known = true
-			if fp.confirmedTd == nil || td.Cmp(fp.confirmedTd) > 0 {
-				fp.confirmedTd = td
-				fp.bestConfirmed = n
-			}
+			// change by Shara - remove TD
+			/*
+				if fp.confirmedTd == nil || td.Cmp(fp.confirmedTd) > 0 {
+					fp.confirmedTd = td
+					fp.bestConfirmed = n
+				}
+			*/
 			n = n.parent
 			if n == nil {
 				return true
@@ -626,17 +706,26 @@ func (f *lightFetcher) checkAnnouncedHeaders(fp *fetcherPeerInfo, headers []*typ
 // downloaded headers as known. If none of the announced headers are found after
 // syncing, the peer is dropped.
 func (f *lightFetcher) checkSyncedHeaders(p *peer) {
+
 	fp := f.peers[p]
 	if fp == nil {
 		p.Log().Debug("Unknown peer to check sync headers")
 		return
 	}
 	n := fp.lastAnnounced
-	var td *big.Int
+	// change by Shara - remove TD
+	// TODO : need review
+	//var td *big.In
+	ctx := context.Background()
 	for n != nil {
-		if td = f.chain.GetTd(n.hash, n.number); td != nil {
+		_, err := f.chain.GetBlockByNumber(ctx, n.number)
+		if err == nil {
 			break
 		}
+		/*
+			if td = f.chain.GetTd(n.hash, n.number); td != nil {
+				break
+			}*/
 		n = n.parent
 	}
 	// now n is the latest downloaded header after syncing
@@ -645,7 +734,11 @@ func (f *lightFetcher) checkSyncedHeaders(p *peer) {
 		go f.pm.removePeer(p.id)
 	} else {
 		header := f.chain.GetHeader(n.hash, n.number)
-		f.newHeaders([]*types.Header{header}, []*big.Int{td})
+		// change by Shara - remove TD
+		//f.newHeaders([]*types.Header{header}, []*big.Int{td})
+		f.newHeaders([]*types.Header{header})
+		//
+		// end change by Shara
 	}
 }
 
@@ -655,10 +748,13 @@ func (f *lightFetcher) checkKnownNode(p *peer, n *fetcherTreeNode) bool {
 	if n.known {
 		return true
 	}
-	td := f.chain.GetTd(n.hash, n.number)
-	if td == nil {
-		return false
-	}
+	// change by Shara - remove TD
+	// td := f.chain.GetTd(n.hash, n.number)
+
+	//if td == nil {
+	//	return false
+	//}
+	// end change by Shara
 	header := f.chain.GetHeader(n.hash, n.number)
 	// check the availability of both header and td because reads are not protected by chain db mutex
 	// Note: returning false is always safe here
@@ -671,13 +767,22 @@ func (f *lightFetcher) checkKnownNode(p *peer, n *fetcherTreeNode) bool {
 		p.Log().Debug("Unknown peer to check known nodes")
 		return false
 	}
-	if !f.checkAnnouncedHeaders(fp, []*types.Header{header}, []*big.Int{td}) {
+	// change by Shara  - remove TD
+	//if !f.checkAnnouncedHeaders(fp, []*types.Header{header}, []*big.Int{td}) {
+	if !f.checkAnnouncedHeaders(fp, []*types.Header{header}) {
+
 		p.Log().Debug("Inconsistent announcement")
 		go f.pm.removePeer(p.id)
 	}
-	if fp.confirmedTd != nil {
-		f.updateMaxConfirmedTd(fp.confirmedTd)
+
+	//if fp.confirmedTd != nil {
+	//	f.updateMaxConfirmedTd(fp.confirmedTd)
+	//}
+	if fp.confirmedNumber != nil {
+		f.updateMaxConfirmedNumber(fp.confirmedNumber)
 	}
+
+	// end change by Shara
 	return n.known
 }
 
@@ -692,7 +797,11 @@ func (fp *fetcherPeerInfo) deleteNode(n *fetcherTreeNode) {
 		}
 	}
 	for {
-		if n.td != nil {
+		// change by Shara - remove TD
+		// TODO : check fetcherTreeNode number
+		//if n.td != nil {
+		if n.number != 0 {
+			// end change by Shara
 			delete(fp.nodeByHash, n.hash)
 		}
 		fp.nodeCnt--
@@ -719,21 +828,46 @@ func (fp *fetcherPeerInfo) deleteNode(n *fetcherTreeNode) {
 // the current global head).
 type updateStatsEntry struct {
 	time mclock.AbsTime
-	td   *big.Int
+	// change by Shara - remove TD
+	//td   *big.Int
+	number *big.Int
+	// end change by Shara
 	next *updateStatsEntry
 }
 
+// change by Shara - remove TD
 // updateMaxConfirmedTd updates the block delay statistics of active peers. Whenever a new highest Td is confirmed,
 // adds it to the end of a linked list together with the time it has been confirmed. Then checks which peers have
 // already confirmed a head with the same or higher Td (which counts as zero block delay) and updates their statistics.
 // Those who have not confirmed such a head by now will be updated by a subsequent checkUpdateStats call with a
 // positive block delay value.
+/*
 func (f *lightFetcher) updateMaxConfirmedTd(td *big.Int) {
 	if f.maxConfirmedTd == nil || td.Cmp(f.maxConfirmedTd) > 0 {
 		f.maxConfirmedTd = td
 		newEntry := &updateStatsEntry{
 			time: mclock.Now(),
 			td:   td,
+		}
+		if f.lastUpdateStats != nil {
+			f.lastUpdateStats.next = newEntry
+		}
+		f.lastUpdateStats = newEntry
+		for p := range f.peers {
+			f.checkUpdateStats(p, newEntry)
+		}
+	}
+}*/
+
+func (f *lightFetcher) updateMaxConfirmedNumber(number *big.Int) {
+	if f.maxConfirmedNumber == nil || number.Cmp(f.maxConfirmedNumber) > 0 {
+		f.maxConfirmedNumber = number
+		newEntry := &updateStatsEntry{
+			time: mclock.Now(),
+			// change by Shara - remove TD
+			//td:   td,
+			number: number,
+			// end change by Shara
 		}
 		if f.lastUpdateStats != nil {
 			f.lastUpdateStats.next = newEntry
@@ -767,10 +901,20 @@ func (f *lightFetcher) checkUpdateStats(p *peer, newEntry *updateStatsEntry) {
 		f.pm.serverPool.adjustBlockDelay(p.poolEntry, blockDelayTimeout)
 		fp.firstUpdateStats = fp.firstUpdateStats.next
 	}
-	if fp.confirmedTd != nil {
-		for fp.firstUpdateStats != nil && fp.firstUpdateStats.td.Cmp(fp.confirmedTd) <= 0 {
+	// change by Shara - remove TD
+	/*
+		if fp.confirmedTd != nil {
+			for fp.firstUpdateStats != nil && fp.firstUpdateStats.td.Cmp(fp.confirmedTd) <= 0 {
+				f.pm.serverPool.adjustBlockDelay(p.poolEntry, time.Duration(now-fp.firstUpdateStats.time))
+				fp.firstUpdateStats = fp.firstUpdateStats.next
+			}
+		}
+	*/
+	if fp.confirmedNumber != nil {
+		for fp.firstUpdateStats != nil && fp.firstUpdateStats.number.Cmp(fp.confirmedNumber) <= 0 {
 			f.pm.serverPool.adjustBlockDelay(p.poolEntry, time.Duration(now-fp.firstUpdateStats.time))
 			fp.firstUpdateStats = fp.firstUpdateStats.next
 		}
 	}
+	// end change by Shara
 }

@@ -30,6 +30,7 @@ import (
 	"github.com/daccproject/go-dacc/common"
 	"github.com/daccproject/go-dacc/common/hexutil"
 	"github.com/daccproject/go-dacc/common/math"
+
 	//"github.com/daccproject/go-dacc/consensus/ethash"
 	"github.com/daccproject/go-dacc/core"
 	"github.com/daccproject/go-dacc/core/rawdb"
@@ -805,9 +806,11 @@ func RPCMarshalBlock(b *types.Block, inclTx bool, fullTx bool) (map[string]inter
 		"logsBloom":  head.Bloom,
 		"stateRoot":  head.Root,
 		//"miner":            head.Coinbase,
-		"validator":        head.Validator,
-		"coinbase":         head.Coinbase,
-		"difficulty":       (*hexutil.Big)(head.Difficulty),
+		"validator": head.Validator,
+		"coinbase":  head.Coinbase,
+		// change by Shara - remove TD
+		// "difficulty": (*hexutil.Big)(head.Difficulty),
+		// end change by Shara
 		"extraData":        hexutil.Bytes(head.Extra),
 		"size":             hexutil.Uint64(b.Size()),
 		"gasLimit":         hexutil.Uint64(head.GasLimit),
@@ -815,12 +818,12 @@ func RPCMarshalBlock(b *types.Block, inclTx bool, fullTx bool) (map[string]inter
 		"timestamp":        (*hexutil.Big)(head.Time),
 		"transactionsRoot": head.TxHash,
 		"receiptsRoot":     head.ReceiptHash,
-		"dposContext":	map[string]interface{}{
-			"epochRoot":head.DposContext.EpochHash,
-			"delegateRoot":head.DposContext.DelegateHash,
-			"candidateRoot":head.DposContext.CandidateHash,
-			"voteRoot":head.DposContext.VoteHash,
-			"mintCntRoot":head.DposContext.MintCntHash,
+		"dposContext": map[string]interface{}{
+			"epochRoot":     head.DposContext.EpochHash,
+			"delegateRoot":  head.DposContext.DelegateHash,
+			"candidateRoot": head.DposContext.CandidateHash,
+			"voteRoot":      head.DposContext.VoteHash,
+			"mintCntRoot":   head.DposContext.MintCntHash,
 		},
 	}
 
@@ -861,7 +864,9 @@ func (s *PublicBlockChainAPI) rpcOutputBlock(b *types.Block, inclTx bool, fullTx
 	if err != nil {
 		return nil, err
 	}
-	fields["totalDifficulty"] = (*hexutil.Big)(s.b.GetTd(b.Hash()))
+	// change by Shara - remove TD
+	//fields["totalDifficulty"] = (*hexutil.Big)(s.b.GetTd(b.Hash()))
+	// end change by Shara
 	return fields, err
 }
 

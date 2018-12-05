@@ -24,7 +24,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math/big"
 
 	"github.com/daccproject/go-dacc/common"
 	"github.com/daccproject/go-dacc/core"
@@ -128,21 +127,28 @@ var errorToString = map[int]string{
 type announceBlock struct {
 	Hash   common.Hash // Hash of one particular block being announced
 	Number uint64      // Number of one particular block being announced
-	Td     *big.Int    // Total difficulty of one particular block being announced
+	// change by Shara - remove TD
+	// Td *big.Int // Total difficulty of one particular block being announced
+	// end change by Shara
 }
 
 // announceData is the network packet for the block announcements.
 type announceData struct {
-	Hash       common.Hash // Hash of one particular block being announced
-	Number     uint64      // Number of one particular block being announced
-	Td         *big.Int    // Total difficulty of one particular block being announced
+	Hash   common.Hash // Hash of one particular block being announced
+	Number uint64      // Number of one particular block being announced
+	// change by Shara - remove TD
+	// Td *big.Int // Total difficulty of one particular block being announced
+	// end change by Shara
 	ReorgDepth uint64
 	Update     keyValueList
 }
 
 // sign adds a signature to the block announcement by the given privKey
 func (a *announceData) sign(privKey *ecdsa.PrivateKey) {
-	rlp, _ := rlp.EncodeToBytes(announceBlock{a.Hash, a.Number, a.Td})
+	// change by Shara - remove TD
+	//rlp, _ := rlp.EncodeToBytes(announceBlock{a.Hash, a.Number, a.Td})
+	// end change by Shara
+	rlp, _ := rlp.EncodeToBytes(announceBlock{a.Hash, a.Number})
 	sig, _ := crypto.Sign(crypto.Keccak256(rlp), privKey)
 	a.Update = a.Update.add("sign", sig)
 }
@@ -153,7 +159,10 @@ func (a *announceData) checkSignature(pubKey *ecdsa.PublicKey) error {
 	if err := a.Update.decode().get("sign", &sig); err != nil {
 		return err
 	}
-	rlp, _ := rlp.EncodeToBytes(announceBlock{a.Hash, a.Number, a.Td})
+	// change by Shara - remove TD
+	//rlp, _ := rlp.EncodeToBytes(announceBlock{a.Hash, a.Number, a.Td})
+	rlp, _ := rlp.EncodeToBytes(announceBlock{a.Hash, a.Number})
+	// end change by Shara
 	recPubkey, err := secp256k1.RecoverPubkey(crypto.Keccak256(rlp), sig)
 	if err != nil {
 		return err
@@ -168,7 +177,9 @@ func (a *announceData) checkSignature(pubKey *ecdsa.PublicKey) error {
 type blockInfo struct {
 	Hash   common.Hash // Hash of one particular block being announced
 	Number uint64      // Number of one particular block being announced
-	Td     *big.Int    // Total difficulty of one particular block being announced
+	// change by Shara
+	//Td     *big.Int    // Total difficulty of one particular block being announced
+	// end change by Shara
 }
 
 // getBlockHeadersData represents a block header query.

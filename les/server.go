@@ -325,7 +325,9 @@ func (pm *ProtocolManager) blockLoop() {
 	headSub := pm.blockchain.SubscribeChainHeadEvent(headCh)
 	go func() {
 		var lastHead *types.Header
-		lastBroadcastTd := common.Big0
+		// change by Shara - remove TD
+		// lastBroadcastTd := common.Big0
+		lastBroadcastNumber := common.Big0
 		for {
 			select {
 			case ev := <-headCh:
@@ -334,18 +336,22 @@ func (pm *ProtocolManager) blockLoop() {
 					header := ev.Block.Header()
 					hash := header.Hash()
 					number := header.Number.Uint64()
-					td := rawdb.ReadTd(pm.chainDb, hash, number)
-					if td != nil && td.Cmp(lastBroadcastTd) > 0 {
+					//td := rawdb.ReadTd(pm.chainDb, hash, number)
+					//if td != nil && td.Cmp(lastBroadcastTd) > 0 {
+					if number > lastBroadcastNumber.Uint64() {
 						var reorg uint64
 						if lastHead != nil {
 							reorg = lastHead.Number.Uint64() - rawdb.FindCommonAncestor(pm.chainDb, header, lastHead).Number.Uint64()
 						}
 						lastHead = header
-						lastBroadcastTd = td
+						// lastBroadcastTd = td
+						lastBroadcastNumber = header.Number
 
-						log.Debug("Announcing block to peers", "number", number, "hash", hash, "td", td, "reorg", reorg)
-
-						announce := announceData{Hash: hash, Number: number, Td: td, ReorgDepth: reorg}
+						//log.Debug("Announcing block to peers", "number", number, "hash", hash, "td", td, "reorg", reorg)
+						log.Debug("Announcing block to peers", "number", number, "hash", hash, "reorg", reorg)
+						//announce := announceData{Hash: hash, Number: number, Td: td, ReorgDepth: reorg}
+						// end change by Shara
+						announce := announceData{Hash: hash, Number: number, ReorgDepth: reorg}
 						var (
 							signed         bool
 							signedAnnounce announceData
