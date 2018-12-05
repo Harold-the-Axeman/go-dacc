@@ -394,6 +394,7 @@ func (w *worker) newWorkLoop() {
 		atomic.StoreInt32(&w.newTxs, 0)
 	}
 	// recalcRecommit recalculates the resubmitting interval upon feedback.
+
 	/*recalcRecommit := func(target float64, inc bool) {
 		var (
 			prev = float64(recommit.Nanoseconds())
@@ -426,7 +427,8 @@ func (w *worker) newWorkLoop() {
 	}
 
 	// DPOS ticker for block producing, added by Harold
-	ticker := time.NewTicker(time.Second)
+	//ticker := time.NewTicker(time.Second)
+	tickerRep := time.NewTimer(time.Second)
 
 	for {
 		select {
@@ -449,7 +451,7 @@ func (w *worker) newWorkLoop() {
 			//self.quitCh = make(chan struct{}, 1)
 
 		// DPOS block producing ticker
-		case now := <-ticker.C:
+		case now := <-tickerRep.C:
 			//TODO: ticker will always run here, temporary fix here.
 			if atomic.LoadInt32(&w.running) == 1 {
 				clearPending(w.chain.CurrentBlock().NumberU64()) //NOTE
@@ -457,7 +459,8 @@ func (w *worker) newWorkLoop() {
 				//commit(false, commitInterruptNone)
 				commit()
 			}
-
+			// for the next block
+			tickerRep.Reset(time.Second)
 		//case <-timer.C:
 		// If mining is running resubmit a new work cycle periodically to pull in
 		// higher priced transactions. Disable this overhead for pending blocks.
@@ -485,7 +488,7 @@ func (w *worker) newWorkLoop() {
 		if w.resubmitHook != nil {
 			w.resubmitHook(minRecommit, recommit)
 		}*/
-
+		
 		/*	case adjust := <-w.resubmitAdjustCh:
 			// Adjust resubmit interval by feedback.
 			if adjust.inc {
