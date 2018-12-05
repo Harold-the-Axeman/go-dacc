@@ -189,6 +189,7 @@ func (d *Dpos) verifyHeader(chain consensus.ChainReader, header *types.Header, p
 	if parent == nil || parent.Number.Uint64() != number-1 || parent.Hash() != header.ParentHash {
 		return consensus.ErrUnknownAncestor
 	}
+	// TODO: timestamp check: it should be a equal
 	if parent.Time.Uint64()+uint64(blockInterval) > header.Time.Uint64() {
 		return ErrInvalidTimestamp
 	}
@@ -233,6 +234,7 @@ func (d *Dpos) verifySeal(chain consensus.ChainReader, header *types.Header, par
 	if number == 0 {
 		return errUnknownBlock
 	}
+	//TODO: parent is always nil
 	var parent *types.Header
 	if len(parents) > 0 {
 		parent = parents[len(parents)-1]
@@ -244,6 +246,7 @@ func (d *Dpos) verifySeal(chain consensus.ChainReader, header *types.Header, par
 		return err
 	}
 	epochContext := &EpochContext{DposContext: dposContext}
+	//TOOD: use timestamp logic
 	validator, err := epochContext.lookupValidator(header.Time.Int64())
 	if err != nil {
 		return err
@@ -297,6 +300,7 @@ func (d *Dpos) updateConfirmedBlockHeader(chain consensus.ChainReader) error {
 			log.Debug("Dpos fast return", "current", curHeader.Number.String(), "confirmed", d.confirmedBlockHeader.Number.String(), "witnessCount", len(validatorMap))
 			return nil
 		}
+		//TODO: 这里需要关注Validator丢块的情况吗？ 不需要!
 		validatorMap[curHeader.Validator] = true
 		if len(validatorMap) >= consensusSize {
 			d.confirmedBlockHeader = curHeader
@@ -331,6 +335,7 @@ func (s *Dpos) storeConfirmedBlockHeader(db ethdb.Database) error {
 	return db.Put(confirmedBlockHead, s.confirmedBlockHeader.Hash().Bytes())
 }
 
+//only called by the worker: added by harold
 func (d *Dpos) Prepare(chain consensus.ChainReader, header *types.Header) error {
 	header.Nonce = types.BlockNonce{}
 	number := header.Number.Uint64()
@@ -371,6 +376,7 @@ func (d *Dpos) Finalize(chain consensus.ChainReader, header *types.Header, state
 		DposContext: dposContext,
 		TimeStamp:   header.Time.Int64(),
 	}
+	//TODO: use a genesis config for this timestamp
 	if timeOfFirstBlock == 0 {
 		if firstBlockHeader := chain.GetHeaderByNumber(1); firstBlockHeader != nil {
 			timeOfFirstBlock = firstBlockHeader.Time.Int64()

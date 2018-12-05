@@ -430,14 +430,14 @@ func testAdjustInterval(t *testing.T, chainConfig *params.ChainConfig, engine co
 		t.Error("interval reset timeout")
 	}
 
-	w.resubmitAdjustCh <- &intervalAdjust{inc: true, ratio: 0.8}
+	//w.resubmitAdjustCh <- &intervalAdjust{inc: true, ratio: 0.8}
 	select {
 	case <-progress:
 	case <-time.NewTimer(time.Second).C:
 		t.Error("interval reset timeout")
 	}
 
-	w.resubmitAdjustCh <- &intervalAdjust{inc: false}
+	//w.resubmitAdjustCh <- &intervalAdjust{inc: false}
 	select {
 	case <-progress:
 	case <-time.NewTimer(time.Second).C:
