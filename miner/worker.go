@@ -441,7 +441,6 @@ func (w *worker) newWorkLoop() {
 			//NOTE: we need do noting here
 
 		case <-w.chainHeadCh: //head := <-w.chainHeadCh:
-			log.Warn("chainHeadCh", "Now", time.Now().Unix())
 			/*clearPending(head.Block.NumberU64())
 			timestamp = time.Now().Unix()
 			commit(false, commitInterruptNewHead)*/
@@ -453,20 +452,15 @@ func (w *worker) newWorkLoop() {
 
 		// DPOS block producing ticker
 		case now := <-tickerRep.C:
-			log.Warn("Ticker", "Now", now.Unix())
 			//TODO: ticker will always run here, temporary fix here.
 			if atomic.LoadInt32(&w.running) == 1 {
-
 				clearPending(w.chain.CurrentBlock().NumberU64()) //NOTE
 				timestamp = now.Unix()                           // TODO: NEED CHECK, possible bug: time.Now().Unix() or now, which one?
 				//commit(false, commitInterruptNone)
 				commit()
 			}
-			// for the next block 
+			// for the next block
 			tickerRep.Reset(time.Second)
-
-
-
 		//case <-timer.C:
 			// If mining is running resubmit a new work cycle periodically to pull in
 			// higher priced transactions. Disable this overhead for pending blocks.
@@ -482,7 +476,6 @@ func (w *worker) newWorkLoop() {
 				commit(true, commitInterruptResubmit)
 			}*/
 
-
 		/*case interval := <-w.resubmitIntervalCh:
 			// Adjust resubmit interval explicitly by user.
 			if interval < minRecommitInterval {
@@ -495,6 +488,7 @@ func (w *worker) newWorkLoop() {
 			if w.resubmitHook != nil {
 				w.resubmitHook(minRecommit, recommit)
 			}*/
+
 
 
 	/*	case adjust := <-w.resubmitAdjustCh:
@@ -514,7 +508,6 @@ func (w *worker) newWorkLoop() {
 			}*/
 
 		case <-w.exitCh:
-			log.Warn("exitCh", "Now", time.Now().Unix())
 			return
 		}
 	}
@@ -533,10 +526,7 @@ func (w *worker) mainLoop() {
 		case req := <-w.newWorkCh:
 			// change by Shara
 			// NOTE, added by harold: mintBlock here, check the event channel above in the newWorkLoop
-			log.Info("Begin mintBlock")
-			var beginMintBlock = time.Now()
 			w.mintBlock(*req)
-			log.Info("End mintBlock", "Cost", time.Since(beginMintBlock))
 			//w.createNewWork(req.interrupt, req.noempty, req.timestamp)
 			// end change by Shara
 
@@ -864,8 +854,6 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 
 	var coalescedLogs []*types.Log
 
-	var startCommitTransactions = time.Now()
-	log.Info("----startCommitTransactions----")
 	for {
 		// In the following three cases, we will interrupt the execution of the transaction.
 		// (1) new head block event arrival, the interrupt signal is 1
@@ -943,7 +931,6 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 			txs.Shift()
 		}
 	}
-	log.Info("----endCommitTransactions----", "Cost", time.Since(startCommitTransactions))
 
 	if !w.isRunning() && len(coalescedLogs) > 0 {
 		// We don't push the pendingLogsEvent while we are mining. The reason is that

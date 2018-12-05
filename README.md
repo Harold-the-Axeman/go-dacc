@@ -18,7 +18,7 @@ Building go-dacc requires both a Go (version 1.7 or later) and a C compiler.
 You can install them using your favourite package manager.
 Once the dependencies are installed, run
 
-    make go-dacc
+    make gdacc
 
 or, to build the full suite of utilities:
 
@@ -30,21 +30,21 @@ The go-dacc project comes with several wrappers/executables found in the `cmd` d
 
 | Command    | Description |
 |:----------:|-------------|
-| **`go-dacc`** | Our main DACC CLI client. It is the entry point into the DACC network (main-, test- or private net), capable of running as a full node (default), archive node (retaining all historical state) or a light node (retrieving data live). It can be used by other processes as a gateway into the DACC network via JSON RPC endpoints exposed on top of HTTP, WebSocket and/or IPC transports. `go-dacc --help` and the [CLI Wiki page](https://github.com/daccproject/go-dacc/wiki/Command-Line-Options) for command line options. |
-| `abigen` | Source code generator to convert DACC contract definitions into easy to use, compile-time type-safe Go packages. It operates on plain [DACC contract ABIs](https://github.com/daccproject/wiki/wiki/DACC-Contract-ABI) with expanded functionality if the contract bytecode is also available. However it also accepts Solidity source files, making development much more streamlined. Please see our [Native DApps](https://github.com/daccproject/go-dacc/wiki/Native-DApps:-Go-bindings-to-DACC-contracts) wiki page for details. |
+| **`gdacc`** | Our main DACC CLI client. It is the entry point into the DACC network (main-, test- or private net), capable of running as a full node (default), archive node (retaining all historical state) or a light node (retrieving data live). It can be used by other processes as a gateway into the DACC network via JSON RPC endpoints exposed on top of HTTP, WebSocket and/or IPC transports. `gdacc --help` and the [CLI Wiki page](https://github.com/daccproject/gdacc/wiki/Command-Line-Options) for command line options. |
+| `abigen` | Source code generator to convert DACC contract definitions into easy to use, compile-time type-safe Go packages. It operates on plain [DACC contract ABIs](https://github.com/daccproject/wiki/wiki/DACC-Contract-ABI) with expanded functionality if the contract bytecode is also available. However it also accepts Solidity source files, making development much more streamlined. Please see our [Native DApps](https://github.com/daccproject/gdacc/wiki/Native-DApps:-Go-bindings-to-DACC-contracts) wiki page for details. |
 | `bootnode` | Stripped down version of our DACC client implementation that only takes part in the network node discovery protocol, but does not run any of the higher level application protocols. It can be used as a lightweight bootstrap node to aid in finding peers in private networks. |
 | `evm` | Developer utility version of the EVM (DACC Virtual Machine) that is capable of running bytecode snippets within a configurable environment and execution mode. Its purpose is to allow isolated, fine-grained debugging of EVM opcodes (e.g. `evm --code 60ff60ff --debug`). |
-| `go-daccrpctest` | Developer utility tool to support our [DACC/rpc-test](https://github.com/daccproject/rpc-tests) test suite which validates baseline conformity to the [DACC JSON RPC](https://github.com/daccproject/wiki/wiki/JSON-RPC) specs. Please see the [test suite's readme](https://github.com/daccproject/rpc-tests/blob/master/README.md) for details. |
+| `gdaccrpctest` | Developer utility tool to support our [DACC/rpc-test](https://github.com/daccproject/rpc-tests) test suite which validates baseline conformity to the [DACC JSON RPC](https://github.com/daccproject/wiki/wiki/JSON-RPC) specs. Please see the [test suite's readme](https://github.com/daccproject/rpc-tests/blob/master/README.md) for details. |
 | `rlpdump` | Developer utility tool to convert binary RLP ([Recursive Length Prefix](https://github.com/daccproject/wiki/wiki/RLP)) dumps (data encoding used by the DACC protocol both network as well as consensus wise) to user friendlier hierarchical representation (e.g. `rlpdump --hex CE0183FFFFFFC4C304050583616263`). |
-| `swarm`    | Swarm daemon and tools. This is the entrypoint for the Swarm network. `swarm --help` for command line options and subcommands. See [Swarm README](https://github.com/daccproject/go-dacc/tree/master/swarm) for more information. |
+| `swarm`    | Swarm daemon and tools. This is the entrypoint for the Swarm network. `swarm --help` for command line options and subcommands. See [Swarm README](https://github.com/daccproject/gdacc/tree/master/swarm) for more information. |
 | `puppeth`    | a CLI wizard that aids in creating a new DACC network. |
 
-## Running go-dacc
+## Running gdacc
 
 Going through all the possible command line flags is out of scope here (please consult our
 [CLI Wiki page](https://github.com/daccproject/go-dacc/wiki/Command-Line-Options)), but we've
 enumerated a few common parameter combos to get you up to speed quickly on how you can run your
-own go-dacc instance.
+own gdacc instance.
 
 ### Full node on the main DACC network
 
@@ -54,96 +54,45 @@ the user doesn't care about years-old historical data, so we can fast-sync quick
 state of the network. To do so:
 
 ```
-$ go-dacc console
+$ gdacc console
 ```
 
 This command will:
 
- * Start go-dacc in fast sync mode (default, can be changed with the `--syncmode` flag), causing it to
+ * Start gdacc in fast sync mode (default, can be changed with the `--syncmode` flag), causing it to
    download more data in exchange for avoiding processing the entire history of the DACC network,
    which is very CPU intensive.
- * Start up go-dacc's built-in interactive [JavaScript console](https://github.com/daccproject/go-dacc/wiki/JavaScript-Console),
+ * Start up gdacc's built-in interactive [JavaScript console](https://github.com/daccproject/gdacc/wiki/JavaScript-Console),
    (via the trailing `console` subcommand) through which you can invoke all official [`web3` methods](https://github.com/daccproject/wiki/wiki/JavaScript-API)
-   as well as go-dacc's own [management APIs](https://github.com/daccproject/go-dacc/wiki/Management-APIs).
-   This tool is optional and if you leave it out you can always attach to an already running go-dacc instance
-   with `go-dacc attach`.
-
-### Full node on the DACC test network
-
-Transitioning towards developers, if you'd like to play around with creating DACC contracts, you
-almost certainly would like to do that without any real money involved until you get the hang of the
-entire system. In other words, instead of attaching to the main network, you want to join the **test**
-network with your node, which is fully equivalent to the main network, but with play-Ether only.
-
-```
-$ go-dacc --testnet console
-```
-
-The `console` subcommand have the exact same meaning as above and they are equally useful on the
-testnet too. Please see above for their explanations if you've skipped to here.
-
-Specifying the `--testnet` flag however will reconfigure your go-dacc instance a bit:
-
- * Instead of using the default data directory (`~/.DACC` on Linux for example), go-dacc will nest
-   itself one level deeper into a `testnet` subfolder (`~/.DACC/testnet` on Linux). Note, on OSX
-   and Linux this also means that attaching to a running testnet node requires the use of a custom
-   endpoint since `go-dacc attach` will try to attach to a production node endpoint by default. E.g.
-   `go-dacc attach <datadir>/testnet/go-dacc.ipc`. Windows users are not affected by this.
- * Instead of connecting the main DACC network, the client will connect to the test network,
-   which uses different P2P bootnodes, different network IDs and genesis states.
-   
-*Note: Although there are some internal protective measures to prevent transactions from crossing
-over between the main network and test network, you should make sure to always use separate accounts
-for play-money and real-money. Unless you manually move accounts, go-dacc will by default correctly
-separate the two networks and will not make any accounts available between them.*
-
-### Full node on the Rinkeby test network
-
-The above test network is a cross client one based on the ethash proof-of-work consensus algorithm. As such, it has certain extra overhead and is more susceptible to reorganization attacks due to the network's low difficulty / security. Go DACC also supports connecting to a proof-of-authority based test network called [*Rinkeby*](https://www.rinkeby.io) (operated by members of the community). This network is lighter, more secure, but is only supported by go-dacc.
-
-```
-$ go-dacc --rinkeby console
-```
+   as well as gdacc's own [management APIs](https://github.com/daccproject/go-dacc/wiki/Management-APIs).
+   This tool is optional and if you leave it out you can always attach to an already running gdacc instance
+   with `gdacc attach`.
 
 ### Configuration
 
-As an alternative to passing the numerous flags to the `go-dacc` binary, you can also pass a configuration file via:
+As an alternative to passing the numerous flags to the `gdacc` binary, you can also pass a configuration file via:
 
 ```
-$ go-dacc --config /path/to/your_config.toml
+$ gdacc --config /path/to/your_config.toml
 ```
 
 To get an idea how the file should look like you can use the `dumpconfig` subcommand to export your existing configuration:
 
 ```
-$ go-dacc --your-favourite-flags dumpconfig
+$ gdacc --your-favourite-flags dumpconfig
 ```
 
-*Note: This works only with go-dacc v1.6.0 and above.*
+*Note: This works only with gdacc v1.6.0 and above.*
 
-#### Docker quick start
+### Programatically interfacing gdacc nodes
 
-One of the quickest ways to get DACC up and running on your machine is by using Docker:
-
-```
-docker run -d --name DACC-node -v /Users/alice/DACC:/root \
-           -p 8545:8545 -p 30303:30303 \
-           DACC/client-go
-```
-
-This will start go-dacc in fast-sync mode with a DB memory allowance of 1GB just as the above command does.  It will also create a persistent volume in your home directory for saving your blockchain as well as map the default ports. There is also an `alpine` tag available for a slim version of the image.
-
-Do not forget `--rpcaddr 0.0.0.0`, if you want to access RPC from other containers and/or hosts. By default, `go-dacc` binds to the local interface and RPC endpoints is not accessible from the outside.
-
-### Programatically interfacing go-dacc nodes
-
-As a developer, sooner rather than later you'll want to start interacting with go-dacc and the DACC
-network via your own programs and not manually through the console. To aid this, go-dacc has built-in
+As a developer, sooner rather than later you'll want to start interacting with gdacc and the DACC
+network via your own programs and not manually through the console. To aid this, gdacc has built-in
 support for a JSON-RPC based APIs ([standard APIs](https://github.com/daccproject/wiki/wiki/JSON-RPC) and
-[go-dacc specific APIs](https://github.com/daccproject/go-dacc/wiki/Management-APIs)). These can be
+[gdacc specific APIs](https://github.com/daccproject/gdacc/wiki/Management-APIs)). These can be
 exposed via HTTP, WebSockets and IPC (unix sockets on unix based platforms, and named pipes on Windows).
 
-The IPC interface is enabled by default and exposes all the APIs supported by go-dacc, whereas the HTTP
+The IPC interface is enabled by default and exposes all the APIs supported by gdacc, whereas the HTTP
 and WS interfaces need to manually be enabled and only expose a subset of APIs due to security reasons.
 These can be turned on/off and configured as you'd expect.
 
@@ -164,7 +113,7 @@ HTTP based JSON-RPC API options:
   * `--ipcpath` Filename for IPC socket/pipe within the datadir (explicit paths escape it)
 
 You'll need to use your own programming environments' capabilities (libraries, tools, etc) to connect
-via HTTP, WS or IPC to a go-dacc node configured with the above flags and you'll need to speak [JSON-RPC](http://www.jsonrpc.org/specification)
+via HTTP, WS or IPC to a gdacc node configured with the above flags and you'll need to speak [JSON-RPC](http://www.jsonrpc.org/specification)
 on all transports. You can reuse the same connection for multiple requests!
 
 **Note: Please understand the security implications of opening up an HTTP/WS based transport before
@@ -214,11 +163,11 @@ configs:
 }
 ```
 
-With the genesis state defined in the above JSON file, you'll need to initialize **every** go-dacc node
+With the genesis state defined in the above JSON file, you'll need to initialize **every** gdacc node
 with it prior to starting it up to ensure all blockchain parameters are correctly set:
 
 ```
-$ go-dacc init path/to/genesis.json
+$ gdacc init path/to/genesis.json
 ```
 
 #### Creating the rendezvous point
@@ -237,17 +186,17 @@ that other nodes can use to connect to it and exchange peer information. Make su
 displayed IP address information (most probably `[::]`) with your externally accessible IP to get the
 actual `enode` URL.
 
-*Note: You could also use a full fledged go-dacc node as a bootnode, but it's the less recommended way.*
+*Note: You could also use a full fledged gdacc node as a bootnode, but it's the less recommended way.*
 
 #### Starting up your member nodes
 
 With the bootnode operational and externally reachable (you can try `telnet <ip> <port>` to ensure
-it's indeed reachable), start every subsequent go-dacc node pointed to the bootnode for peer discovery
+it's indeed reachable), start every subsequent gdacc node pointed to the bootnode for peer discovery
 via the `--bootnodes` flag. It will probably also be desirable to keep the data directory of your
 private network separated, so do also specify a custom `--datadir` flag.
 
 ```
-$ go-dacc --datadir=path/to/custom/data/folder --bootnodes=<bootnode-enode-url-from-above>
+$ gdacc --datadir=path/to/custom/data/folder --bootnodes=<bootnode-enode-url-from-above>
 ```
 
 *Note: Since your network will be completely cut off from the main and test networks, you'll also
@@ -262,11 +211,11 @@ repository.
 
 In a private network setting however, a single CPU miner instance is more than enough for practical
 purposes as it can produce a stable stream of blocks at the correct intervals without needing heavy
-resources (consider running on a single thread, no need for multiple ones either). To start a go-dacc
+resources (consider running on a single thread, no need for multiple ones either). To start a gdacc
 instance for mining, run it with all your usual flags, extended by:
 
 ```
-$ go-dacc <usual-flags> --mine --minerthreads=1 --coinbase=0x0000000000000000000000000000000000000000
+$ gdacc <usual-flags> --mine --minerthreads=1 --coinbase=0x0000000000000000000000000000000000000000
 ```
 
 Which will start mining blocks and transactions on a single CPU thread, crediting all proceedings to
@@ -278,9 +227,9 @@ limit blocks converge to (`--targetgaslimit`) and the price transactions are acc
 Thank you for considering to help out with the source code! We welcome contributions from
 anyone on the internet, and are grateful for even the smallest of fixes!
 
-If you'd like to contribute to go-dacc, please fork, fix, commit and send a pull request
+If you'd like to contribute to gdacc, please fork, fix, commit and send a pull request
 for the maintainers to review and merge into the main code base. If you wish to submit more
-complex changes though, please check up with the core devs first on [our gitter channel](https://gitter.im/DACC/go-dacc)
+complex changes though, please check up with the core devs first on [our gitter channel](https://gitter.im/DACC/gdacc)
 to ensure those changes are in line with the general philosophy of the project and/or get some
 early feedback which can make both your efforts much lighter as well as our review and merge
 procedures quick and simple.
@@ -298,10 +247,10 @@ for more details on configuring your environment, managing project dependencies 
 
 ## License
 
-The go-dacc library (i.e. all code outside of the `cmd` directory) is licensed under the
+The gdacc library (i.e. all code outside of the `cmd` directory) is licensed under the
 [GNU Lesser General Public License v3.0](https://www.gnu.org/licenses/lgpl-3.0.en.html), also
 included in our repository in the `COPYING.LESSER` file.
 
-The go-dacc binaries (i.e. all code inside of the `cmd` directory) is licensed under the
+The gdacc binaries (i.e. all code inside of the `cmd` directory) is licensed under the
 [GNU General Public License v3.0](https://www.gnu.org/licenses/gpl-3.0.en.html), also included
 in our repository in the `COPYING` file.
