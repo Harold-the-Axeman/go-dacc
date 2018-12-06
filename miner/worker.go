@@ -25,7 +25,6 @@ import (
 	"github.com/daccproject/go-dacc/common"
 	"github.com/daccproject/go-dacc/consensus"
 	"github.com/daccproject/go-dacc/consensus/dpos"
-	"github.com/daccproject/go-dacc/consensus/misc"
 	"github.com/daccproject/go-dacc/core"
 	"github.com/daccproject/go-dacc/core/state"
 	"github.com/daccproject/go-dacc/core/types"
@@ -675,10 +674,6 @@ func (w *worker) createNewWork(timestamp int64) {
 	}
 	// Create the current work task and check any fork transitions needed
 	env := w.current
-	//TODO: possible remove
-	if w.config.DAOForkSupport && w.config.DAOForkBlock != nil && w.config.DAOForkBlock.Cmp(header.Number) == 0 {
-		misc.ApplyDAOHardFork(env.state)
-	}
 
 	// Fill the block with all available pending transactions.
 	pending, err := w.eth.TxPool().Pending()
