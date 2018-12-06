@@ -100,7 +100,7 @@ type worker struct {
 	newWorkCh chan *newWorkReq
 	taskCh    chan *task
 	resultCh  chan *types.Block
-	exitCh chan struct{}
+	exitCh    chan struct{}
 
 	current *environment // An environment for current running cycle.
 
@@ -128,20 +128,20 @@ type worker struct {
 
 func newWorker(config *params.ChainConfig, engine consensus.Engine, eth Backend, mux *event.TypeMux, recommit time.Duration, gasFloor, gasCeil uint64) *worker {
 	worker := &worker{
-		config:   config,
-		engine:   engine,
-		eth:      eth,
-		mux:      mux,
-		chain:    eth.BlockChain(),
-		gasFloor: gasFloor,
-		gasCeil:  gasCeil,
+		config:       config,
+		engine:       engine,
+		eth:          eth,
+		mux:          mux,
+		chain:        eth.BlockChain(),
+		gasFloor:     gasFloor,
+		gasCeil:      gasCeil,
 		pendingTasks: make(map[common.Hash]*task),
 		txsCh:        make(chan core.NewTxsEvent, txChanSize),
 		chainHeadCh:  make(chan core.ChainHeadEvent, chainHeadChanSize),
-		newWorkCh: make(chan *newWorkReq),
-		taskCh:    make(chan *task),
-		resultCh:  make(chan *types.Block, resultQueueSize),
-		exitCh:    make(chan struct{}),
+		newWorkCh:    make(chan *newWorkReq),
+		taskCh:       make(chan *task),
+		resultCh:     make(chan *types.Block, resultQueueSize),
+		exitCh:       make(chan struct{}),
 	}
 	// Subscribe NewTxsEvent for tx pool
 	worker.txsSub = eth.TxPool().SubscribeNewTxsEvent(worker.txsCh)
