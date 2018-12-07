@@ -270,6 +270,7 @@ func (w *worker) newWorkLoop() {
 
 	for {
 		select {
+		case <-w.chainHeadCh:
 		// DPOS block producing ticker
 		case now := <-tickerRep.C:
 			//TODO: ticker will always run here, temporary fix here.
