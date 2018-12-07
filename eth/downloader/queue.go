@@ -451,18 +451,34 @@ func (q *queue) ReserveHeaders(p *peerConnection, count int) *fetchRequest {
 	return request
 }
 
+// TODO(Corbin) [deprecated the uncle block logic]
+// // ReserveBodies reserves a set of body fetches for the given peer, skipping any
+// // previously failed downloads. Beside the next batch of needed fetches, it also
+// // returns a flag whether empty blocks were queued requiring processing.
+// func (q *queue) ReserveBodies(p *peerConnection, count int) (*fetchRequest, bool, error) {
+// 	isNoop := func(header *types.Header) bool {
+// 		return header.TxHash == types.EmptyRootHash && header.UncleHash == types.EmptyUncleHash
+// 	}
+// 	q.lock.Lock()
+// 	defer q.lock.Unlock()
+
+// 	return q.reserveHeaders(p, count, q.blockTaskPool, q.blockTaskQueue, q.blockPendPool, q.blockDonePool, isNoop)
+// }
+
 // ReserveBodies reserves a set of body fetches for the given peer, skipping any
 // previously failed downloads. Beside the next batch of needed fetches, it also
 // returns a flag whether empty blocks were queued requiring processing.
 func (q *queue) ReserveBodies(p *peerConnection, count int) (*fetchRequest, bool, error) {
 	isNoop := func(header *types.Header) bool {
-		return header.TxHash == types.EmptyRootHash && header.UncleHash == types.EmptyUncleHash
+		return header.TxHash == types.EmptyRootHash
 	}
 	q.lock.Lock()
 	defer q.lock.Unlock()
 
 	return q.reserveHeaders(p, count, q.blockTaskPool, q.blockTaskQueue, q.blockPendPool, q.blockDonePool, isNoop)
 }
+
+// TODO(Corbin) [deprecated the uncle block logic]
 
 // ReserveReceipts reserves a set of receipt fetches for the given peer, skipping
 // any previously failed downloads. Beside the next batch of needed fetches, it
@@ -761,23 +777,43 @@ func (q *queue) DeliverHeaders(id string, headers []*types.Header, headerProcCh 
 	return len(headers), nil
 }
 
+// TODO(Corbin) [deprecated the uncle block logic]
+// // DeliverBodies injects a block body retrieval response into the results queue.
+// // The method returns the number of blocks bodies accepted from the delivery and
+// // also wakes any threads waiting for data delivery.
+// func (q *queue) DeliverBodies(id string, txLists [][]*types.Transaction, uncleLists [][]*types.Header) (int, error) {
+// 	q.lock.Lock()
+// 	defer q.lock.Unlock()
+
+// 	reconstruct := func(header *types.Header, index int, result *fetchResult) error {
+// 		if types.DeriveSha(types.Transactions(txLists[index])) != header.TxHash || types.CalcUncleHash(uncleLists[index]) != header.UncleHash {
+// 			return errInvalidBody
+// 		}
+// 		result.Transactions = txLists[index]
+// 		result.Uncles = uncleLists[index]
+// 		return nil
+// 	}
+// 	return q.deliver(id, q.blockTaskPool, q.blockTaskQueue, q.blockPendPool, q.blockDonePool, bodyReqTimer, len(txLists), reconstruct)
+// }
+
 // DeliverBodies injects a block body retrieval response into the results queue.
 // The method returns the number of blocks bodies accepted from the delivery and
 // also wakes any threads waiting for data delivery.
-func (q *queue) DeliverBodies(id string, txLists [][]*types.Transaction, uncleLists [][]*types.Header) (int, error) {
+func (q *queue) DeliverBodies(id string, txLists [][]*types.Transaction) (int, error) {
 	q.lock.Lock()
 	defer q.lock.Unlock()
 
 	reconstruct := func(header *types.Header, index int, result *fetchResult) error {
-		if types.DeriveSha(types.Transactions(txLists[index])) != header.TxHash || types.CalcUncleHash(uncleLists[index]) != header.UncleHash {
+		if types.DeriveSha(types.Transactions(txLists[index])) != header.TxHash {
 			return errInvalidBody
 		}
 		result.Transactions = txLists[index]
-		result.Uncles = uncleLists[index]
 		return nil
 	}
 	return q.deliver(id, q.blockTaskPool, q.blockTaskQueue, q.blockPendPool, q.blockDonePool, bodyReqTimer, len(txLists), reconstruct)
 }
+
+// END [deprecated the uncle block logic]
 
 // DeliverReceipts injects a receipt retrieval response into the results queue.
 // The method returns the number of transaction receipts accepted from the delivery

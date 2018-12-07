@@ -488,7 +488,7 @@ func (w *worker) newWorkLoop() {
 		if w.resubmitHook != nil {
 			w.resubmitHook(minRecommit, recommit)
 		}*/
-		
+
 		/*	case adjust := <-w.resubmitAdjustCh:
 			// Adjust resubmit interval by feedback.
 			if adjust.inc {
@@ -810,13 +810,21 @@ func (w *worker) updateSnapshot() {
 		return false
 	})*/
 
+	// TODO(Corbin) [deprecated the uncle block logic]
+	// w.snapshotBlock = types.NewBlock(
+	// 	w.current.header,
+	// 	w.current.txs,
+	// 	//uncles,
+	// 	nil,
+	// 	w.current.receipts,
+	// )
+
 	w.snapshotBlock = types.NewBlock(
 		w.current.header,
 		w.current.txs,
-		//uncles,
-		nil,
 		w.current.receipts,
 	)
+	// END [deprecated the uncle block logic]
 
 	w.snapshotState = w.current.state.Copy()
 }
@@ -1115,8 +1123,13 @@ func (w *worker) commit(start time.Time) error {
 	// Change by Shara
 	//work := w.current
 
+	// TODO(Corbin) [deprecated the uncle block logic]
 	//lock, err := w.engine.Finalize(w.chain, w.current.header, s, w.current.txs, uncles, w.current.receipts, dc)
-	block, err := w.engine.Finalize(w.chain, w.current.header, s, w.current.txs, nil, w.current.receipts, dc)
+	// block, err := w.engine.Finalize(w.chain, w.current.header, s, w.current.txs, nil, w.current.receipts, dc)
+	block, err := w.engine.Finalize(w.chain, w.current.header, s, w.current.txs, w.current.receipts, dc)
+
+	// END [deprecated the uncle block logic]
+
 	if err != nil {
 		log.Info("worker.commit.finalize", err.Error())
 		return err

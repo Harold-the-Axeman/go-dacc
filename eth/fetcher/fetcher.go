@@ -458,9 +458,21 @@ func (f *Fetcher) loop() {
 					if f.getBlock(hash) == nil {
 						announce.header = header
 						announce.time = task.time
+						// TODO(Corbin) [deprecated the uncle block logic]
+						// // If the block is empty (header only), short circuit into the final import queue
+						// if header.TxHash == types.DeriveSha(types.Transactions{}) && header.UncleHash == types.CalcUncleHash([]*types.Header{}) {
+						// 	log.Trace("Block empty, skipping body retrieval", "peer", announce.origin, "number", header.Number, "hash", header.Hash())
+
+						// 	block := types.NewBlockWithHeader(header)
+						// 	block.ReceivedAt = task.time
+
+						// 	complete = append(complete, block)
+						// 	f.completing[hash] = announce
+						// 	continue
+						// }
 
 						// If the block is empty (header only), short circuit into the final import queue
-						if header.TxHash == types.DeriveSha(types.Transactions{}) && header.UncleHash == types.CalcUncleHash([]*types.Header{}) {
+						if header.TxHash == types.DeriveSha(types.Transactions{}) {
 							log.Trace("Block empty, skipping body retrieval", "peer", announce.origin, "number", header.Number, "hash", header.Hash())
 
 							block := types.NewBlockWithHeader(header)
@@ -470,6 +482,8 @@ func (f *Fetcher) loop() {
 							f.completing[hash] = announce
 							continue
 						}
+						// END [deprecated the uncle block logic]
+
 						// Otherwise add to the list of blocks needing completion
 						incomplete = append(incomplete, announce)
 					} else {
@@ -523,14 +537,30 @@ func (f *Fetcher) loop() {
 				for hash, announce := range f.completing {
 					if f.queued[hash] == nil {
 						txnHash := types.DeriveSha(types.Transactions(task.transactions[i]))
-						uncleHash := types.CalcUncleHash(task.uncles[i])
+						// TODO(Corbin) [deprecated the uncle block logic]
 
-						if txnHash == announce.header.TxHash && uncleHash == announce.header.UncleHash && announce.origin == task.peer {
+						// uncleHash := types.CalcUncleHash(task.uncles[i])
+
+						// if txnHash == announce.header.TxHash && uncleHash == announce.header.UncleHash && announce.origin == task.peer {
+						// 	// Mark the body matched, reassemble if still unknown
+						// 	matched = true
+
+						// 	if f.getBlock(hash) == nil {
+						// 		block := types.NewBlockWithHeader(announce.header).WithBody(task.transactions[i], task.uncles[i])
+						// 		block.ReceivedAt = task.time
+
+						// 		blocks = append(blocks, block)
+						// 	} else {
+						// 		f.forgetHash(hash)
+						// 	}
+						// }
+
+						if txnHash == announce.header.TxHash && announce.origin == task.peer {
 							// Mark the body matched, reassemble if still unknown
 							matched = true
 
 							if f.getBlock(hash) == nil {
-								block := types.NewBlockWithHeader(announce.header).WithBody(task.transactions[i], task.uncles[i])
+								block := types.NewBlockWithHeader(announce.header).WithBody(task.transactions[i])
 								block.ReceivedAt = task.time
 
 								blocks = append(blocks, block)
@@ -538,6 +568,8 @@ func (f *Fetcher) loop() {
 								f.forgetHash(hash)
 							}
 						}
+						// TODO(Corbin) [deprecated the uncle block logic]
+
 					}
 				}
 				if matched {

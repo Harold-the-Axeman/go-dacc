@@ -526,12 +526,20 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		if filter {
 			transactions, uncles = pm.fetcher.FilterBodies(p.id, transactions, uncles, time.Now())
 		}
-		if len(transactions) > 0 || len(uncles) > 0 || !filter {
-			err := pm.downloader.DeliverBodies(p.id, transactions, uncles)
+		// TODO(Corbin) [deprecated the uncle block logic]
+		// if len(transactions) > 0 || len(uncles) > 0 || !filter {
+		// 	err := pm.downloader.DeliverBodies(p.id, transactions, uncles)
+		// 	if err != nil {
+		// 		log.Debug("Failed to deliver bodies", "err", err)
+		// 	}
+		// }
+		if len(transactions) > 0 || !filter {
+			err := pm.downloader.DeliverBodies(p.id, transactions)
 			if err != nil {
 				log.Debug("Failed to deliver bodies", "err", err)
 			}
 		}
+		// END [deprecated the uncle block logic]
 
 	case p.version >= eth63 && msg.Code == GetNodeDataMsg:
 		// Decode the retrieval message

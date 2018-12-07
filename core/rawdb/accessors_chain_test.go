@@ -69,8 +69,11 @@ func TestBodyStorage(t *testing.T) {
 
 	// Create a test body to move around the database and make sure it's really new
 	//body := &types.Body{Uncles: []*types.Header{{Extra: []byte("test header")}}}
-	dposCtx, _ := types.NewDposContext(db)
-	body := &types.Body{Uncles: []*types.Header{{Extra: []byte("test header"), DposContext: dposCtx.ToProto()}}}
+	// TODO(Corbin) [deprecated the uncle block logic]
+	// dposCtx, _ := types.NewDposContext(db)
+	// body := &types.Body{Uncles: []*types.Header{{Extra: []byte("test header"), DposContext: dposCtx.ToProto()}}}
+	body := &types.Body{}
+	// END [deprecated the uncle block logic]
 
 	hasher := sha3.NewKeccak256()
 	rlp.Encode(hasher, body)
@@ -83,9 +86,14 @@ func TestBodyStorage(t *testing.T) {
 	WriteBody(db, hash, 0, body)
 	if entry := ReadBody(db, hash, 0); entry == nil {
 		t.Fatalf("Stored body not found")
-	} else if types.DeriveSha(types.Transactions(entry.Transactions)) != types.DeriveSha(types.Transactions(body.Transactions)) || types.CalcUncleHash(entry.Uncles) != types.CalcUncleHash(body.Uncles) {
+		// TODO(Corbin) [deprecated the uncle block logic]
+		// } else if types.DeriveSha(types.Transactions(entry.Transactions)) != types.DeriveSha(types.Transactions(body.Transactions)) || types.CalcUncleHash(entry.Uncles) != types.CalcUncleHash(body.Uncles) {
+		// 	t.Fatalf("Retrieved body mismatch: have %v, want %v", entry, body)
+		// }
+	} else if types.DeriveSha(types.Transactions(entry.Transactions)) != types.DeriveSha(types.Transactions(body.Transactions)) {
 		t.Fatalf("Retrieved body mismatch: have %v, want %v", entry, body)
 	}
+	// END [deprecated the uncle block logic]
 	if entry := ReadBodyRLP(db, hash, 0); entry == nil {
 		t.Fatalf("Stored body RLP not found")
 	} else {
@@ -109,8 +117,10 @@ func TestBlockStorage(t *testing.T) {
 
 	// Create a test block to move around the database and make sure it's really new
 	block := types.NewBlockWithHeader(&types.Header{
-		Extra:       []byte("test block"),
-		UncleHash:   types.EmptyUncleHash,
+		Extra: []byte("test block"),
+		// TODO(Corbin) [deprecated the uncle block logic]
+		// UncleHash:   types.EmptyUncleHash,
+		// END [deprecated the uncle block logic]
 		TxHash:      types.EmptyRootHash,
 		ReceiptHash: types.EmptyRootHash,
 	})
@@ -137,9 +147,15 @@ func TestBlockStorage(t *testing.T) {
 	}
 	if entry := ReadBody(db, block.Hash(), block.NumberU64()); entry == nil {
 		t.Fatalf("Stored body not found")
-	} else if types.DeriveSha(types.Transactions(entry.Transactions)) != types.DeriveSha(block.Transactions()) || types.CalcUncleHash(entry.Uncles) != types.CalcUncleHash(block.Uncles()) {
+		// TODO(Corbin) [deprecated the uncle block logic]
+		// } else if types.DeriveSha(types.Transactions(entry.Transactions)) != types.DeriveSha(block.Transactions()) || types.CalcUncleHash(entry.Uncles) != types.CalcUncleHash(block.Uncles()) {
+		// 	t.Fatalf("Retrieved body mismatch: have %v, want %v", entry, block.Body())
+		// }
+	} else if types.DeriveSha(types.Transactions(entry.Transactions)) != types.DeriveSha(block.Transactions()) {
 		t.Fatalf("Retrieved body mismatch: have %v, want %v", entry, block.Body())
 	}
+	// END [deprecated the uncle block logic]
+
 	// Delete the block and verify the execution
 	DeleteBlock(db, block.Hash(), block.NumberU64())
 	if entry := ReadBlock(db, block.Hash(), block.NumberU64()); entry != nil {
@@ -157,8 +173,10 @@ func TestBlockStorage(t *testing.T) {
 func TestPartialBlockStorage(t *testing.T) {
 	db := ethdb.NewMemDatabase()
 	block := types.NewBlockWithHeader(&types.Header{
-		Extra:       []byte("test block"),
-		UncleHash:   types.EmptyUncleHash,
+		Extra: []byte("test block"),
+		// TODO(Corbin) [deprecated the uncle block logic]
+		// UncleHash:   types.EmptyUncleHash,
+		// END [deprecated the uncle block logic]
 		TxHash:      types.EmptyRootHash,
 		ReceiptHash: types.EmptyRootHash,
 	})
@@ -187,28 +205,30 @@ func TestPartialBlockStorage(t *testing.T) {
 	}
 }
 
-// Tests block total difficulty storage and retrieval operations.
-func TestTdStorage(t *testing.T) {
-	db := ethdb.NewMemDatabase()
+// TODO(Corbin) [deprecated the uncle block logic]
+// // Tests block total difficulty storage and retrieval operations.
+// func TestTdStorage(t *testing.T) {
+// 	db := ethdb.NewMemDatabase()
 
-	// Create a test TD to move around the database and make sure it's really new
-	hash, td := common.Hash{}, big.NewInt(314)
-	if entry := ReadTd(db, hash, 0); entry != nil {
-		t.Fatalf("Non existent TD returned: %v", entry)
-	}
-	// Write and verify the TD in the database
-	WriteTd(db, hash, 0, td)
-	if entry := ReadTd(db, hash, 0); entry == nil {
-		t.Fatalf("Stored TD not found")
-	} else if entry.Cmp(td) != 0 {
-		t.Fatalf("Retrieved TD mismatch: have %v, want %v", entry, td)
-	}
-	// Delete the TD and verify the execution
-	DeleteTd(db, hash, 0)
-	if entry := ReadTd(db, hash, 0); entry != nil {
-		t.Fatalf("Deleted TD returned: %v", entry)
-	}
-}
+// 	// Create a test TD to move around the database and make sure it's really new
+// 	hash, td := common.Hash{}, big.NewInt(314)
+// 	if entry := ReadTd(db, hash, 0); entry != nil {
+// 		t.Fatalf("Non existent TD returned: %v", entry)
+// 	}
+// 	// Write and verify the TD in the database
+// 	WriteTd(db, hash, 0, td)
+// 	if entry := ReadTd(db, hash, 0); entry == nil {
+// 		t.Fatalf("Stored TD not found")
+// 	} else if entry.Cmp(td) != 0 {
+// 		t.Fatalf("Retrieved TD mismatch: have %v, want %v", entry, td)
+// 	}
+// 	// Delete the TD and verify the execution
+// 	DeleteTd(db, hash, 0)
+// 	if entry := ReadTd(db, hash, 0); entry != nil {
+// 		t.Fatalf("Deleted TD returned: %v", entry)
+// 	}
+// }
+// END [deprecated the uncle block logic]
 
 // Tests that canonical numbers can be mapped to hashes and retrieved.
 func TestCanonicalMappingStorage(t *testing.T) {

@@ -36,7 +36,7 @@ func (h Header) MarshalJSON() ([]byte, error) {
 	}
 	var enc Header
 	enc.ParentHash = h.ParentHash
-	enc.UncleHash = h.UncleHash
+	// enc.UncleHash = h.UncleHash // TODO(Corbin) [deprecated the uncle block logic]
 	enc.Validator = h.Validator
 	enc.Coinbase = h.Coinbase
 	enc.Root = h.Root
@@ -86,7 +86,7 @@ func (h *Header) UnmarshalJSON(input []byte) error {
 	if dec.UncleHash == nil {
 		return errors.New("missing required field 'sha3Uncles' for Header")
 	}
-	h.UncleHash = *dec.UncleHash
+	// h.UncleHash = *dec.UncleHash // TODO(Corbin) [deprecated the uncle block logic]
 	if dec.Validator == nil {
 		return errors.New("missing required field 'validator' for Header")
 	}

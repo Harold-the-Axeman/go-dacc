@@ -201,9 +201,13 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 		}
 
 		if b.engine != nil {
+			// TODO(Corbin) [deprecated the uncle block logic]
 			// TODO(bytejedi): dpos.AccumulateRewards -> Finalize()
-			dpos.AccumulateRewards(config, statedb, b.header, b.uncles)
-			block, _ := b.engine.Finalize(b.chainReader, b.header, statedb, b.txs, b.uncles, b.receipts, parent.DposContext)
+			// dpos.AccumulateRewards(config, statedb, b.header, b.uncles)
+			// block, _ := b.engine.Finalize(b.chainReader, b.header, statedb, b.txs, b.uncles, b.receipts, parent.DposContext)
+			dpos.AccumulateRewards(config, statedb, b.header)
+			block, _ := b.engine.Finalize(b.chainReader, b.header, statedb, b.txs, b.receipts, parent.DposContext)
+			// END [deprecated the uncle block logic]
 			// Write state changes to db
 			root, err := statedb.Commit(config.IsEIP158(b.header.Number))
 			if err != nil {
