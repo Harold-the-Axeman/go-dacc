@@ -93,8 +93,10 @@ type headerFilterTask struct {
 type bodyFilterTask struct {
 	peer         string                 // The source peer of block bodies
 	transactions [][]*types.Transaction // Collection of transactions per block bodies
-	uncles       [][]*types.Header      // Collection of uncles per block bodies
-	time         time.Time              // Arrival time of the blocks' contents
+	// TODO(Corbin) [deprecated the uncle block logic]
+	// uncles [][]*types.Header // Collection of uncles per block bodies
+	// END [deprecated the uncle block logic]
+	time time.Time // Arrival time of the blocks' contents
 }
 
 // inject represents a schedules import operation.
@@ -246,10 +248,39 @@ func (f *Fetcher) FilterHeaders(peer string, headers []*types.Header, time time.
 	}
 }
 
+// TODO(Corbin) [deprecated the uncle block logic]
+// // FilterBodies extracts all the block bodies that were explicitly requested by
+// // the fetcher, returning those that should be handled differently.
+// func (f *Fetcher) FilterBodies(peer string, transactions [][]*types.Transaction, uncles [][]*types.Header, time time.Time) ([][]*types.Transaction, [][]*types.Header) {
+// 	log.Trace("Filtering bodies", "peer", peer, "txs", len(transactions), "uncles", len(uncles))
+
+// 	// Send the filter channel to the fetcher
+// 	filter := make(chan *bodyFilterTask)
+
+// 	select {
+// 	case f.bodyFilter <- filter:
+// 	case <-f.quit:
+// 		return nil, nil
+// 	}
+// 	// Request the filtering of the body list
+// 	select {
+// 	case filter <- &bodyFilterTask{peer: peer, transactions: transactions, uncles: uncles, time: time}:
+// 	case <-f.quit:
+// 		return nil, nil
+// 	}
+// 	// Retrieve the bodies remaining after filtering
+// 	select {
+// 	case task := <-filter:
+// 		return task.transactions, task.uncles
+// 	case <-f.quit:
+// 		return nil, nil
+// 	}
+// }
+
 // FilterBodies extracts all the block bodies that were explicitly requested by
 // the fetcher, returning those that should be handled differently.
-func (f *Fetcher) FilterBodies(peer string, transactions [][]*types.Transaction, uncles [][]*types.Header, time time.Time) ([][]*types.Transaction, [][]*types.Header) {
-	log.Trace("Filtering bodies", "peer", peer, "txs", len(transactions), "uncles", len(uncles))
+func (f *Fetcher) FilterBodies(peer string, transactions [][]*types.Transaction, time time.Time) [][]*types.Transaction {
+	log.Trace("Filtering bodies", "peer", peer, "txs", len(transactions))
 
 	// Send the filter channel to the fetcher
 	filter := make(chan *bodyFilterTask)
@@ -257,22 +288,24 @@ func (f *Fetcher) FilterBodies(peer string, transactions [][]*types.Transaction,
 	select {
 	case f.bodyFilter <- filter:
 	case <-f.quit:
-		return nil, nil
+		return nil
 	}
 	// Request the filtering of the body list
 	select {
-	case filter <- &bodyFilterTask{peer: peer, transactions: transactions, uncles: uncles, time: time}:
+	case filter <- &bodyFilterTask{peer: peer, transactions: transactions, time: time}:
 	case <-f.quit:
-		return nil, nil
+		return nil
 	}
 	// Retrieve the bodies remaining after filtering
 	select {
 	case task := <-filter:
-		return task.transactions, task.uncles
+		return task.transactions
 	case <-f.quit:
-		return nil, nil
+		return nil
 	}
 }
+
+// END [deprecated the uncle block logic]
 
 // Loop is the main fetcher loop, checking and processing various notification
 // events.
@@ -458,9 +491,21 @@ func (f *Fetcher) loop() {
 					if f.getBlock(hash) == nil {
 						announce.header = header
 						announce.time = task.time
+						// TODO(Corbin) [deprecated the uncle block logic]
+						// // If the block is empty (header only), short circuit into the final import queue
+						// if header.TxHash == types.DeriveSha(types.Transactions{}) && header.UncleHash == types.CalcUncleHash([]*types.Header{}) {
+						// 	log.Trace("Block empty, skipping body retrieval", "peer", announce.origin, "number", header.Number, "hash", header.Hash())
+
+						// 	block := types.NewBlockWithHeader(header)
+						// 	block.ReceivedAt = task.time
+
+						// 	complete = append(complete, block)
+						// 	f.completing[hash] = announce
+						// 	continue
+						// }
 
 						// If the block is empty (header only), short circuit into the final import queue
-						if header.TxHash == types.DeriveSha(types.Transactions{}) && header.UncleHash == types.CalcUncleHash([]*types.Header{}) {
+						if header.TxHash == types.DeriveSha(types.Transactions{}) {
 							log.Trace("Block empty, skipping body retrieval", "peer", announce.origin, "number", header.Number, "hash", header.Hash())
 
 							block := types.NewBlockWithHeader(header)
@@ -470,6 +515,8 @@ func (f *Fetcher) loop() {
 							f.completing[hash] = announce
 							continue
 						}
+						// END [deprecated the uncle block logic]
+
 						// Otherwise add to the list of blocks needing completion
 						incomplete = append(incomplete, announce)
 					} else {
@@ -515,22 +562,70 @@ func (f *Fetcher) loop() {
 			}
 			bodyFilterInMeter.Mark(int64(len(task.transactions)))
 
+			// TODO(Corbin) [deprecated the uncle block logic]
+			// blocks := []*types.Block{}
+			// for i := 0; i < len(task.transactions) && i < len(task.uncles); i++ {
+			// 	// Match up a body to any possible completion request
+			// 	matched := false
+
+			// 	for hash, announce := range f.completing {
+			// 		if f.queued[hash] == nil {
+			// 			txnHash := types.DeriveSha(types.Transactions(task.transactions[i]))
+
+			// 			// uncleHash := types.CalcUncleHash(task.uncles[i])
+
+			// 		if txnHash == announce.header.TxHash && uncleHash == announce.header.UncleHash && announce.origin == task.peer {
+			// 			// Mark the body matched, reassemble if still unknown
+			// 			matched = true
+
+			// 			if f.getBlock(hash) == nil {
+			// 				block := types.NewBlockWithHeader(announce.header).WithBody(task.transactions[i], task.uncles[i])
+			// 				block.ReceivedAt = task.time
+
+			// 				blocks = append(blocks, block)
+			// 			} else {
+			// 				f.forgetHash(hash)
+			// 			}
+			// 		}
+
+			// 			if txnHash == announce.header.TxHash && announce.origin == task.peer {
+			// 				// Mark the body matched, reassemble if still unknown
+			// 				matched = true
+
+			// 				if f.getBlock(hash) == nil {
+			// 					block := types.NewBlockWithHeader(announce.header).WithBody(task.transactions[i])
+			// 					block.ReceivedAt = task.time
+
+			// 					blocks = append(blocks, block)
+			// 				} else {
+			// 					f.forgetHash(hash)
+			// 				}
+			// 			}
+
+			// 		}
+			// 	}
+			// 	if matched {
+			// 		task.transactions = append(task.transactions[:i], task.transactions[i+1:]...)
+			// 		task.uncles = append(task.uncles[:i], task.uncles[i+1:]...)
+			// 		i--
+			// 		continue
+			// 	}
+
 			blocks := []*types.Block{}
-			for i := 0; i < len(task.transactions) && i < len(task.uncles); i++ {
+			for i := 0; i < len(task.transactions); i++ {
 				// Match up a body to any possible completion request
 				matched := false
 
 				for hash, announce := range f.completing {
 					if f.queued[hash] == nil {
 						txnHash := types.DeriveSha(types.Transactions(task.transactions[i]))
-						uncleHash := types.CalcUncleHash(task.uncles[i])
 
-						if txnHash == announce.header.TxHash && uncleHash == announce.header.UncleHash && announce.origin == task.peer {
+						if txnHash == announce.header.TxHash && announce.origin == task.peer {
 							// Mark the body matched, reassemble if still unknown
 							matched = true
 
 							if f.getBlock(hash) == nil {
-								block := types.NewBlockWithHeader(announce.header).WithBody(task.transactions[i], task.uncles[i])
+								block := types.NewBlockWithHeader(announce.header).WithBody(task.transactions[i])
 								block.ReceivedAt = task.time
 
 								blocks = append(blocks, block)
@@ -542,11 +637,11 @@ func (f *Fetcher) loop() {
 				}
 				if matched {
 					task.transactions = append(task.transactions[:i], task.transactions[i+1:]...)
-					task.uncles = append(task.uncles[:i], task.uncles[i+1:]...)
 					i--
 					continue
 				}
 			}
+			// END [deprecated the uncle block logic]
 
 			bodyFilterOutMeter.Mark(int64(len(task.transactions)))
 			select {

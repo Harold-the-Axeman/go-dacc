@@ -339,7 +339,10 @@ func ReadBlock(db DatabaseReader, hash common.Hash, number uint64) *types.Block 
 	}
 	//return types.NewBlockWithHeader(header).WithBody(body.Transactions, body.Uncles)
 	// Reassemble the block and return
-	block := types.NewBlockWithHeader(header).WithBody(body.Transactions, body.Uncles)
+	// TODO(Corbin) [deprecated the uncle block logic]
+	// block := types.NewBlockWithHeader(header).WithBody(body.Transactions, body.Uncles)
+	block := types.NewBlockWithHeader(header).WithBody(body.Transactions)
+	// END [deprecated the uncle block logic]
 
 	// add dposContext to block
 	block.DposContext = readDposContextTrie(db.(ethdb.Database), header)

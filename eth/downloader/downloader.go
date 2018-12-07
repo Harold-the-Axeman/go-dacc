@@ -950,7 +950,11 @@ func (d *Downloader) fetchBodies(from uint64) error {
 	var (
 		deliver = func(packet dataPack) (int, error) {
 			pack := packet.(*bodyPack)
-			return d.queue.DeliverBodies(pack.peerID, pack.transactions, pack.uncles)
+			// TODO(Corbin) [deprecated the uncle block logic]
+			// return d.queue.DeliverBodies(pack.peerID, pack.transactions, pack.uncles)
+			return d.queue.DeliverBodies(pack.peerID, pack.transactions)
+			// END [deprecated the uncle block logic]
+
 		}
 		expire   = func() map[string]int { return d.queue.ExpireBodies(d.requestTTL()) }
 		fetch    = func(p *peerConnection, req *fetchRequest) error { return p.FetchBodies(req) }
@@ -1385,7 +1389,10 @@ func (d *Downloader) importBlockResults(results []*fetchResult) error {
 	)
 	blocks := make([]*types.Block, len(results))
 	for i, result := range results {
-		blocks[i] = types.NewBlockWithHeader(result.Header).WithBody(result.Transactions, result.Uncles)
+		// TODO(Corbin) [deprecated the uncle block logic]
+		// blocks[i] = types.NewBlockWithHeader(result.Header).WithBody(result.Transactions, result.Uncles)
+		blocks[i] = types.NewBlockWithHeader(result.Header).WithBody(result.Transactions)
+		// END [deprecated the uncle block logic]
 	}
 	if index, err := d.blockchain.InsertChain(blocks); err != nil {
 		log.Debug("Downloaded item processing failed", "number", results[index].Header.Number, "hash", results[index].Header.Hash(), "err", err)
@@ -1527,7 +1534,10 @@ func (d *Downloader) commitFastSyncData(results []*fetchResult, stateSync *state
 	blocks := make([]*types.Block, len(results))
 	receipts := make([]types.Receipts, len(results))
 	for i, result := range results {
-		blocks[i] = types.NewBlockWithHeader(result.Header).WithBody(result.Transactions, result.Uncles)
+		// TODO(Corbin) [deprecated the uncle block logic]
+		// blocks[i] = types.NewBlockWithHeader(result.Header).WithBody(result.Transactions, result.Uncles)
+		blocks[i] = types.NewBlockWithHeader(result.Header).WithBody(result.Transactions)
+		// END [deprecated the uncle block logic]
 		receipts[i] = result.Receipts
 	}
 	if index, err := d.blockchain.InsertReceiptChain(blocks, receipts); err != nil {
@@ -1538,7 +1548,10 @@ func (d *Downloader) commitFastSyncData(results []*fetchResult, stateSync *state
 }
 
 func (d *Downloader) commitPivotBlock(result *fetchResult) error {
-	block := types.NewBlockWithHeader(result.Header).WithBody(result.Transactions, result.Uncles)
+	// TODO(Corbin) [deprecated the uncle block logic]
+	// block := types.NewBlockWithHeader(result.Header).WithBody(result.Transactions, result.Uncles)
+	block := types.NewBlockWithHeader(result.Header).WithBody(result.Transactions)
+	// END [deprecated the uncle block logic]
 	if err := d.syncDposContextState(block.Header().DposContext); err != nil {
 		return err
 	}
@@ -1576,10 +1589,17 @@ func (d *Downloader) DeliverHeaders(id string, headers []*types.Header) (err err
 	return d.deliver(id, d.headerCh, &headerPack{id, headers}, headerInMeter, headerDropMeter)
 }
 
+// TODO(Corbin) [deprecated the uncle block logic]
+// // DeliverBodies injects a new batch of block bodies received from a remote node.
+// func (d *Downloader) DeliverBodies(id string, transactions [][]*types.Transaction, uncles [][]*types.Header) (err error) {
+// 	return d.deliver(id, d.bodyCh, &bodyPack{id, transactions, uncles}, bodyInMeter, bodyDropMeter)
+// }
 // DeliverBodies injects a new batch of block bodies received from a remote node.
-func (d *Downloader) DeliverBodies(id string, transactions [][]*types.Transaction, uncles [][]*types.Header) (err error) {
-	return d.deliver(id, d.bodyCh, &bodyPack{id, transactions, uncles}, bodyInMeter, bodyDropMeter)
+func (d *Downloader) DeliverBodies(id string, transactions [][]*types.Transaction) (err error) {
+	return d.deliver(id, d.bodyCh, &bodyPack{id, transactions}, bodyInMeter, bodyDropMeter)
 }
+
+// END [deprecated the uncle block logic]
 
 // DeliverReceipts injects a new batch of receipts received from a remote node.
 func (d *Downloader) DeliverReceipts(id string, receipts [][]*types.Receipt) (err error) {

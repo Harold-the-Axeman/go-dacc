@@ -117,9 +117,12 @@ func (r *BlockRequest) Validate(db ethdb.Database, msg *Msg) error {
 	if header.TxHash != types.DeriveSha(types.Transactions(body.Transactions)) {
 		return errTxHashMismatch
 	}
-	if header.UncleHash != types.CalcUncleHash(body.Uncles) {
-		return errUncleHashMismatch
-	}
+	// TODO(Corbin) [deprecated the uncle block logic]
+	// if header.UncleHash != types.CalcUncleHash(body.Uncles) {
+	// 	return errUncleHashMismatch
+	// }
+	// END [deprecated the uncle block logic]
+
 	// Validations passed, encode and store RLP
 	data, err := rlp.EncodeToBytes(body)
 	if err != nil {

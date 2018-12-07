@@ -184,7 +184,9 @@ type newBlockData struct {
 // blockBody represents the data content of a single block.
 type blockBody struct {
 	Transactions []*types.Transaction // Transactions contained within a block
-	Uncles       []*types.Header      // Uncles contained within a block
+	// TODO(Corbin) [deprecated the uncle block logic]
+	// Uncles       []*types.Header      // Uncles contained within a block
+	// END [deprecated the uncle block logic]
 }
 
 // blockBodiesData is the network packet for block content distribution.
