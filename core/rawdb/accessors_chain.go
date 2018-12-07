@@ -269,14 +269,15 @@ func WriteTd(db DatabaseWriter, hash common.Hash, number uint64, td *big.Int) {
 	}
 }
 */
-// end change by Shara
 
+/*
 // DeleteTd removes all block total difficulty data associated with a hash.
 func DeleteTd(db DatabaseDeleter, hash common.Hash, number uint64) {
 	if err := db.Delete(headerTDKey(number, hash)); err != nil {
 		log.Crit("Failed to delete block total difficulty", "err", err)
 	}
-}
+}*/
+// end change by Shara
 
 // ReadReceipts retrieves all the transaction receipts belonging to a block.
 func ReadReceipts(db DatabaseReader, hash common.Hash, number uint64) types.Receipts {
@@ -369,7 +370,9 @@ func DeleteBlock(db DatabaseDeleter, hash common.Hash, number uint64) {
 	DeleteReceipts(db, hash, number)
 	DeleteHeader(db, hash, number)
 	DeleteBody(db, hash, number)
-	DeleteTd(db, hash, number)
+	// change by Shara - remove TD
+	//DeleteTd(db, hash, number)
+	// end change by Shara
 }
 
 // FindCommonAncestor returns the last common ancestor of two block headers
