@@ -27,7 +27,6 @@ import (
 
 	"github.com/daccproject/go-dacc/common"
 	"github.com/daccproject/go-dacc/consensus"
-	"github.com/daccproject/go-dacc/consensus/misc"
 	"github.com/daccproject/go-dacc/core"
 	"github.com/daccproject/go-dacc/core/types"
 	"github.com/daccproject/go-dacc/eth/downloader"
@@ -289,24 +288,24 @@ func (pm *ProtocolManager) handle(p *peer) error {
 	pm.syncTransactions(p)
 
 	// If we're DAO hard-fork aware, validate any remote peer with regard to the hard-fork
-	if daoBlock := pm.chainconfig.DAOForkBlock; daoBlock != nil {
-		// Request the peer's DAO fork header for extra-data validation
-		if err := p.RequestHeadersByNumber(daoBlock.Uint64(), 1, 0, false); err != nil {
-			return err
-		}
-		// Start a timer to disconnect if the peer doesn't reply in time
-		p.forkDrop = time.AfterFunc(daoChallengeTimeout, func() {
-			p.Log().Debug("Timed out DAO fork-check, dropping")
-			pm.removePeer(p.id)
-		})
-		// Make sure it's cleaned up if the peer dies off
-		defer func() {
-			if p.forkDrop != nil {
-				p.forkDrop.Stop()
-				p.forkDrop = nil
-			}
-		}()
-	}
+	//if daoBlock := pm.chainconfig.DAOForkBlock; daoBlock != nil {
+	//	// Request the peer's DAO fork header for extra-data validation
+	//	if err := p.RequestHeadersByNumber(daoBlock.Uint64(), 1, 0, false); err != nil {
+	//		return err
+	//	}
+	//	// Start a timer to disconnect if the peer doesn't reply in time
+	//	p.forkDrop = time.AfterFunc(daoChallengeTimeout, func() {
+	//		p.Log().Debug("Timed out DAO fork-check, dropping")
+	//		pm.removePeer(p.id)
+	//	})
+	//	// Make sure it's cleaned up if the peer dies off
+	//	defer func() {
+	//		if p.forkDrop != nil {
+	//			p.forkDrop.Stop()
+	//			p.forkDrop = nil
+	//		}
+	//	}()
+	//}
 	// main loop. handle incoming messages.
 	for {
 		if err := pm.handleMsg(p); err != nil {
@@ -457,19 +456,19 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		filter := len(headers) == 1
 		if filter {
 			// If it's a potential DAO fork check, validate against the rules
-			if p.forkDrop != nil && pm.chainconfig.DAOForkBlock.Cmp(headers[0].Number) == 0 {
-				// Disable the fork drop timer
-				p.forkDrop.Stop()
-				p.forkDrop = nil
-
-				// Validate the header and either drop the peer or continue
-				if err := misc.VerifyDAOHeaderExtraData(pm.chainconfig, headers[0]); err != nil {
-					p.Log().Debug("Verified to be on the other side of the DAO fork, dropping")
-					return err
-				}
-				p.Log().Debug("Verified to be on the same side of the DAO fork")
-				return nil
-			}
+			//if p.forkDrop != nil && pm.chainconfig.DAOForkBlock.Cmp(headers[0].Number) == 0 {
+			//	// Disable the fork drop timer
+			//	p.forkDrop.Stop()
+			//	p.forkDrop = nil
+			//
+			//	// Validate the header and either drop the peer or continue
+			//	if err := misc.VerifyDAOHeaderExtraData(pm.chainconfig, headers[0]); err != nil {
+			//		p.Log().Debug("Verified to be on the other side of the DAO fork, dropping")
+			//		return err
+			//	}
+			//	p.Log().Debug("Verified to be on the same side of the DAO fork")
+			//	return nil
+			//}
 			// Irrelevant of the fork checks, send the header to the fetcher just in case
 			headers = pm.fetcher.FilterHeaders(p.id, headers, time.Now())
 		}
