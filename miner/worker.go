@@ -105,8 +105,8 @@ type worker struct {
 	coinbase common.Address
 	extra    []byte
 
-	pendingMu    sync.RWMutex
-	pendingTasks map[common.Hash]*task
+	//pendingMu    sync.RWMutex
+	//pendingTasks map[common.Hash]*task
 
 	snapshotMu    sync.RWMutex // The lock used to protect the block snapshot and state snapshot
 	snapshotBlock *types.Block
@@ -133,7 +133,7 @@ func newWorker(config *params.ChainConfig, engine consensus.Engine, eth Backend,
 		chain:        eth.BlockChain(),
 		gasFloor:     gasFloor,
 		gasCeil:      gasCeil,
-		pendingTasks: make(map[common.Hash]*task),
+		//pendingTasks: make(map[common.Hash]*task),
 		//txsCh:        make(chan core.NewTxsEvent, txChanSize),
 		//chainHeadCh:  make(chan core.ChainHeadEvent, chainHeadChanSize),
 		//newWorkCh:    make(chan *newWorkReq),
@@ -169,7 +169,7 @@ func (w *worker) newWorkLoop() {
 		atomic.StoreInt32(&w.newTxs, 0)
 	}*/
 	// clearPending cleans the stale pending tasks.
-	clearPending := func(number uint64) {
+	/*clearPending := func(number uint64) {
 		w.pendingMu.Lock()
 		for h, t := range w.pendingTasks {
 			if t.block.NumberU64()+staleThreshold <= number {
@@ -177,7 +177,7 @@ func (w *worker) newWorkLoop() {
 			}
 		}
 		w.pendingMu.Unlock()
-	}
+	}*/
 
 	// DPOS ticker for block producing, added by Harold
 	//ticker := time.NewTimer(time.Second)
@@ -190,7 +190,7 @@ func (w *worker) newWorkLoop() {
 		case now := <-ticker.C:
 			//TODO: ticker will always run here, temporary fix here.
 			if atomic.LoadInt32(&w.running) == 1 {
-				clearPending(w.chain.CurrentBlock().NumberU64()) //NOTE
+				//clearPending(w.chain.CurrentBlock().NumberU64()) //NOTE
 				timestamp = now.Unix() // TODO: NEED CHECK, possible bug: time.Now().Unix() or now, which one?
 
 				//commit()
@@ -240,19 +240,19 @@ func (w *worker) commitTask(task *task) {
 	if w.skipSealHook != nil && w.skipSealHook(task) {
 		return
 	}
-	w.pendingMu.Lock()
+	/*w.pendingMu.Lock()
 	w.pendingTasks[w.engine.SealHash(task.block.Header())] = task
-	w.pendingMu.Unlock()
+	w.pendingMu.Unlock()*/
 
 	/*if err := w.engine.Seal(w.chain, task.block, w.resultCh, stopCh); err != nil {
 		log.Warn("Block sealing failed", "err", err)
 	}*/
 	//TODO:
-	block, err := w.engine.Seal(w.chain, task.block, stopCh);
+	block, err := w.engine.Seal(w.chain, task.block, stopCh)
 	if err != nil {
 		log.Warn("Block sealing failed", "err", err)
 	}
-	w.processResult(block)
+	w.processResult(block, task)
 
 	//for {
 		//select {
@@ -290,7 +290,7 @@ func (w *worker) commitTask(task *task) {
 
 // resultLoop is a standalone goroutine to handle sealing result submitting
 // and flush relative data to the database.
-func (w *worker) processResult(block *types.Block) {
+func (w *worker) processResult(block *types.Block, task *task) {
 	if block == nil {
 		return
 	}
@@ -303,13 +303,13 @@ func (w *worker) processResult(block *types.Block) {
 		hash     = block.Hash()
 	)
 	//TODO: remove pending tasks
-	w.pendingMu.RLock()
+	/*w.pendingMu.RLock()
 	task, exist := w.pendingTasks[sealhash]
 	w.pendingMu.RUnlock()
 	if !exist {
 		log.Error("Block found but no relative pending task", "number", block.Number(), "sealhash", sealhash, "hash", hash)
 		return
-	}
+	}*/
 	// Different block could share same sealhash, deep copy here to prevent write-write conflict.
 	var (
 		receipts = make([]*types.Receipt, len(task.receipts))
