@@ -90,7 +90,7 @@ type worker struct {
 	mux          *event.TypeMux
 	txsCh        chan core.NewTxsEvent
 	txsSub       event.Subscription
-	chainHeadCh  chan core.ChainHeadEvent
+	//chainHeadCh  chan core.ChainHeadEvent
 	chainHeadSub event.Subscription
 
 	// Channels
@@ -143,7 +143,7 @@ func newWorker(config *params.ChainConfig, engine consensus.Engine, eth Backend,
 	// Subscribe NewTxsEvent for tx pool
 	worker.txsSub = eth.TxPool().SubscribeNewTxsEvent(worker.txsCh)
 	// Subscribe events for blockchain
-	worker.chainHeadSub = eth.BlockChain().SubscribeChainHeadEvent(worker.chainHeadCh)
+	//worker.chainHeadSub = eth.BlockChain().SubscribeChainHeadEvent(worker.chainHeadCh)
 	// Change by Shara
 
 	go worker.mainLoop()
@@ -179,14 +179,15 @@ func (w *worker) close() {
 // newWorkLoop is a standalone goroutine to submit new mining work upon received events.
 //func (w *worker) newWorkLoop(recommit time.Duration) {
 func (w *worker) newWorkLoop() {
-	var (
+	/*var (
 		timestamp int64 // timestamp for each round of mining.
-	)
+	)*/
+	var timestamp int64
 
-	commit := func() {
+	/*commit := func() {
 		w.newWorkCh <- &newWorkReq{timestamp: timestamp}
 		atomic.StoreInt32(&w.newTxs, 0)
-	}
+	}*/
 	// clearPending cleans the stale pending tasks.
 	clearPending := func(number uint64) {
 		w.pendingMu.Lock()
@@ -199,21 +200,25 @@ func (w *worker) newWorkLoop() {
 	}
 
 	// DPOS ticker for block producing, added by Harold
-	tickerRep := time.NewTimer(time.Second)
+	//ticker := time.NewTimer(time.Second)
+	ticker := time.NewTicker(time.Second)
 
 	for {
 		select {
-		case <-w.chainHeadCh:
+		//case <-w.chainHeadCh:
 		// DPOS block producing ticker
-		case now := <-tickerRep.C:
+		case now := <-ticker.C:
 			//TODO: ticker will always run here, temporary fix here.
 			if atomic.LoadInt32(&w.running) == 1 {
 				clearPending(w.chain.CurrentBlock().NumberU64()) //NOTE
-				timestamp = now.Unix()                           // TODO: NEED CHECK, possible bug: time.Now().Unix() or now, which one?
-				commit()
+				timestamp = now.Unix() // TODO: NEED CHECK, possible bug: time.Now().Unix() or now, which one?
+
+				//commit()
+				w.newWorkCh <- &newWorkReq{timestamp: timestamp}
+				atomic.StoreInt32(&w.newTxs, 0)
 			}
 			// for the next block
-			tickerRep.Reset(time.Second)
+			//ticker.Reset(time.Second)
 
 		case <-w.exitCh:
 			return
