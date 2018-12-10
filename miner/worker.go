@@ -32,18 +32,9 @@ import (
 )
 
 const (
-	// resultQueueSize is the size of channel listening to sealing result.
-	resultQueueSize = 10
-
 	// txChanSize is the size of channel listening to NewTxsEvent.
 	// The number is referenced from the size of tx pool.
 	txChanSize = 4096
-
-	// chainHeadChanSize is the size of channel listening to ChainHeadEvent.
-	chainHeadChanSize = 10
-
-	// staleThreshold is the maximum depth of the acceptable stale block.
-	staleThreshold = 7
 )
 
 // environment is the worker's current environment and holds all of the current state information.
@@ -70,11 +61,6 @@ type task struct {
 	createdAt time.Time
 }
 
-// newWorkReq represents a request for new sealing work submitting with relative interrupt notifier.
-type newWorkReq struct {
-	timestamp int64
-}
-
 // worker is the main object which takes care of submitting new work to consensus engine
 // and gathering the sealing result.
 type worker struct {
@@ -95,8 +81,8 @@ type worker struct {
 
 	// Channels
 	//newWorkCh chan *newWorkReq
-	taskCh    chan *task
-	resultCh  chan *types.Block
+	//taskCh    chan *task
+	//resultCh  chan *types.Block
 	exitCh    chan struct{}
 
 	current *environment // An environment for current running cycle.
@@ -137,8 +123,8 @@ func newWorker(config *params.ChainConfig, engine consensus.Engine, eth Backend,
 		//txsCh:        make(chan core.NewTxsEvent, txChanSize),
 		//chainHeadCh:  make(chan core.ChainHeadEvent, chainHeadChanSize),
 		//newWorkCh:    make(chan *newWorkReq),
-		taskCh:       make(chan *task),
-		resultCh:     make(chan *types.Block, resultQueueSize),
+		//taskCh:       make(chan *task),
+		//resultCh:     make(chan *types.Block, resultQueueSize),
 		exitCh:       make(chan struct{}),
 	}
 	// Subscribe NewTxsEvent for tx pool
@@ -149,7 +135,7 @@ func newWorker(config *params.ChainConfig, engine consensus.Engine, eth Backend,
 	// Change by Shara
 
 	//go worker.mainLoop()
-	go worker.newWorkLoop()
+	go worker.mainLoop()
 	//go worker.resultLoop()
 	//go worker.taskLoop() // merge with NewMainLoop
 
@@ -158,29 +144,8 @@ func newWorker(config *params.ChainConfig, engine consensus.Engine, eth Backend,
 
 // newWorkLoop is a standalone goroutine to submit new mining work upon received events.
 //func (w *worker) newWorkLoop(recommit time.Duration) {
-func (w *worker) newWorkLoop() {
-	/*var (
-		timestamp int64 // timestamp for each round of mining.
-	)*/
-	var timestamp int64
+func (w *worker) mainLoop() { //NOTE: old newWorkLoop
 
-	/*commit := func() {
-		w.newWorkCh <- &newWorkReq{timestamp: timestamp}
-		atomic.StoreInt32(&w.newTxs, 0)
-	}*/
-	// clearPending cleans the stale pending tasks.
-	/*clearPending := func(number uint64) {
-		w.pendingMu.Lock()
-		for h, t := range w.pendingTasks {
-			if t.block.NumberU64()+staleThreshold <= number {
-				delete(w.pendingTasks, h)
-			}
-		}
-		w.pendingMu.Unlock()
-	}*/
-
-	// DPOS ticker for block producing, added by Harold
-	//ticker := time.NewTimer(time.Second)
 	ticker := time.NewTicker(time.Second)
 
 	for {
@@ -190,18 +155,11 @@ func (w *worker) newWorkLoop() {
 		case now := <-ticker.C:
 			//TODO: ticker will always run here, temporary fix here.
 			if atomic.LoadInt32(&w.running) == 1 {
-				//clearPending(w.chain.CurrentBlock().NumberU64()) //NOTE
-				timestamp = now.Unix() // TODO: NEED CHECK, possible bug: time.Now().Unix() or now, which one?
-
-				//commit()
-				//w.newWorkCh <- &newWorkReq{timestamp: timestamp}
-				//w.mintBlock(*req)
-				w.mintBlock(newWorkReq{timestamp: timestamp})
+				w.mintBlock(now.Unix())// TODO: NEED CHECK, possible bug: time.Now().Unix() or now, which one?
 				atomic.StoreInt32(&w.newTxs, 0)
 			}
 			// for the next block
 			//ticker.Reset(time.Second)
-
 		case <-w.exitCh:
 			return
 		}
@@ -240,56 +198,16 @@ func (w *worker) commitTask(task *task) {
 	if w.skipSealHook != nil && w.skipSealHook(task) {
 		return
 	}
-	/*w.pendingMu.Lock()
-	w.pendingTasks[w.engine.SealHash(task.block.Header())] = task
-	w.pendingMu.Unlock()*/
-
-	/*if err := w.engine.Seal(w.chain, task.block, w.resultCh, stopCh); err != nil {
-		log.Warn("Block sealing failed", "err", err)
-	}*/
 	//TODO:
 	block, err := w.engine.Seal(w.chain, task.block, stopCh)
 	if err != nil {
 		log.Warn("Block sealing failed", "err", err)
 	}
 	w.processResult(block, task)
-
-	//for {
-		//select {
-		//case task := <-w.taskCh:
-			/*if w.newTaskHook != nil {
-				w.newTaskHook(task)
-			}
-			// Reject duplicate sealing work due to resubmitting.
-			sealHash := w.engine.SealHash(task.block.Header())
-			if sealHash == prev {
-				continue
-			}
-			// Interrupt previous sealing operation
-			interrupt()
-			stopCh, prev = make(chan struct{}), sealHash
-
-			if w.skipSealHook != nil && w.skipSealHook(task) {
-				continue
-			}
-			w.pendingMu.Lock()
-			w.pendingTasks[w.engine.SealHash(task.block.Header())] = task
-			w.pendingMu.Unlock()
-
-			//TODO:
-			//NewSeal(chain ChainReader, block *types.Block, stop <-chan struct{}) (*types.Block, error)
-			if err := w.engine.Seal(w.chain, task.block, w.resultCh, stopCh); err != nil {
-				log.Warn("Block sealing failed", "err", err)
-			}*/
-		/*case <-w.exitCh:
-			interrupt()
-			return
-		}*/
-	//}
 }
 
 // resultLoop is a standalone goroutine to handle sealing result submitting
-// and flush relative data to the database.
+// processResult the result of the
 func (w *worker) processResult(block *types.Block, task *task) {
 	if block == nil {
 		return
@@ -302,14 +220,7 @@ func (w *worker) processResult(block *types.Block, task *task) {
 		sealhash = w.engine.SealHash(block.Header())
 		hash     = block.Hash()
 	)
-	//TODO: remove pending tasks
-	/*w.pendingMu.RLock()
-	task, exist := w.pendingTasks[sealhash]
-	w.pendingMu.RUnlock()
-	if !exist {
-		log.Error("Block found but no relative pending task", "number", block.Number(), "sealhash", sealhash, "hash", hash)
-		return
-	}*/
+
 	// Different block could share same sealhash, deep copy here to prevent write-write conflict.
 	var (
 		receipts = make([]*types.Receipt, len(task.receipts))
@@ -351,77 +262,6 @@ func (w *worker) processResult(block *types.Block, task *task) {
 		// End Change by Shara
 	}
 	w.chain.PostChainEvents(events, logs)
-	/*for {
-		select {
-		case block := <-w.resultCh:
-			// Short circuit when receiving empty result.
-			if block == nil {
-				continue
-			}
-			// Short circuit when receiving duplicate result caused by resubmitting.
-			if w.chain.HasBlock(block.Hash(), block.NumberU64()) {
-				continue
-			}
-			var (
-				sealhash = w.engine.SealHash(block.Header())
-				hash     = block.Hash()
-			)
-			w.pendingMu.RLock()
-			task, exist := w.pendingTasks[sealhash]
-			w.pendingMu.RUnlock()
-			if !exist {
-				log.Error("Block found but no relative pending task", "number", block.Number(), "sealhash", sealhash, "hash", hash)
-				continue
-			}
-			// Different block could share same sealhash, deep copy here to prevent write-write conflict.
-			var (
-				receipts = make([]*types.Receipt, len(task.receipts))
-				logs     []*types.Log
-			)
-			for i, receipt := range task.receipts {
-				receipts[i] = new(types.Receipt)
-				*receipts[i] = *receipt
-				// Update the block hash in all logs since it is now available and not when the
-				// receipt/log of individual transactions were created.
-				for _, log := range receipt.Logs {
-					log.BlockHash = hash
-				}
-				logs = append(logs, receipt.Logs...)
-			}
-			// Commit block and state to database.
-			var beginWriteBlock = time.Now()
-			log.Warn("Begin WriteBlockWithState")
-			stat, err := w.chain.WriteBlockWithState(block, receipts, task.state)
-			log.Warn("End WriteBlockWithState", "Cost", time.Since(beginWriteBlock))
-			if err != nil {
-				log.Error("Failed writing block to chain", "err", err)
-				continue
-			}
-			log.Info("😄 Successfully sealed new block", "number", block.Number(), "sealhash", sealhash, "hash", hash,
-				"elapsed", common.PrettyDuration(time.Since(task.createdAt)))
-
-			// Broadcast the block and announce chain insertion event
-			w.mux.Post(core.NewMinedBlockEvent{Block: block})
-
-			var events []interface{}
-			switch stat {
-			case core.CanonStatTy:
-				events = append(events, core.ChainEvent{Block: block, Hash: block.Hash(), Logs: logs})
-				events = append(events, core.ChainHeadEvent{Block: block})
-			case core.SideStatTy:
-				// Change by Shara ,
-				//events = append(events, core.ChainSideEvent{Block: block})
-				// End Change by Shara
-			}
-			w.chain.PostChainEvents(events, logs)
-
-			// Insert the block into the set of pending ones to resultLoop for confirmations
-			//w.unconfirmed.Insert(block.NumberU64(), block.Hash())
-
-		case <-w.exitCh:
-			return
-		}
-	}*/
 }
 
 // setEtherbase sets the etherbase used to initialize the block coinbase field.

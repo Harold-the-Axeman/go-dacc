@@ -14,14 +14,14 @@ import (
 )
 // Add by Shara , copy from meitu
 // Modified by Harold, move the code in the end to other loops.
-func (self *worker) mintBlock(req newWorkReq) {
+func (self *worker) mintBlock(timestamp int64) {
 
 	engine, ok := self.engine.(*dpos.Dpos)
 	if !ok {
 		log.Error("Only the dpos engine was allowed")
 		return
 	}
-	err := engine.CheckValidator(self.chain.CurrentBlock(), req.timestamp)
+	err := engine.CheckValidator(self.chain.CurrentBlock(), timestamp)
 	if err != nil {
 		switch err {
 		case dpos.ErrWaitForPrevBlock,
@@ -34,7 +34,7 @@ func (self *worker) mintBlock(req newWorkReq) {
 		}
 		return
 	}
-	self.createNewWork(req.timestamp)
+	self.createNewWork(timestamp)
 
 }
 
@@ -211,6 +211,8 @@ func (w *worker) createNewWork(timestamp int64) {
 	tstart := time.Now()
 	parent := w.chain.CurrentBlock()
 
+	// TODO: possible bug, should not modify the timestamp here
+	// should abort, block produce fails
 	if parent.Time().Cmp(new(big.Int).SetInt64(timestamp)) >= 0 {
 		timestamp = parent.Time().Int64() + 1
 	}
@@ -299,10 +301,6 @@ func (w *worker) commit(start time.Time) error {
 	s := w.current.state.Copy()
 	dc := w.current.dposContext.Copy()
 
-	// Change by Shara
-	//work := w.current
-
-	//lock, err := w.engine.Finalize(w.chain, w.current.header, s, w.current.txs, uncles, w.current.receipts, dc)
 	block, err := w.engine.Finalize(w.chain, w.current.header, s, w.current.txs, nil, w.current.receipts, dc)
 	if err != nil {
 		log.Info("worker.commit.finalize", err.Error())
@@ -310,28 +308,8 @@ func (w *worker) commit(start time.Time) error {
 	}
 	//NOTE: in commitNewWork of the v1.7.3 version, Harold
 	block.DposContext = dc
-	// End change by Shara
 
 	if w.isRunning() {
-		/*if interval != nil {
-			interval()
-		}*/
-		/*select {
-		case w.taskCh <- &task{receipts: receipts, state: s, block: block, createdAt: time.Now()}:
-			//w.unconfirmed.Shift(block.NumberU64() - 1)
-
-			feesWei := new(big.Int)
-			for i, tx := range block.Transactions() {
-				feesWei.Add(feesWei, new(big.Int).Mul(new(big.Int).SetUint64(receipts[i].GasUsed), tx.GasPrice()))
-			}
-			feesEth := new(big.Float).Quo(new(big.Float).SetInt(feesWei), new(big.Float).SetInt(big.NewInt(params.Ether)))
-
-			log.Info("⚡️ Commit new mining work", "number", block.Number(), "sealhash", w.engine.SealHash(block.Header()),
-				"txs", w.current.tcount, "gas", block.GasUsed(), "fees", feesEth, "elapsed", common.PrettyDuration(time.Since(start)))
-
-		case <-w.exitCh:
-			log.Info("Worker has exited")
-		}*/
 		task := &task{receipts: receipts, state: s, block: block, createdAt: time.Now()}
 		//w.unconfirmed.Shift(block.NumberU64() - 1)
 		w.commitTask(task)
@@ -347,9 +325,6 @@ func (w *worker) commit(start time.Time) error {
 			"txs", w.current.tcount, "gas", block.GasUsed(), "fees", feesEth, "elapsed", common.PrettyDuration(time.Since(start)))
 
 	}
-	/*if update {
-		w.updateSnapshot()
-	}*/
 	//TODO: have to wait above to finish, async execution?
 	w.updateSnapshot()
 	return nil
