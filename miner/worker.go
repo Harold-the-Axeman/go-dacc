@@ -91,7 +91,7 @@ type worker struct {
 	txsCh        chan core.NewTxsEvent
 	txsSub       event.Subscription
 	//chainHeadCh  chan core.ChainHeadEvent
-	chainHeadSub event.Subscription
+	//chainHeadSub event.Subscription
 
 	// Channels
 	newWorkCh chan *newWorkReq
@@ -114,6 +114,7 @@ type worker struct {
 
 	// atomic status counters
 	running int32 // The indicator whether the consensus engine is running or not.
+	//TODO: possible remove in the future
 	newTxs  int32 // New arrival transaction count since last sealing work submitting.
 
 	// Test hooks
@@ -134,7 +135,7 @@ func newWorker(config *params.ChainConfig, engine consensus.Engine, eth Backend,
 		gasCeil:      gasCeil,
 		pendingTasks: make(map[common.Hash]*task),
 		txsCh:        make(chan core.NewTxsEvent, txChanSize),
-		chainHeadCh:  make(chan core.ChainHeadEvent, chainHeadChanSize),
+		//chainHeadCh:  make(chan core.ChainHeadEvent, chainHeadChanSize),
 		newWorkCh:    make(chan *newWorkReq),
 		taskCh:       make(chan *task),
 		resultCh:     make(chan *types.Block, resultQueueSize),
@@ -152,28 +153,6 @@ func newWorker(config *params.ChainConfig, engine consensus.Engine, eth Backend,
 	go worker.taskLoop()
 
 	return worker
-}
-
-// start sets the running status as 1 and triggers new work submitting.
-func (w *worker) start() {
-	atomic.StoreInt32(&w.running, 1)
-	//w.startCh <- struct{}{}
-}
-
-// stop sets the running status as 0.
-func (w *worker) stop() {
-	atomic.StoreInt32(&w.running, 0)
-}
-
-// isRunning returns an indicator whether worker is running or not.
-func (w *worker) isRunning() bool {
-	return atomic.LoadInt32(&w.running) == 1
-}
-
-// close terminates all background threads maintained by the worker.
-// Note the worker does not support being closed multiple times.
-func (w *worker) close() {
-	close(w.exitCh)
 }
 
 // newWorkLoop is a standalone goroutine to submit new mining work upon received events.
@@ -214,7 +193,9 @@ func (w *worker) newWorkLoop() {
 				timestamp = now.Unix() // TODO: NEED CHECK, possible bug: time.Now().Unix() or now, which one?
 
 				//commit()
-				w.newWorkCh <- &newWorkReq{timestamp: timestamp}
+				//w.newWorkCh <- &newWorkReq{timestamp: timestamp}
+				//w.mintBlock(*req)
+				w.mintBlock(newWorkReq{timestamp: timestamp})
 				atomic.StoreInt32(&w.newTxs, 0)
 			}
 			// for the next block
@@ -226,10 +207,11 @@ func (w *worker) newWorkLoop() {
 	}
 }
 
-// mainLoop is a standalone goroutine to regenerate the sealing task based on the received event.
+//TODO: merge the txs case to the New Main Loop (newWorkLoop)
+//mainLoop is a standalone goroutine to regenerate the sealing task based on the received event.
 func (w *worker) mainLoop() {
 	defer w.txsSub.Unsubscribe()
-	defer w.chainHeadSub.Unsubscribe()
+	//defer w.chainHeadSub.Unsubscribe()
 	for {
 		select {
 		case req := <-w.newWorkCh:
@@ -241,6 +223,7 @@ func (w *worker) mainLoop() {
 			// Note all transactions received may not be continuous with transactions
 			// already included in the current mining block. These transactions will
 			// be automatically eliminated.
+			//TODO: reason: must isRunning
 			if !w.isRunning() && w.current != nil {
 				w.mu.RLock()
 				coinbase := w.coinbase
@@ -271,8 +254,8 @@ func (w *worker) mainLoop() {
 			return
 		case <-w.txsSub.Err():
 			return
-		case <-w.chainHeadSub.Err():
-			return
+		//case <-w.chainHeadSub.Err():
+		//	return
 		}
 	}
 }
@@ -438,8 +421,26 @@ func (w *worker) pendingBlock() *types.Block {
 	return w.snapshotBlock
 }
 
+// start sets the running status as 1 and triggers new work submitting.
+func (w *worker) start() {
+	atomic.StoreInt32(&w.running, 1)
+	//w.startCh <- struct{}{}
+}
 
+// stop sets the running status as 0.
+func (w *worker) stop() {
+	atomic.StoreInt32(&w.running, 0)
+}
 
+// isRunning returns an indicator whether worker is running or not.
+func (w *worker) isRunning() bool {
+	return atomic.LoadInt32(&w.running) == 1
+}
 
+// close terminates all background threads maintained by the worker.
+// Note the worker does not support being closed multiple times.
+func (w *worker) close() {
+	close(w.exitCh)
+}
 
 
