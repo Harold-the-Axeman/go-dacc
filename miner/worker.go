@@ -150,7 +150,7 @@ func newWorker(config *params.ChainConfig, engine consensus.Engine, eth Backend,
 
 	//go worker.mainLoop()
 	go worker.newWorkLoop()
-	go worker.resultLoop()
+	//go worker.resultLoop()
 	//go worker.taskLoop() // merge with NewMainLoop
 
 	return worker
@@ -244,11 +244,15 @@ func (w *worker) commitTask(task *task) {
 	w.pendingTasks[w.engine.SealHash(task.block.Header())] = task
 	w.pendingMu.Unlock()
 
+	/*if err := w.engine.Seal(w.chain, task.block, w.resultCh, stopCh); err != nil {
+		log.Warn("Block sealing failed", "err", err)
+	}*/
 	//TODO:
-	//NewSeal(chain ChainReader, block *types.Block, stop <-chan struct{}) (*types.Block, error)
-	if err := w.engine.Seal(w.chain, task.block, w.resultCh, stopCh); err != nil {
+	block, err := w.engine.Seal(w.chain, task.block, stopCh);
+	if err != nil {
 		log.Warn("Block sealing failed", "err", err)
 	}
+	w.processResult(block)
 
 	//for {
 		//select {
@@ -286,8 +290,68 @@ func (w *worker) commitTask(task *task) {
 
 // resultLoop is a standalone goroutine to handle sealing result submitting
 // and flush relative data to the database.
-func (w *worker) resultLoop() {
-	for {
+func (w *worker) processResult(block *types.Block) {
+	if block == nil {
+		return
+	}
+	// Short circuit when receiving duplicate result caused by resubmitting.
+	if w.chain.HasBlock(block.Hash(), block.NumberU64()) {
+		return
+	}
+	var (
+		sealhash = w.engine.SealHash(block.Header())
+		hash     = block.Hash()
+	)
+	//TODO: remove pending tasks
+	w.pendingMu.RLock()
+	task, exist := w.pendingTasks[sealhash]
+	w.pendingMu.RUnlock()
+	if !exist {
+		log.Error("Block found but no relative pending task", "number", block.Number(), "sealhash", sealhash, "hash", hash)
+		return
+	}
+	// Different block could share same sealhash, deep copy here to prevent write-write conflict.
+	var (
+		receipts = make([]*types.Receipt, len(task.receipts))
+		logs     []*types.Log
+	)
+	for i, receipt := range task.receipts {
+		receipts[i] = new(types.Receipt)
+		*receipts[i] = *receipt
+		// Update the block hash in all logs since it is now available and not when the
+		// receipt/log of individual transactions were created.
+		for _, log := range receipt.Logs {
+			log.BlockHash = hash
+		}
+		logs = append(logs, receipt.Logs...)
+	}
+	// Commit block and state to database.
+	var beginWriteBlock = time.Now()
+	log.Warn("Begin WriteBlockWithState")
+	stat, err := w.chain.WriteBlockWithState(block, receipts, task.state)
+	log.Warn("End WriteBlockWithState", "Cost", time.Since(beginWriteBlock))
+	if err != nil {
+		log.Error("Failed writing block to chain", "err", err)
+		return
+	}
+	log.Info("😄 Successfully sealed new block", "number", block.Number(), "sealhash", sealhash, "hash", hash,
+		"elapsed", common.PrettyDuration(time.Since(task.createdAt)))
+
+	// Broadcast the block and announce chain insertion event
+	w.mux.Post(core.NewMinedBlockEvent{Block: block})
+
+	var events []interface{}
+	switch stat {
+	case core.CanonStatTy:
+		events = append(events, core.ChainEvent{Block: block, Hash: block.Hash(), Logs: logs})
+		events = append(events, core.ChainHeadEvent{Block: block})
+	case core.SideStatTy:
+		// Change by Shara ,
+		//events = append(events, core.ChainSideEvent{Block: block})
+		// End Change by Shara
+	}
+	w.chain.PostChainEvents(events, logs)
+	/*for {
 		select {
 		case block := <-w.resultCh:
 			// Short circuit when receiving empty result.
@@ -357,7 +421,7 @@ func (w *worker) resultLoop() {
 		case <-w.exitCh:
 			return
 		}
-	}
+	}*/
 }
 
 // setEtherbase sets the etherbase used to initialize the block coinbase field.
