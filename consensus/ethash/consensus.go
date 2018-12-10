@@ -33,7 +33,6 @@ import (
 	"github.com/daccproject/go-dacc/crypto/sha3"
 	"github.com/daccproject/go-dacc/params"
 	"github.com/daccproject/go-dacc/rlp"
-	mapset "github.com/deckarep/golang-set"
 )
 
 // Ethash proof-of-work protocol constants.
@@ -167,57 +166,59 @@ func (ethash *Ethash) verifyHeaderWorker(chain consensus.ChainReader, headers []
 	return ethash.verifyHeader(chain, headers[index], parent, false, seals[index])
 }
 
-// VerifyUncles verifies that the given block's uncles conform to the consensus
-// rules of the stock Ethereum ethash engine.
-func (ethash *Ethash) VerifyUncles(chain consensus.ChainReader, block *types.Block) error {
-	// If we're running a full engine faking, accept any input as valid
-	if ethash.config.PowMode == ModeFullFake {
-		return nil
-	}
-	// Verify that there are at most 2 uncles included in this block
-	if len(block.Uncles()) > maxUncles {
-		return errTooManyUncles
-	}
-	// Gather the set of past uncles and ancestors
-	uncles, ancestors := mapset.NewSet(), make(map[common.Hash]*types.Header)
+// TODO(Corbin) [deprecated the uncle block logic]
+// // VerifyUncles verifies that the given block's uncles conform to the consensus
+// // rules of the stock Ethereum ethash engine.
+// func (ethash *Ethash) VerifyUncles(chain consensus.ChainReader, block *types.Block) error {
+// 	// If we're running a full engine faking, accept any input as valid
+// 	if ethash.config.PowMode == ModeFullFake {
+// 		return nil
+// 	}
+// 	// Verify that there are at most 2 uncles included in this block
+// 	if len(block.Uncles()) > maxUncles {
+// 		return errTooManyUncles
+// 	}
+// 	// Gather the set of past uncles and ancestors
+// 	uncles, ancestors := mapset.NewSet(), make(map[common.Hash]*types.Header)
 
-	number, parent := block.NumberU64()-1, block.ParentHash()
-	for i := 0; i < 7; i++ {
-		ancestor := chain.GetBlock(parent, number)
-		if ancestor == nil {
-			break
-		}
-		ancestors[ancestor.Hash()] = ancestor.Header()
-		for _, uncle := range ancestor.Uncles() {
-			uncles.Add(uncle.Hash())
-		}
-		parent, number = ancestor.ParentHash(), number-1
-	}
-	ancestors[block.Hash()] = block.Header()
-	uncles.Add(block.Hash())
+// 	number, parent := block.NumberU64()-1, block.ParentHash()
+// 	for i := 0; i < 7; i++ {
+// 		ancestor := chain.GetBlock(parent, number)
+// 		if ancestor == nil {
+// 			break
+// 		}
+// 		ancestors[ancestor.Hash()] = ancestor.Header()
+// 		for _, uncle := range ancestor.Uncles() {
+// 			uncles.Add(uncle.Hash())
+// 		}
+// 		parent, number = ancestor.ParentHash(), number-1
+// 	}
+// 	ancestors[block.Hash()] = block.Header()
+// 	uncles.Add(block.Hash())
 
-	// Verify each of the uncles that it's recent, but not an ancestor
-	for _, uncle := range block.Uncles() {
-		// Make sure every uncle is rewarded only once
-		hash := uncle.Hash()
-		if uncles.Contains(hash) {
-			return errDuplicateUncle
-		}
-		uncles.Add(hash)
+// 	// Verify each of the uncles that it's recent, but not an ancestor
+// 	for _, uncle := range block.Uncles() {
+// 		// Make sure every uncle is rewarded only once
+// 		hash := uncle.Hash()
+// 		if uncles.Contains(hash) {
+// 			return errDuplicateUncle
+// 		}
+// 		uncles.Add(hash)
 
-		// Make sure the uncle has a valid ancestry
-		if ancestors[hash] != nil {
-			return errUncleIsAncestor
-		}
-		if ancestors[uncle.ParentHash] == nil || uncle.ParentHash == block.ParentHash() {
-			return errDanglingUncle
-		}
-		if err := ethash.verifyHeader(chain, uncle, ancestors[uncle.ParentHash], true, true); err != nil {
-			return err
-		}
-	}
-	return nil
-}
+// 		// Make sure the uncle has a valid ancestry
+// 		if ancestors[hash] != nil {
+// 			return errUncleIsAncestor
+// 		}
+// 		if ancestors[uncle.ParentHash] == nil || uncle.ParentHash == block.ParentHash() {
+// 			return errDanglingUncle
+// 		}
+// 		if err := ethash.verifyHeader(chain, uncle, ancestors[uncle.ParentHash], true, true); err != nil {
+// 			return err
+// 		}
+// 	}
+// 	return nil
+// }
+// END [deprecated the uncle block logic]
 
 // verifyHeader checks whether a header conforms to the consensus rules of the
 // stock Ethereum ethash engine.

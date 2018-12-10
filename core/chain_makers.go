@@ -44,7 +44,9 @@ type BlockGen struct {
 	gasPool  *GasPool
 	txs      []*types.Transaction
 	receipts []*types.Receipt
-	uncles   []*types.Header
+	// TODO(Corbin) [deprecated the uncle block logic]
+	// uncles   []*types.Header
+	// END [deprecated the uncle block logic]
 
 	config *params.ChainConfig
 	engine consensus.Engine
@@ -125,10 +127,12 @@ func (b *BlockGen) TxNonce(addr common.Address) uint64 {
 	return b.statedb.GetNonce(addr)
 }
 
+// TODO(Corbin) [deprecated the uncle block logic]
 // AddUncle adds an uncle header to the generated block.
-func (b *BlockGen) AddUncle(h *types.Header) {
-	b.uncles = append(b.uncles, h)
-}
+// func (b *BlockGen) AddUncle(h *types.Header) {
+// 	b.uncles = append(b.uncles, h)
+// }
+// TODO(Corbin) [deprecated the uncle block logic]
 
 // PrevBlock returns a previously generated block by number. It panics if
 // num is greater or equal to the number of the block being generated.

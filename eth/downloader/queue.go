@@ -57,8 +57,10 @@ type fetchResult struct {
 	Pending int         // Number of data fetches still pending
 	Hash    common.Hash // Hash of the header to prevent recalculating
 
-	Header       *types.Header
-	Uncles       []*types.Header
+	Header *types.Header
+	// TODO(Corbin) [deprecated the uncle block logic]
+	// Uncles       []*types.Header
+	// END [deprecated the uncle block logic]
 	Transactions types.Transactions
 	Receipts     types.Receipts
 }
@@ -386,9 +388,11 @@ func (q *queue) Results(block bool) []*fetchResult {
 		// Recalculate the result item weights to prevent memory exhaustion
 		for _, result := range results {
 			size := result.Header.Size()
-			for _, uncle := range result.Uncles {
-				size += uncle.Size()
-			}
+			// TODO(Corbin) [deprecated the uncle block logic]
+			// for _, uncle := range result.Uncles {
+			// 	size += uncle.Size()
+			// }
+			// END [deprecated the uncle block logic]
 			for _, receipt := range result.Receipts {
 				size += receipt.Size()
 			}
