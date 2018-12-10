@@ -88,13 +88,13 @@ type worker struct {
 
 	// Subscriptions
 	mux          *event.TypeMux
-	txsCh        chan core.NewTxsEvent
+	//txsCh        chan core.NewTxsEvent
 	txsSub       event.Subscription
 	//chainHeadCh  chan core.ChainHeadEvent
 	//chainHeadSub event.Subscription
 
 	// Channels
-	newWorkCh chan *newWorkReq
+	//newWorkCh chan *newWorkReq
 	taskCh    chan *task
 	resultCh  chan *types.Block
 	exitCh    chan struct{}
@@ -134,20 +134,21 @@ func newWorker(config *params.ChainConfig, engine consensus.Engine, eth Backend,
 		gasFloor:     gasFloor,
 		gasCeil:      gasCeil,
 		pendingTasks: make(map[common.Hash]*task),
-		txsCh:        make(chan core.NewTxsEvent, txChanSize),
+		//txsCh:        make(chan core.NewTxsEvent, txChanSize),
 		//chainHeadCh:  make(chan core.ChainHeadEvent, chainHeadChanSize),
-		newWorkCh:    make(chan *newWorkReq),
+		//newWorkCh:    make(chan *newWorkReq),
 		taskCh:       make(chan *task),
 		resultCh:     make(chan *types.Block, resultQueueSize),
 		exitCh:       make(chan struct{}),
 	}
 	// Subscribe NewTxsEvent for tx pool
-	worker.txsSub = eth.TxPool().SubscribeNewTxsEvent(worker.txsCh)
+	// TODO: in the old main loop
+	//worker.txsSub = eth.TxPool().SubscribeNewTxsEvent(worker.txsCh)
 	// Subscribe events for blockchain
 	//worker.chainHeadSub = eth.BlockChain().SubscribeChainHeadEvent(worker.chainHeadCh)
 	// Change by Shara
 
-	go worker.mainLoop()
+	//go worker.mainLoop()
 	go worker.newWorkLoop()
 	go worker.resultLoop()
 	go worker.taskLoop()
@@ -203,59 +204,6 @@ func (w *worker) newWorkLoop() {
 
 		case <-w.exitCh:
 			return
-		}
-	}
-}
-
-//TODO: merge the txs case to the New Main Loop (newWorkLoop)
-//mainLoop is a standalone goroutine to regenerate the sealing task based on the received event.
-func (w *worker) mainLoop() {
-	defer w.txsSub.Unsubscribe()
-	//defer w.chainHeadSub.Unsubscribe()
-	for {
-		select {
-		case req := <-w.newWorkCh:
-			w.mintBlock(*req)
-
-		case ev := <-w.txsCh:
-			// Apply transactions to the pending state if we're not mining.
-			//
-			// Note all transactions received may not be continuous with transactions
-			// already included in the current mining block. These transactions will
-			// be automatically eliminated.
-			//TODO: reason: must isRunning
-			if !w.isRunning() && w.current != nil {
-				w.mu.RLock()
-				coinbase := w.coinbase
-				w.mu.RUnlock()
-
-				txs := make(map[common.Address]types.Transactions)
-				for _, tx := range ev.Txs {
-					acc, _ := types.Sender(w.current.signer, tx)
-					txs[acc] = append(txs[acc], tx)
-				}
-				txset := types.NewTransactionsByPriceAndNonce(w.current.signer, txs)
-				//w.commitTransactions(txset, coinbase, nil)
-				w.commitTransactions(txset, coinbase)
-				w.updateSnapshot()
-			} else {
-				// If we're mining, but nothing is being processed, wake on new transactions
-				/*if w.config.Clique != nil && w.config.Clique.Period == 0 {
-					 w.commitNewWork(nil, false, time.Now().Unix())
-				}*/
-				//TODO: Check here, follow the meitu methods: should not call createNewWork directly:
-				// Possible bug here, tx will missing?
-				// the whole case can be ignore?
-			}
-			atomic.AddInt32(&w.newTxs, int32(len(ev.Txs)))
-
-		// System stopped
-		case <-w.exitCh:
-			return
-		case <-w.txsSub.Err():
-			return
-		//case <-w.chainHeadSub.Err():
-		//	return
 		}
 	}
 }
@@ -444,3 +392,55 @@ func (w *worker) close() {
 }
 
 
+//TODO: merge the txs case to the New Main Loop (newWorkLoop)
+//mainLoop is a standalone goroutine to regenerate the sealing task based on the received event.
+/*func (w *worker) mainLoop() {
+	defer w.txsSub.Unsubscribe()
+	//defer w.chainHeadSub.Unsubscribe()
+	for {
+		select {
+		case req := <-w.newWorkCh:
+			w.mintBlock(*req)
+
+		case ev := <-w.txsCh:
+			// Apply transactions to the pending state if we're not mining.
+			//
+			// Note all transactions received may not be continuous with transactions
+			// already included in the current mining block. These transactions will
+			// be automatically eliminated.
+			//TODO: reason: must isRunning
+			if !w.isRunning() && w.current != nil {
+				w.mu.RLock()
+				coinbase := w.coinbase
+				w.mu.RUnlock()
+
+				txs := make(map[common.Address]types.Transactions)
+				for _, tx := range ev.Txs {
+					acc, _ := types.Sender(w.current.signer, tx)
+					txs[acc] = append(txs[acc], tx)
+				}
+				txset := types.NewTransactionsByPriceAndNonce(w.current.signer, txs)
+				//w.commitTransactions(txset, coinbase, nil)
+				w.commitTransactions(txset, coinbase)
+				w.updateSnapshot()
+			} else {
+				// If we're mining, but nothing is being processed, wake on new transactions
+				//if w.config.Clique != nil && w.config.Clique.Period == 0 {
+				//	 w.commitNewWork(nil, false, time.Now().Unix())
+				//}
+				//TODO: Check here, follow the meitu methods: should not call createNewWork directly:
+				// Possible bug here, tx will missing?
+				// the whole case can be ignore?
+			}
+			atomic.AddInt32(&w.newTxs, int32(len(ev.Txs)))
+
+		// System stopped
+		case <-w.exitCh:
+			return
+		case <-w.txsSub.Err():
+			return
+			//case <-w.chainHeadSub.Err():
+			//	return
+		}
+	}
+}*/
