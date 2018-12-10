@@ -151,7 +151,7 @@ func newWorker(config *params.ChainConfig, engine consensus.Engine, eth Backend,
 	//go worker.mainLoop()
 	go worker.newWorkLoop()
 	go worker.resultLoop()
-	go worker.taskLoop()
+	//go worker.taskLoop() // merge with NewMainLoop
 
 	return worker
 }
@@ -210,7 +210,7 @@ func (w *worker) newWorkLoop() {
 
 // taskLoop is a standalone goroutine to fetch sealing task from the generator and
 // push them to consensus engine.
-func (w *worker) taskLoop() {
+func (w *worker) commitTask(task *task) {
 	var (
 		stopCh chan struct{}
 		prev   common.Hash
@@ -223,10 +223,37 @@ func (w *worker) taskLoop() {
 			stopCh = nil
 		}
 	}
-	for {
-		select {
-		case task := <-w.taskCh:
-			if w.newTaskHook != nil {
+
+	if w.newTaskHook != nil {
+		w.newTaskHook(task)
+	}
+	// Reject duplicate sealing work due to resubmitting.
+	sealHash := w.engine.SealHash(task.block.Header())
+	if sealHash == prev {
+		log.Info("Miner: commitTask. This should not happen")
+		return
+	}
+	// Interrupt previous sealing operation
+	interrupt()
+	stopCh, prev = make(chan struct{}), sealHash
+
+	if w.skipSealHook != nil && w.skipSealHook(task) {
+		return
+	}
+	w.pendingMu.Lock()
+	w.pendingTasks[w.engine.SealHash(task.block.Header())] = task
+	w.pendingMu.Unlock()
+
+	//TODO:
+	//NewSeal(chain ChainReader, block *types.Block, stop <-chan struct{}) (*types.Block, error)
+	if err := w.engine.Seal(w.chain, task.block, w.resultCh, stopCh); err != nil {
+		log.Warn("Block sealing failed", "err", err)
+	}
+
+	//for {
+		//select {
+		//case task := <-w.taskCh:
+			/*if w.newTaskHook != nil {
 				w.newTaskHook(task)
 			}
 			// Reject duplicate sealing work due to resubmitting.
@@ -245,14 +272,16 @@ func (w *worker) taskLoop() {
 			w.pendingTasks[w.engine.SealHash(task.block.Header())] = task
 			w.pendingMu.Unlock()
 
+			//TODO:
+			//NewSeal(chain ChainReader, block *types.Block, stop <-chan struct{}) (*types.Block, error)
 			if err := w.engine.Seal(w.chain, task.block, w.resultCh, stopCh); err != nil {
 				log.Warn("Block sealing failed", "err", err)
-			}
-		case <-w.exitCh:
+			}*/
+		/*case <-w.exitCh:
 			interrupt()
 			return
-		}
-	}
+		}*/
+	//}
 }
 
 // resultLoop is a standalone goroutine to handle sealing result submitting

@@ -288,7 +288,6 @@ func (w *worker) createNewWork(timestamp int64) {
 
 // commit runs any post-transaction state modifications, assembles the final block
 // and commits new work if consensus engine is running.
-// TODO: remove uncles, interval
 //func (w *worker) commit(uncles []*types.Header, interval func(), update bool, start time.Time) error {
 func (w *worker) commit(start time.Time) error {
 	// Deep copy receipts here to avoid interaction between different tasks.
@@ -317,7 +316,7 @@ func (w *worker) commit(start time.Time) error {
 		/*if interval != nil {
 			interval()
 		}*/
-		select {
+		/*select {
 		case w.taskCh <- &task{receipts: receipts, state: s, block: block, createdAt: time.Now()}:
 			//w.unconfirmed.Shift(block.NumberU64() - 1)
 
@@ -332,11 +331,26 @@ func (w *worker) commit(start time.Time) error {
 
 		case <-w.exitCh:
 			log.Info("Worker has exited")
+		}*/
+		task := &task{receipts: receipts, state: s, block: block, createdAt: time.Now()}
+		//w.unconfirmed.Shift(block.NumberU64() - 1)
+		w.commitTask(task)
+
+		// Logging
+		feesWei := new(big.Int)
+		for i, tx := range block.Transactions() {
+			feesWei.Add(feesWei, new(big.Int).Mul(new(big.Int).SetUint64(receipts[i].GasUsed), tx.GasPrice()))
 		}
+		feesEth := new(big.Float).Quo(new(big.Float).SetInt(feesWei), new(big.Float).SetInt(big.NewInt(params.Ether)))
+
+		log.Info("⚡️ Commit new mining work", "number", block.Number(), "sealhash", w.engine.SealHash(block.Header()),
+			"txs", w.current.tcount, "gas", block.GasUsed(), "fees", feesEth, "elapsed", common.PrettyDuration(time.Since(start)))
+
 	}
 	/*if update {
 		w.updateSnapshot()
 	}*/
+	//TODO: have to wait above to finish, async execution?
 	w.updateSnapshot()
 	return nil
 }
