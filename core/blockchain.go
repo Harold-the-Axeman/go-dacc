@@ -1106,7 +1106,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 		}
 		// remvoe log
 		if err != nil {
-			log.Warn("varify body err", err)
+			log.Warn("Varify body err", "err", err)
 		}
 
 		switch {
@@ -1195,14 +1195,14 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 
 		if err != nil {
 			// remove log
-			log.Warn("err state new:", err)
+			log.Warn("Err state new:", "err", err)
 			return i, events, coalescedLogs, err
 		}
 		// Process block using the parent state as reference point.
 		receipts, logs, usedGas, err := bc.processor.Process(block, state, bc.vmConfig)
 		if err != nil {
 			// remove log
-			log.Warn("err:receipts", err)
+			log.Warn("err:receipts", "err", err)
 			bc.reportBlock(block, receipts, err)
 			return i, events, coalescedLogs, err
 		}
@@ -1210,7 +1210,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 		err = bc.Validator().ValidateState(block, parent, state, receipts, usedGas)
 		if err != nil {
 			// remove log
-			log.Warn("err:ValidateState", err)
+			log.Warn("err:ValidateState", "err", err)
 			bc.reportBlock(block, receipts, err)
 			return i, events, coalescedLogs, err
 		}
@@ -1218,7 +1218,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 		err = bc.Validator().ValidateDposState(block)
 		if err != nil {
 			// remove log
-			log.Warn("err:ValidateDposState", err)
+			log.Warn("err:ValidateDposState", "err", err)
 			bc.reportBlock(block, receipts, err)
 			return i, events, coalescedLogs, err
 		}
