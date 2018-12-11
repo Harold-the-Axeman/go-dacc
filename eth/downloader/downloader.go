@@ -1038,7 +1038,6 @@ func (d *Downloader) fetchParts(errCancel error, deliveryCh chan dataPack, deliv
 			if peer := d.peers.Peer(packet.PeerId()); peer != nil {
 				// Deliver the received chunk of data and check chain validity
 				accepted, err := deliver(packet)
-				log.Warn("err invalid chain")
 				if err == errInvalidChain {
 					return err
 				}
