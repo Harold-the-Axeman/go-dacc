@@ -488,7 +488,7 @@ func (w *worker) newWorkLoop() {
 		if w.resubmitHook != nil {
 			w.resubmitHook(minRecommit, recommit)
 		}*/
-		
+
 		/*	case adjust := <-w.resubmitAdjustCh:
 			// Adjust resubmit interval by feedback.
 			if adjust.inc {
@@ -968,16 +968,17 @@ func (w *worker) createNewWork(timestamp int64) {
 	tstart := time.Now()
 	parent := w.chain.CurrentBlock()
 
-	if parent.Time().Cmp(new(big.Int).SetInt64(timestamp)) >= 0 {
-		timestamp = parent.Time().Int64() + 1
-	}
+	//TODO: need check this timestamp logic
+	//if parent.Time().Cmp(new(big.Int).SetInt64(timestamp)) >= 0 {
+	//	timestamp = parent.Time().Int64() + 1
+	//}
 	// this will ensure we're not going off too far in the future
 	// TODO: possible bug, we should not allow this happened
-	if now := time.Now().Unix(); timestamp > now+1 {
-		wait := time.Duration(timestamp-now) * time.Second
-		log.Info("Mining too far in the future", "wait", common.PrettyDuration(wait))
-		time.Sleep(wait)
-	}
+	//if now := time.Now().Unix(); timestamp > now+1 {
+	//	wait := time.Duration(timestamp-now) * time.Second
+	//	log.Info("Mining too far in the future", "wait", common.PrettyDuration(wait))
+	//	time.Sleep(wait)
+	//}
 
 	num := parent.Number()
 
