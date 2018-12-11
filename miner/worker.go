@@ -31,20 +31,14 @@ import (
 	"github.com/daccproject/go-dacc/params"
 )
 
-const (
-	// txChanSize is the size of channel listening to NewTxsEvent.
-	// The number is referenced from the size of tx pool.
-	txChanSize = 4096
-)
 
 // environment is the worker's current environment and holds all of the current state information.
 type environment struct {
 	signer types.Signer
 
 	state *state.StateDB // apply state changes here
-	// Add by Shara
 	dposContext *types.DposContext
-	// end Add by Shara
+
 	tcount  int           // tx count in cycle
 	gasPool *core.GasPool // available gas used to pack transactions
 
@@ -74,15 +68,6 @@ type worker struct {
 
 	// Subscriptions
 	mux          *event.TypeMux
-	//txsCh        chan core.NewTxsEvent
-	txsSub       event.Subscription
-	//chainHeadCh  chan core.ChainHeadEvent
-	//chainHeadSub event.Subscription
-
-	// Channels
-	//newWorkCh chan *newWorkReq
-	//taskCh    chan *task
-	//resultCh  chan *types.Block
 	exitCh    chan struct{}
 
 	current *environment // An environment for current running cycle.
@@ -91,9 +76,6 @@ type worker struct {
 	coinbase common.Address
 	extra    []byte
 
-	//pendingMu    sync.RWMutex
-	//pendingTasks map[common.Hash]*task
-
 	snapshotMu    sync.RWMutex // The lock used to protect the block snapshot and state snapshot
 	snapshotBlock *types.Block
 	snapshotState *state.StateDB
@@ -101,13 +83,13 @@ type worker struct {
 	// atomic status counters
 	running int32 // The indicator whether the consensus engine is running or not.
 	//TODO: possible remove in the future
-	newTxs  int32 // New arrival transaction count since last sealing work submitting.
+	//newTxs  int32 // New arrival transaction count since last sealing work submitting.
 
 	// Test hooks
 	newTaskHook  func(*task)                        // Method to call upon receiving a new sealing task.
 	skipSealHook func(*task) bool                   // Method to decide whether skipping the sealing.
-	fullTaskHook func()                             // Method to call before pushing the full sealing task.
-	resubmitHook func(time.Duration, time.Duration) // Method to call upon updating resubmitting interval.
+	//fullTaskHook func()                             // Method to call before pushing the full sealing task.
+	//resubmitHook func(time.Duration, time.Duration) // Method to call upon updating resubmitting interval.
 }
 
 func newWorker(config *params.ChainConfig, engine consensus.Engine, eth Backend, mux *event.TypeMux, recommit time.Duration, gasFloor, gasCeil uint64) *worker {
@@ -156,7 +138,7 @@ func (w *worker) mainLoop() { //NOTE: old newWorkLoop
 			//TODO: ticker will always run here, temporary fix here.
 			if atomic.LoadInt32(&w.running) == 1 {
 				w.mintBlock(now.Unix())// TODO: NEED CHECK, possible bug: time.Now().Unix() or now, which one?
-				atomic.StoreInt32(&w.newTxs, 0)
+				//atomic.StoreInt32(&w.newTxs, 0)
 			}
 			// for the next block
 			//ticker.Reset(time.Second)
