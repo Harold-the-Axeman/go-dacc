@@ -156,6 +156,7 @@ func (d *Dpos) verifyHeader(chain consensus.ChainReader, header *types.Header, p
 	number := header.Number.Uint64()
 	// Unnecssary to verify the block from feature
 	if header.Time.Cmp(big.NewInt(time.Now().Unix())) > 0 {
+		log.Warn("ErrFutureBlock", "header.Time", header.Time, "time.Now().Unix()", time.Now().Unix())
 		return consensus.ErrFutureBlock
 	}
 	// Check that the extra-data contains both the vanity and signature
