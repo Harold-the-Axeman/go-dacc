@@ -1106,7 +1106,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 		}
 		// remvoe log
 		if err != nil {
-			log.Warn("Varify body err", "err", err)
+			log.Warn("Verify body err", "err", err)
 		}
 
 		switch {
@@ -1513,7 +1513,7 @@ Hash: 0x%x
 
 Error: %v
 ##############################
-`, bc.chainConfig, block.Time(), block.Validator(), block.Extra(), block.Number(), block.Hash(), receiptString, err))
+`, bc.chainConfig, block.Time(), block.Validator().Hex(), block.Extra(), block.Number(), block.Hash(), receiptString, err))
 }
 
 // InsertHeaderChain attempts to insert the given header chain in to the local

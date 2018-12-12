@@ -403,7 +403,11 @@ func (d *Dpos) Finalize(chain consensus.ChainReader, header *types.Header, state
 func (d *Dpos) checkDeadline(lastBlock *types.Block, now int64) error {
 	prevSlot := PrevSlot(now)
 	nextSlot := NextSlot(now)
+	log.Info("checkDeadline.prevSlot", "prevSlot", prevSlot)
+	log.Info("checkDeadline.nextSlot", "nextSlot", nextSlot)
+	log.Info("lastBlock.Time().Int64()", "Time().Int64()", lastBlock.Time().Int64())
 	if lastBlock.Time().Int64() >= nextSlot {
+		log.Warn("lastBlock.Time().Int64() >= nextSlot")
 		return ErrMintFutureBlock
 	}
 	// last block was arrived, or time's up
