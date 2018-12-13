@@ -156,7 +156,7 @@ func (d *Dpos) verifyHeader(chain consensus.ChainReader, header *types.Header, p
 	number := header.Number.Uint64()
 	// Unnecssary to verify the block from feature
 	if header.Time.Cmp(big.NewInt(time.Now().Unix())) > 0 {
-		log.Warn("block in the future")
+		log.Warn("block in the future", "Header time", header.Time.Int64(), "Now", time.Now().Unix())
 		//return consensus.ErrFutureBlock
 	}
 	// Check that the extra-data contains both the vanity and signature
@@ -451,7 +451,6 @@ func (d *Dpos) Seal(chain consensus.ChainReader, block *types.Block, results cha
 		case <-time.After(time.Duration(delay) * time.Second):
 		}
 	}
-	block.Header().Time.SetInt64(time.Now().Unix())
 
 	// time's up, sign the block
 	sighash, err := d.signFn(accounts.Account{Address: d.signer}, sigHash(header).Bytes())
