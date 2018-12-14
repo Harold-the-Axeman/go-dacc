@@ -413,23 +413,24 @@ func (d *Dpos) checkDeadline(lastBlock *types.Block, now int64) error {
 	return ErrWaitForPrevBlock
 }
 
-func (d *Dpos) CheckValidator(lastBlock *types.Block, now int64) error {
+func (d *Dpos) CheckValidator(lastBlock *types.Block, now int64) bool {
 	if err := d.checkDeadline(lastBlock, now); err != nil {
-		return err
+		return false
 	}
 	dposContext, err := types.NewDposContextFromProto(d.db, lastBlock.Header().DposContext)
 	if err != nil {
-		return err
+		return false
 	}
 	epochContext := &EpochContext{DposContext: dposContext}
 	validator, err := epochContext.lookupValidator(now)
 	if err != nil {
-		return err
+		return false
 	}
 	if (validator == common.Address{}) || bytes.Compare(validator.Bytes(), d.signer.Bytes()) != 0 {
-		return ErrInvalidBlockValidator
+		//ErrInvalidBlockValidator
+		return false
 	}
-	return nil
+	return true
 }
 
 // Seal generates a new block for the given input block with the local miner's

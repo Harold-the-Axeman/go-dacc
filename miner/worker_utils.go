@@ -21,21 +21,9 @@ func (self *worker) mintBlock(timestamp int64) {
 		log.Error("Only the dpos engine was allowed")
 		return
 	}
-	err := engine.CheckValidator(self.chain.CurrentBlock(), timestamp)
-	if err != nil {
-		switch err {
-		case dpos.ErrWaitForPrevBlock,
-			dpos.ErrMintFutureBlock,
-			dpos.ErrInvalidBlockValidator,
-			dpos.ErrInvalidMintBlockTime:
-			log.Debug("Failed to mint the block, while ", "err", err)
-		default:
-			log.Error("Failed to mint the block", "err", err)
-		}
-		return
+	if engine.CheckValidator(self.chain.CurrentBlock(), timestamp) {
+		self.createNewWork(timestamp)
 	}
-	self.createNewWork(timestamp)
-
 }
 
 // commitNewWork generates several new sealing tasks based on the parent block.
