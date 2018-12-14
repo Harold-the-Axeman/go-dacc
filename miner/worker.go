@@ -121,6 +121,7 @@ func newWorker(config *params.ChainConfig, engine consensus.Engine, eth Backend,
 func (w *worker) mainLoop() {
 	var timestamp int64
 	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
 
 	for {
 		select {
