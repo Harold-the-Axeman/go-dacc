@@ -123,16 +123,6 @@ func (w *worker) commit()  {
 
 		//TODO: async execution
 		w.updateSnapshot()
-		// Logging
-		feesWei := new(big.Int)
-		for i, tx := range block.Transactions() {
-			feesWei.Add(feesWei, new(big.Int).Mul(new(big.Int).SetUint64(receipts[i].GasUsed), tx.GasPrice()))
-		}
-		feesEth := new(big.Float).Quo(new(big.Float).SetInt(feesWei), new(big.Float).SetInt(big.NewInt(params.Ether)))
-
-		log.Info("⚡️ Commit new mining work", "number", block.Number(), "sealhash", w.engine.SealHash(block.Header()),
-			"txs", w.current.tcount, "gas", block.GasUsed(), "fees", feesEth)
-		//TODO: , "elapsed", common.PrettyDuration(time.Since(start))
 	}
 }
 
