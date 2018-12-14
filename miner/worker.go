@@ -31,6 +31,10 @@ import (
 	"github.com/daccproject/go-dacc/params"
 )
 
+const (
+	blockInterval = 5 //TODO: config from dpos
+)
+
 
 // environment is the worker's current environment and holds all of the current state information.
 type environment struct {
@@ -45,6 +49,10 @@ type environment struct {
 	header   *types.Header
 	txs      []*types.Transaction
 	receipts []*types.Receipt
+
+	//TODO
+	timestmap int64 // time to produce the block
+
 }
 
 // task contains all information for consensus engine sealing and result submitting.
@@ -82,14 +90,6 @@ type worker struct {
 
 	// atomic status counters
 	running int32 // The indicator whether the consensus engine is running or not.
-	//TODO: possible remove in the future
-	//newTxs  int32 // New arrival transaction count since last sealing work submitting.
-
-	// Test hooks
-	newTaskHook  func(*task)                        // Method to call upon receiving a new sealing task.
-	skipSealHook func(*task) bool                   // Method to decide whether skipping the sealing.
-	//fullTaskHook func()                             // Method to call before pushing the full sealing task.
-	//resubmitHook func(time.Duration, time.Duration) // Method to call upon updating resubmitting interval.
 }
 
 func newWorker(config *params.ChainConfig, engine consensus.Engine, eth Backend, mux *event.TypeMux, recommit time.Duration, gasFloor, gasCeil uint64) *worker {
@@ -97,51 +97,34 @@ func newWorker(config *params.ChainConfig, engine consensus.Engine, eth Backend,
 		config:       config,
 		engine:       engine,
 		eth:          eth,
-		mux:          mux,
 		chain:        eth.BlockChain(),
 		gasFloor:     gasFloor,
 		gasCeil:      gasCeil,
-		//pendingTasks: make(map[common.Hash]*task),
-		//txsCh:        make(chan core.NewTxsEvent, txChanSize),
-		//chainHeadCh:  make(chan core.ChainHeadEvent, chainHeadChanSize),
-		//newWorkCh:    make(chan *newWorkReq),
-		//taskCh:       make(chan *task),
-		//resultCh:     make(chan *types.Block, resultQueueSize),
+		mux:          mux,
 		exitCh:       make(chan struct{}),
 	}
-	// Subscribe NewTxsEvent for tx pool
-	// TODO: in the old main loop
-	//worker.txsSub = eth.TxPool().SubscribeNewTxsEvent(worker.txsCh)
-	// Subscribe events for blockchain
-	//worker.chainHeadSub = eth.BlockChain().SubscribeChainHeadEvent(worker.chainHeadCh)
-	// Change by Shara
 
-	//go worker.mainLoop()
 	go worker.mainLoop()
-	//go worker.resultLoop()
-	//go worker.taskLoop() // merge with NewMainLoop
 
 	return worker
 }
 
 // newWorkLoop is a standalone goroutine to submit new mining work upon received events.
-//func (w *worker) newWorkLoop(recommit time.Duration) {
-func (w *worker) mainLoop() { //NOTE: old newWorkLoop
-
+func (w *worker) mainLoop() {
+	var timestamp int64
 	ticker := time.NewTicker(time.Second)
 
 	for {
 		select {
-		//case <-w.chainHeadCh:
-		// DPOS block producing ticker
+		//case <- w.startCH: //TODO, use this to start the mining process
 		case now := <-ticker.C:
-			//TODO: ticker will always run here, temporary fix here.
-			if atomic.LoadInt32(&w.running) == 1 {
-				w.mintBlock(now.Unix())// TODO: NEED CHECK, possible bug: time.Now().Unix() or now, which one?
-				//atomic.StoreInt32(&w.newTxs, 0)
+			timestamp = now.Unix()
+			if w.isRunning() {
+				if timestamp % blockInterval == 0 {  // check it is time to mint block
+					w.mintBlock(timestamp)
+				}
 			}
 			// for the next block
-			//ticker.Reset(time.Second)
 		case <-w.exitCh:
 			return
 		}
@@ -149,7 +132,6 @@ func (w *worker) mainLoop() { //NOTE: old newWorkLoop
 }
 
 // taskLoop is a standalone goroutine to fetch sealing task from the generator and
-// push them to consensus engine.
 func (w *worker) commitTask(task *task) {
 	var (
 		stopCh chan struct{}
@@ -164,9 +146,9 @@ func (w *worker) commitTask(task *task) {
 		}
 	}
 
-	if w.newTaskHook != nil {
+	/*if w.newTaskHook != nil {
 		w.newTaskHook(task)
-	}
+	}*/
 	// Reject duplicate sealing work due to resubmitting.
 	sealHash := w.engine.SealHash(task.block.Header())
 	if sealHash == prev {
@@ -177,9 +159,9 @@ func (w *worker) commitTask(task *task) {
 	interrupt()
 	stopCh, prev = make(chan struct{}), sealHash
 
-	if w.skipSealHook != nil && w.skipSealHook(task) {
+/*	if w.skipSealHook != nil && w.skipSealHook(task) {
 		return
-	}
+	}*/
 	//TODO:
 	block, err := w.engine.Seal(w.chain, task.block, stopCh)
 	if err != nil {
@@ -246,44 +228,6 @@ func (w *worker) processResult(block *types.Block, task *task) {
 	w.chain.PostChainEvents(events, logs)
 }
 
-// setEtherbase sets the etherbase used to initialize the block coinbase field.
-func (w *worker) setCoinbase(addr common.Address) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	w.coinbase = addr
-}
-
-// setExtra sets the content used to initialize the block extra field.
-func (w *worker) setExtra(extra []byte) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	w.extra = extra
-}
-
-// setRecommitInterval updates the interval for miner sealing work recommitting.
-func (w *worker) setRecommitInterval(interval time.Duration) {
-	//w.resubmitIntervalCh <- interval
-}
-
-// pending returns the pending state and corresponding block.
-func (w *worker) pending() (*types.Block, *state.StateDB) {
-	// return a snapshot to avoid contention on currentMu mutex
-	w.snapshotMu.RLock()
-	defer w.snapshotMu.RUnlock()
-	if w.snapshotState == nil {
-		return nil, nil
-	}
-	return w.snapshotBlock, w.snapshotState.Copy()
-}
-
-// pendingBlock returns pending block.
-func (w *worker) pendingBlock() *types.Block {
-	// return a snapshot to avoid contention on currentMu mutex
-	w.snapshotMu.RLock()
-	defer w.snapshotMu.RUnlock()
-	return w.snapshotBlock
-}
-
 // start sets the running status as 1 and triggers new work submitting.
 func (w *worker) start() {
 	atomic.StoreInt32(&w.running, 1)
@@ -306,56 +250,35 @@ func (w *worker) close() {
 	close(w.exitCh)
 }
 
+// setEtherbase sets the etherbase used to initialize the block coinbase field.
+func (w *worker) setCoinbase(addr common.Address) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.coinbase = addr
+}
 
-//TODO: merge the txs case to the New Main Loop (newWorkLoop)
-//mainLoop is a standalone goroutine to regenerate the sealing task based on the received event.
-/*func (w *worker) mainLoop() {
-	defer w.txsSub.Unsubscribe()
-	//defer w.chainHeadSub.Unsubscribe()
-	for {
-		select {
-		case req := <-w.newWorkCh:
-			w.mintBlock(*req)
+// setExtra sets the content used to initialize the block extra field.
+func (w *worker) setExtra(extra []byte) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.extra = extra
+}
 
-		case ev := <-w.txsCh:
-			// Apply transactions to the pending state if we're not mining.
-			//
-			// Note all transactions received may not be continuous with transactions
-			// already included in the current mining block. These transactions will
-			// be automatically eliminated.
-			//TODO: reason: must isRunning
-			if !w.isRunning() && w.current != nil {
-				w.mu.RLock()
-				coinbase := w.coinbase
-				w.mu.RUnlock()
-
-				txs := make(map[common.Address]types.Transactions)
-				for _, tx := range ev.Txs {
-					acc, _ := types.Sender(w.current.signer, tx)
-					txs[acc] = append(txs[acc], tx)
-				}
-				txset := types.NewTransactionsByPriceAndNonce(w.current.signer, txs)
-				//w.commitTransactions(txset, coinbase, nil)
-				w.commitTransactions(txset, coinbase)
-				w.updateSnapshot()
-			} else {
-				// If we're mining, but nothing is being processed, wake on new transactions
-				//if w.config.Clique != nil && w.config.Clique.Period == 0 {
-				//	 w.commitNewWork(nil, false, time.Now().Unix())
-				//}
-				//TODO: Check here, follow the meitu methods: should not call createNewWork directly:
-				// Possible bug here, tx will missing?
-				// the whole case can be ignore?
-			}
-			atomic.AddInt32(&w.newTxs, int32(len(ev.Txs)))
-
-		// System stopped
-		case <-w.exitCh:
-			return
-		case <-w.txsSub.Err():
-			return
-			//case <-w.chainHeadSub.Err():
-			//	return
-		}
+// pending returns the pending state and corresponding block.
+func (w *worker) pending() (*types.Block, *state.StateDB) {
+	// return a snapshot to avoid contention on currentMu mutex
+	w.snapshotMu.RLock()
+	defer w.snapshotMu.RUnlock()
+	if w.snapshotState == nil {
+		return nil, nil
 	}
-}*/
+	return w.snapshotBlock, w.snapshotState.Copy()
+}
+
+// pendingBlock returns pending block.
+func (w *worker) pendingBlock() *types.Block {
+	// return a snapshot to avoid contention on currentMu mutex
+	w.snapshotMu.RLock()
+	defer w.snapshotMu.RUnlock()
+	return w.snapshotBlock
+}

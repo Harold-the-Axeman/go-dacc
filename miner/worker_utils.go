@@ -12,7 +12,7 @@ import (
 	"github.com/daccproject/go-dacc/log"
 	"github.com/daccproject/go-dacc/params"
 )
-// Add by Shara , copy from meitu
+
 // Modified by Harold, move the code in the end to other loops.
 func (self *worker) mintBlock(timestamp int64) {
 
@@ -38,8 +38,127 @@ func (self *worker) mintBlock(timestamp int64) {
 
 }
 
+// commitNewWork generates several new sealing tasks based on the parent block.
+func (w *worker) createNewWork(timestamp int64) {
+
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+
+	tstart := time.Now()
+	parent := w.chain.CurrentBlock()
+
+	if parent.Time().Cmp(new(big.Int).SetInt64(timestamp)) >= 0 {
+		//timestamp = parent.Time().Int64() + 1
+		log.Error("Miner: task timestamp larger than current header's timestamp")
+		return
+	}
+
+	num := parent.Number()
+	header := &types.Header{
+		ParentHash: parent.Hash(),
+		Number:     num.Add(num, common.Big1),
+		GasLimit:   core.CalcGasLimit(parent, w.gasFloor, w.gasCeil),
+		Extra:      w.extra,
+		Time:       big.NewInt(timestamp),
+	}
+	// Only set the coinbase if our consensus engine is running (avoid spurious block rewards)
+	if w.isRunning() {
+		if w.coinbase == (common.Address{}) {
+			log.Error("Refusing to mine without etherbase")
+			return
+		}
+		header.Coinbase = w.coinbase
+	}
+	if err := w.engine.Prepare(w.chain, header); err != nil {
+		log.Error("Failed to prepare header for mining", "err", err)
+		return
+	}
+
+	err := w.makeCurrent(parent, header)
+	if err != nil {
+		log.Error("Failed to create mining context", "err", err)
+		return
+	}
+	// Create the current work task and check any fork transitions needed
+	env := w.current
+
+	// Fill the block with all available pending transactions.
+	pending, err := w.eth.TxPool().Pending()
+	if err != nil {
+		log.Error("Failed to fetch pending transactions", "err", err)
+		return
+	}
+
+	// Short circuit if there is no available pending transactions
+	// Split the pending transactions into locals and remotes
+	localTxs, remoteTxs := make(map[common.Address]types.Transactions), pending
+	for _, account := range w.eth.TxPool().Locals() {
+		if txs := remoteTxs[account]; len(txs) > 0 {
+			delete(remoteTxs, account)
+			localTxs[account] = txs
+		}
+	}
+	if len(localTxs) > 0 {
+		txs := types.NewTransactionsByPriceAndNonce(env.signer, localTxs)
+		//if w.commitTransactions(txs, w.coinbase, interrupt) {
+		if w.commitTransactions(txs, w.coinbase) {
+			return
+		}
+	}
+	if len(remoteTxs) > 0 {
+		txs := types.NewTransactionsByPriceAndNonce(env.signer, remoteTxs)
+		//if w.commitTransactions(txs, w.coinbase, interrupt) {
+		if w.commitTransactions(txs, w.coinbase) {
+			return
+		}
+
+	}
+	w.commit(tstart)
+}
+
+// commit runs any post-transaction state modifications, assembles the final block
+// and commits new work if consensus engine is running.
+//func (w *worker) commit(uncles []*types.Header, interval func(), update bool, start time.Time) error {
+func (w *worker) commit(start time.Time) error {
+	// Deep copy receipts here to avoid interaction between different tasks.
+	receipts := make([]*types.Receipt, len(w.current.receipts))
+	for i, l := range w.current.receipts {
+		receipts[i] = new(types.Receipt)
+		*receipts[i] = *l
+	}
+	s := w.current.state.Copy()
+	dc := w.current.dposContext.Copy()
+
+	block, err := w.engine.Finalize(w.chain, w.current.header, s, w.current.txs, nil, w.current.receipts, dc)
+	if err != nil {
+		log.Info("worker.commit.finalize", err.Error())
+		return err
+	}
+	//NOTE: in commitNewWork of the v1.7.3 version, Harold
+	block.DposContext = dc
+
+	if w.isRunning() {
+		task := &task{receipts: receipts, state: s, block: block, createdAt: time.Now()}
+		//w.unconfirmed.Shift(block.NumberU64() - 1)
+		w.commitTask(task)
+
+		// Logging
+		feesWei := new(big.Int)
+		for i, tx := range block.Transactions() {
+			feesWei.Add(feesWei, new(big.Int).Mul(new(big.Int).SetUint64(receipts[i].GasUsed), tx.GasPrice()))
+		}
+		feesEth := new(big.Float).Quo(new(big.Float).SetInt(feesWei), new(big.Float).SetInt(big.NewInt(params.Ether)))
+
+		log.Info("⚡️ Commit new mining work", "number", block.Number(), "sealhash", w.engine.SealHash(block.Header()),
+			"txs", w.current.tcount, "gas", block.GasUsed(), "fees", feesEth, "elapsed", common.PrettyDuration(time.Since(start)))
+
+	}
+	//TODO: have to wait above to finish, async execution?
+	w.updateSnapshot()
+	return nil
+}
+
 // makeCurrent creates a new environment for the current cycle.
-// header is the new block
 func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 	state, err := w.chain.StateAt(parent.Root())
 	if err != nil {
@@ -55,9 +174,7 @@ func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 	env := &environment{
 		signer: types.NewEIP155Signer(w.config.ChainID),
 		state:  state,
-		// Add by Shara
 		dposContext: dposContext,
-		// End by Shara
 		header: header,
 	}
 	// Keep track of transactions which return errors so they can be removed
@@ -199,133 +316,3 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 	return false
 }
 
-// commitNewWork generates several new sealing tasks based on the parent block.
-// Change by Shara , change commitNewWork func name to createNewWork
-//NOTE: change return value: check (*environment, error)  remove by harold
-//func (w *worker) createNewWork(interrupt *int32, noempty bool, timestamp int64) {
-func (w *worker) createNewWork(timestamp int64) {
-
-	w.mu.RLock()
-	defer w.mu.RUnlock()
-
-	tstart := time.Now()
-	parent := w.chain.CurrentBlock()
-
-	// TODO: possible bug, should not modify the timestamp here
-	// should abort, block produce fails
-	if parent.Time().Cmp(new(big.Int).SetInt64(timestamp)) >= 0 {
-		timestamp = parent.Time().Int64() + 1
-	}
-	// this will ensure we're not going off too far in the future
-	// TODO: possible bug, we should not allow this happened
-	if now := time.Now().Unix(); timestamp > now+1 {
-		wait := time.Duration(timestamp-now) * time.Second
-		log.Info("Mining too far in the future", "wait", common.PrettyDuration(wait))
-		time.Sleep(wait)
-	}
-
-	num := parent.Number()
-
-	header := &types.Header{
-		ParentHash: parent.Hash(),
-		Number:     num.Add(num, common.Big1),
-		GasLimit:   core.CalcGasLimit(parent, w.gasFloor, w.gasCeil),
-		Extra:      w.extra,
-		Time:       big.NewInt(timestamp),
-	}
-	// Only set the coinbase if our consensus engine is running (avoid spurious block rewards)
-	if w.isRunning() {
-		if w.coinbase == (common.Address{}) {
-			log.Error("Refusing to mine without etherbase")
-			return
-		}
-		header.Coinbase = w.coinbase
-	}
-	if err := w.engine.Prepare(w.chain, header); err != nil {
-		log.Error("Failed to prepare header for mining", "err", err)
-		return
-	}
-
-	err := w.makeCurrent(parent, header)
-	if err != nil {
-		log.Error("Failed to create mining context", "err", err)
-		return
-	}
-	// Create the current work task and check any fork transitions needed
-	env := w.current
-
-	// Fill the block with all available pending transactions.
-	pending, err := w.eth.TxPool().Pending()
-	if err != nil {
-		log.Error("Failed to fetch pending transactions", "err", err)
-		return
-	}
-
-	// Short circuit if there is no available pending transactions
-	// Split the pending transactions into locals and remotes
-	localTxs, remoteTxs := make(map[common.Address]types.Transactions), pending
-	for _, account := range w.eth.TxPool().Locals() {
-		if txs := remoteTxs[account]; len(txs) > 0 {
-			delete(remoteTxs, account)
-			localTxs[account] = txs
-		}
-	}
-	if len(localTxs) > 0 {
-		txs := types.NewTransactionsByPriceAndNonce(env.signer, localTxs)
-		//if w.commitTransactions(txs, w.coinbase, interrupt) {
-		if w.commitTransactions(txs, w.coinbase) {
-			return
-		}
-	}
-	if len(remoteTxs) > 0 {
-		txs := types.NewTransactionsByPriceAndNonce(env.signer, remoteTxs)
-		//if w.commitTransactions(txs, w.coinbase, interrupt) {
-		if w.commitTransactions(txs, w.coinbase) {
-			return
-		}
-
-	}
-	w.commit(tstart)
-}
-
-// commit runs any post-transaction state modifications, assembles the final block
-// and commits new work if consensus engine is running.
-//func (w *worker) commit(uncles []*types.Header, interval func(), update bool, start time.Time) error {
-func (w *worker) commit(start time.Time) error {
-	// Deep copy receipts here to avoid interaction between different tasks.
-	receipts := make([]*types.Receipt, len(w.current.receipts))
-	for i, l := range w.current.receipts {
-		receipts[i] = new(types.Receipt)
-		*receipts[i] = *l
-	}
-	s := w.current.state.Copy()
-	dc := w.current.dposContext.Copy()
-
-	block, err := w.engine.Finalize(w.chain, w.current.header, s, w.current.txs, nil, w.current.receipts, dc)
-	if err != nil {
-		log.Info("worker.commit.finalize", err.Error())
-		return err
-	}
-	//NOTE: in commitNewWork of the v1.7.3 version, Harold
-	block.DposContext = dc
-
-	if w.isRunning() {
-		task := &task{receipts: receipts, state: s, block: block, createdAt: time.Now()}
-		//w.unconfirmed.Shift(block.NumberU64() - 1)
-		w.commitTask(task)
-
-		// Logging
-		feesWei := new(big.Int)
-		for i, tx := range block.Transactions() {
-			feesWei.Add(feesWei, new(big.Int).Mul(new(big.Int).SetUint64(receipts[i].GasUsed), tx.GasPrice()))
-		}
-		feesEth := new(big.Float).Quo(new(big.Float).SetInt(feesWei), new(big.Float).SetInt(big.NewInt(params.Ether)))
-
-		log.Info("⚡️ Commit new mining work", "number", block.Number(), "sealhash", w.engine.SealHash(block.Header()),
-			"txs", w.current.tcount, "gas", block.GasUsed(), "fees", feesEth, "elapsed", common.PrettyDuration(time.Since(start)))
-
-	}
-	//TODO: have to wait above to finish, async execution?
-	w.updateSnapshot()
-	return nil
-}
