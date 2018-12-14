@@ -27,7 +27,6 @@ import (
 	"github.com/daccproject/go-dacc/core/state"
 	"github.com/daccproject/go-dacc/core/types"
 	"github.com/daccproject/go-dacc/event"
-	"github.com/daccproject/go-dacc/log"
 	"github.com/daccproject/go-dacc/params"
 )
 
@@ -50,9 +49,17 @@ type environment struct {
 	txs      []*types.Transaction
 	receipts []*types.Receipt
 
-	//TODO
-	timestmap int64 // time to produce the block
+	metric metric // time to produce the block
+}
 
+type metric struct {
+	ts time.Time // start
+	tp time.Time // consensus Prepare
+	tmc time.Time // make current
+	tat time.Time  // apply transactions
+	tf time.Time // consensus Finalize
+	tsl time.Time // sonsensus Seal
+	twbs time.Time // chain's Write BlockWithState
 }
 
 // task contains all information for consensus engine sealing and result submitting.
@@ -60,7 +67,7 @@ type task struct {
 	receipts  []*types.Receipt
 	state     *state.StateDB
 	block     *types.Block
-	createdAt time.Time
+	//createdAt time.Time
 }
 
 // worker is the main object which takes care of submitting new work to consensus engine
@@ -84,12 +91,13 @@ type worker struct {
 	coinbase common.Address
 	extra    []byte
 
+	// atomic status counters
+	running int32 // The indicator whether the consensus engine is running or not.
+
+	// only used in the api of miner
 	snapshotMu    sync.RWMutex // The lock used to protect the block snapshot and state snapshot
 	snapshotBlock *types.Block
 	snapshotState *state.StateDB
-
-	// atomic status counters
-	running int32 // The indicator whether the consensus engine is running or not.
 }
 
 func newWorker(config *params.ChainConfig, engine consensus.Engine, eth Backend, mux *event.TypeMux, recommit time.Duration, gasFloor, gasCeil uint64) *worker {
@@ -129,103 +137,6 @@ func (w *worker) mainLoop() {
 			return
 		}
 	}
-}
-
-// taskLoop is a standalone goroutine to fetch sealing task from the generator and
-func (w *worker) commitTask(task *task) {
-	var (
-		stopCh chan struct{}
-		prev   common.Hash
-	)
-
-	// interrupt aborts the in-flight sealing task.
-	interrupt := func() {
-		if stopCh != nil {
-			close(stopCh)
-			stopCh = nil
-		}
-	}
-
-	/*if w.newTaskHook != nil {
-		w.newTaskHook(task)
-	}*/
-	// Reject duplicate sealing work due to resubmitting.
-	sealHash := w.engine.SealHash(task.block.Header())
-	if sealHash == prev {
-		log.Info("Miner: commitTask. This should not happen")
-		return
-	}
-	// Interrupt previous sealing operation
-	interrupt()
-	stopCh, prev = make(chan struct{}), sealHash
-
-/*	if w.skipSealHook != nil && w.skipSealHook(task) {
-		return
-	}*/
-	//TODO:
-	block, err := w.engine.Seal(w.chain, task.block, stopCh)
-	if err != nil {
-		log.Warn("Block sealing failed", "err", err)
-	}
-	w.processResult(block, task)
-}
-
-// resultLoop is a standalone goroutine to handle sealing result submitting
-// processResult the result of the
-func (w *worker) processResult(block *types.Block, task *task) {
-	if block == nil {
-		return
-	}
-	// Short circuit when receiving duplicate result caused by resubmitting.
-	if w.chain.HasBlock(block.Hash(), block.NumberU64()) {
-		return
-	}
-	var (
-		sealhash = w.engine.SealHash(block.Header())
-		hash     = block.Hash()
-	)
-
-	// Different block could share same sealhash, deep copy here to prevent write-write conflict.
-	var (
-		receipts = make([]*types.Receipt, len(task.receipts))
-		logs     []*types.Log
-	)
-	for i, receipt := range task.receipts {
-		receipts[i] = new(types.Receipt)
-		*receipts[i] = *receipt
-		// Update the block hash in all logs since it is now available and not when the
-		// receipt/log of individual transactions were created.
-		for _, log := range receipt.Logs {
-			log.BlockHash = hash
-		}
-		logs = append(logs, receipt.Logs...)
-	}
-	// Commit block and state to database.
-	var beginWriteBlock = time.Now()
-	log.Warn("Begin WriteBlockWithState")
-	stat, err := w.chain.WriteBlockWithState(block, receipts, task.state)
-	log.Warn("End WriteBlockWithState", "Cost", time.Since(beginWriteBlock))
-	if err != nil {
-		log.Error("Failed writing block to chain", "err", err)
-		return
-	}
-	log.Info("😄 Successfully sealed new block", "number", block.Number(), "sealhash", sealhash, "hash", hash,
-		"elapsed", common.PrettyDuration(time.Since(task.createdAt)))
-
-	// Broadcast the block and announce chain insertion event
-	w.mux.Post(core.NewMinedBlockEvent{Block: block})
-
-	var events []interface{}
-	switch stat {
-	case core.CanonStatTy:
-		events = append(events, core.ChainEvent{Block: block, Hash: block.Hash(), Logs: logs})
-		events = append(events, core.ChainHeadEvent{Block: block})
-	case core.SideStatTy:
-		// Change by Shara ,
-		//events = append(events, core.ChainSideEvent{Block: block})
-		// End Change by Shara
-	}
-	w.chain.PostChainEvents(events, logs)
 }
 
 // start sets the running status as 1 and triggers new work submitting.
