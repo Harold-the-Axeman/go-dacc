@@ -129,7 +129,7 @@ func (w *worker) mainLoop() {
 			timestamp = now.Unix()
 			if w.isRunning() {
 				if timestamp % blockInterval == 0 {  // check it is time to mint block
-					w.mintBlock(timestamp)
+					w.mintBlock(timestamp) // TODO: go routine, stopChan in the future
 				}
 			}
 			// for the next block
