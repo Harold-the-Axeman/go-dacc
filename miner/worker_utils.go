@@ -48,7 +48,6 @@ func (w *worker) createNewWork(timestamp int64) {
 	parent := w.chain.CurrentBlock()
 
 	if parent.Time().Cmp(new(big.Int).SetInt64(timestamp)) >= 0 {
-		//timestamp = parent.Time().Int64() + 1
 		log.Error("Miner: task timestamp larger than current header's timestamp")
 		return
 	}
@@ -85,7 +84,6 @@ func (w *worker) createNewWork(timestamp int64) {
 	w.current.metric.tp = tp
 	w.current.metric.tmc = time.Now()
 
-	// Create the current work task and check any fork transitions needed
 	env := w.current
 	// Fill the block with all available pending transactions.
 	pending, err := w.eth.TxPool().Pending()
@@ -93,6 +91,7 @@ func (w *worker) createNewWork(timestamp int64) {
 		log.Error("Failed to fetch pending transactions", "err", err)
 		return
 	}
+	//TODO: there is no local Account in the future
 	localTxs, remoteTxs := make(map[common.Address]types.Transactions), pending
 	for _, account := range w.eth.TxPool().Locals() {
 		if txs := remoteTxs[account]; len(txs) > 0 {
@@ -112,7 +111,7 @@ func (w *worker) createNewWork(timestamp int64) {
 	w.commit()
 }
 
-func (w *worker) commit() error {
+func (w *worker) commit()  {
 	// Deep copy receipts here to avoid interaction between different tasks.
 	receipts := make([]*types.Receipt, len(w.current.receipts))
 	for i, l := range w.current.receipts {
@@ -125,7 +124,7 @@ func (w *worker) commit() error {
 	block, err := w.engine.Finalize(w.chain, w.current.header, s, w.current.txs, nil, w.current.receipts, dc)
 	if err != nil {
 		log.Error("worker.commit.finalize", err.Error())
-		return err
+		return
 	}
 	w.current.metric.tf = time.Now()
 
@@ -147,7 +146,6 @@ func (w *worker) commit() error {
 			"txs", w.current.tcount, "gas", block.GasUsed(), "fees", feesEth)
 		//TODO: , "elapsed", common.PrettyDuration(time.Since(start))
 	}
-	return nil
 }
 
 // taskLoop is a standalone goroutine to fetch sealing task from the generator and
@@ -155,7 +153,6 @@ func (w *worker) commitTask(task *task) {
 	//TODO: how to use the stop channel here
 	// stop channel is useless
 	stopCh := make(chan struct{})
-
 	block, err := w.engine.Seal(w.chain, task.block, stopCh)
 	if err != nil {
 		log.Error("Block sealing failed", "err", err)
@@ -170,7 +167,6 @@ func (w *worker) processResult(block *types.Block, task *task) {
 	if block == nil {
 		return
 	}
-
 	// Different block could share same sealhash, deep copy here to prevent write-write conflict.
 	var (
 		receipts = make([]*types.Receipt, len(task.receipts))
@@ -194,7 +190,6 @@ func (w *worker) processResult(block *types.Block, task *task) {
 		log.Error("Failed writing block to chain", "err", err)
 		return
 	}
-
 	// Broadcast the block and announce chain insertion event
 	w.mux.Post(core.NewMinedBlockEvent{Block: block})
 
@@ -204,11 +199,29 @@ func (w *worker) processResult(block *types.Block, task *task) {
 		events = append(events, core.ChainEvent{Block: block, Hash: block.Hash(), Logs: logs})
 		events = append(events, core.ChainHeadEvent{Block: block})
 	case core.SideStatTy:
-		// Change by Shara ,
 		//events = append(events, core.ChainSideEvent{Block: block})
-		// End Change by Shara
+		log.Warn("miner.work.processResult: side chain event")
 	}
 	w.chain.PostChainEvents(events, logs)
+
+	w.printMetric(block, receipts)
+}
+
+func (w *worker)printMetric(block *types.Block, receipts types.Receipts) {
+	// Logging
+	feesWei := new(big.Int)
+	for i, tx := range block.Transactions() {
+		feesWei.Add(feesWei, new(big.Int).Mul(new(big.Int).SetUint64(receipts[i].GasUsed), tx.GasPrice()))
+	}
+	feesEth := new(big.Float).Quo(new(big.Float).SetInt(feesWei), new(big.Float).SetInt(big.NewInt(params.Ether)))
+
+	log.Info("⚡️ New mining work done", "number", block.Number(), "sealhash", w.engine.SealHash(block.Header()),
+		"txs", w.current.tcount, "gas", block.GasUsed(), "fees", feesEth)
+
+	m := w.current.metric
+	log.Info("⚡️ New mining work metric: ", "Prepare", m.tp.Sub(m.ts), "makeCurrent", m.tmc.Sub(m.tp),
+		"applyTransactions", m.tat.Sub(m.tmc), "Finalize", m.tf.Sub(m.tat), "Seal", m.tsl.Sub(m.tf),
+		"WriteBlockWithState", m.twbs.Sub(m.tsl))
 }
 
 // makeCurrent creates a new environment for the current cycle.
