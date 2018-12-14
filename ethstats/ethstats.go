@@ -19,7 +19,6 @@ package ethstats
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -480,7 +479,9 @@ type blockStats struct {
 	Txs        []txStats      `json:"transactions"`
 	TxHash     common.Hash    `json:"transactionsRoot"`
 	Root       common.Hash    `json:"stateRoot"`
-	Uncles     uncleStats     `json:"uncles"`
+	// TODO(Corbin) [deprecated the uncle block logic]
+	// Uncles     uncleStats     `json:"uncles"`
+	// END [deprecated the uncle block logic]
 }
 
 // txStats is the information to report about individual transactions.
@@ -488,16 +489,18 @@ type txStats struct {
 	Hash common.Hash `json:"hash"`
 }
 
-// uncleStats is a custom wrapper around an uncle array to force serializing
-// empty arrays instead of returning null for them.
-type uncleStats []*types.Header
+// TODO(Corbin) [deprecated the uncle block logic]
+// // uncleStats is a custom wrapper around an uncle array to force serializing
+// // empty arrays instead of returning null for them.
+// type uncleStats []*types.Header
 
-func (s uncleStats) MarshalJSON() ([]byte, error) {
-	if uncles := ([]*types.Header)(s); len(uncles) > 0 {
-		return json.Marshal(uncles)
-	}
-	return []byte("[]"), nil
-}
+// func (s uncleStats) MarshalJSON() ([]byte, error) {
+// 	if uncles := ([]*types.Header)(s); len(uncles) > 0 {
+// 		return json.Marshal(uncles)
+// 	}
+// 	return []byte("[]"), nil
+// }
+// END [deprecated the uncle block logic]
 
 // reportBlock retrieves the current chain head and reports it to the stats server.
 func (s *Service) reportBlock(conn *websocket.Conn, block *types.Block) error {
