@@ -414,40 +414,42 @@ func (d *Dpos) checkDeadline(lastBlock *types.Block, now int64) error {
 	return ErrWaitForPrevBlock
 }
 
-func (d *Dpos) CheckValidator(lastBlock *types.Block, now int64) error {
+func (d *Dpos) CheckValidator(lastBlock *types.Block, now int64) bool {
 	if err := d.checkDeadline(lastBlock, now); err != nil {
-		return err
+		return false
 	}
 	dposContext, err := types.NewDposContextFromProto(d.db, lastBlock.Header().DposContext)
 	if err != nil {
-		return err
+		return false
 	}
 	epochContext := &EpochContext{DposContext: dposContext}
 	validator, err := epochContext.lookupValidator(now)
 	if err != nil {
-		return err
+		return false
 	}
 	if (validator == common.Address{}) || bytes.Compare(validator.Bytes(), d.signer.Bytes()) != 0 {
-		return ErrInvalidBlockValidator
+		//ErrInvalidBlockValidator
+		return false
 	}
-	return nil
+	return true
 }
 
 // Seal generates a new block for the given input block with the local miner's
 // seal place on top.
-func (d *Dpos) Seal(chain consensus.ChainReader, block *types.Block, results chan<- *types.Block, stop <-chan struct{}) error {
+//func (d *Dpos) Seal(chain consensus.ChainReader, block *types.Block, results chan<- *types.Block, stop <-chan struct{}) error {
+func (d *Dpos) Seal(chain consensus.ChainReader, block *types.Block, stop <-chan struct{}) (*types.Block, error) {
 	header := block.Header()
 	number := header.Number.Uint64()
 	// Sealing the genesis block is not supported
 	if number == 0 {
-		return errUnknownBlock
+		return nil, errUnknownBlock
 	}
 	now := time.Now().Unix()
 	delay := NextSlot(now) - now
 	if delay > 0 {
 		select {
 		case <-stop:
-			return nil
+			return nil, nil
 		case <-time.After(time.Duration(delay) * time.Second):
 		}
 	}
@@ -455,16 +457,18 @@ func (d *Dpos) Seal(chain consensus.ChainReader, block *types.Block, results cha
 	// time's up, sign the block
 	sighash, err := d.signFn(accounts.Account{Address: d.signer}, sigHash(header).Bytes())
 	if err != nil {
-		return err
+		return nil, err
 	}
 	copy(header.Extra[len(header.Extra)-extraSeal:], sighash)
 
-	select {
+	nb := block.WithSeal(header)
+	return nb, nil
+	/*select {
 	case results <- block.WithSeal(header):
 	default:
 		log.Warn("Sealing result is not read by miner", "mode", "dpos", "sealhash", d.SealHash(block.Header()))
 	}
-	return nil
+	return nil*/
 }
 
 func (d *Dpos) SealHash(header *types.Header) (hash common.Hash) {
