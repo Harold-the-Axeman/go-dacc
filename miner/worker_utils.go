@@ -1,9 +1,10 @@
 package miner
 
 import (
-	"github.com/daccproject/go-dacc/core/vm"
 	"math/big"
 	"time"
+
+	"github.com/daccproject/go-dacc/core/vm"
 
 	"github.com/daccproject/go-dacc/common"
 	"github.com/daccproject/go-dacc/consensus/dpos"
@@ -99,7 +100,7 @@ func (w *worker) createNewWork(timestamp int64) {
 	w.commit()
 }
 
-func (w *worker) commit()  {
+func (w *worker) commit() {
 	// Deep copy receipts here to avoid interaction between different tasks.
 	receipts := make([]*types.Receipt, len(w.current.receipts))
 	for i, l := range w.current.receipts {
@@ -109,7 +110,7 @@ func (w *worker) commit()  {
 	s := w.current.state.Copy()
 	dc := w.current.dposContext.Copy()
 
-	block, err := w.engine.Finalize(w.chain, w.current.header, s, w.current.txs, nil, w.current.receipts, dc)
+	block, err := w.engine.Finalize(w.chain, w.current.header, s, w.current.txs, w.current.receipts, dc)
 	if err != nil {
 		log.Error("worker.commit.finalize", err.Error())
 		return
@@ -185,7 +186,7 @@ func (w *worker) processResult(block *types.Block, task *task) {
 	w.printMetric(block, receipts)
 }
 
-func (w *worker)printMetric(block *types.Block, receipts types.Receipts) {
+func (w *worker) printMetric(block *types.Block, receipts types.Receipts) {
 	// Logging
 	feesWei := new(big.Int)
 	for i, tx := range block.Transactions() {
@@ -216,10 +217,10 @@ func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 
 	// End add by Shara
 	env := &environment{
-		signer: types.NewEIP155Signer(w.config.ChainID),
-		state:  state,
+		signer:      types.NewEIP155Signer(w.config.ChainID),
+		state:       state,
 		dposContext: dposContext,
-		header: header,
+		header:      header,
 	}
 	// Keep track of transactions which return errors so they can be removed
 	env.tcount = 0
@@ -236,7 +237,6 @@ func (w *worker) updateSnapshot() {
 	w.snapshotBlock = types.NewBlock(
 		w.current.header,
 		w.current.txs,
-		nil,
 		w.current.receipts,
 	)
 
@@ -262,7 +262,7 @@ func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Addres
 
 // interrupt: nil in txsCh, commitInterruptNone in ticker ?
 //func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coinbase common.Address, interrupt *int32) bool {
-func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coinbase common.Address)  {
+func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coinbase common.Address) {
 
 	if w.current.gasPool == nil {
 		w.current.gasPool = new(core.GasPool).AddGas(w.current.header.GasLimit)
@@ -341,4 +341,3 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 		go w.mux.Post(core.PendingLogsEvent{Logs: cpy})
 	}
 }
-

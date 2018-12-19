@@ -77,9 +77,12 @@ var (
 	ErrInvalidMintBlockTime       = errors.New("invalid time to mint the block")
 	ErrNilBlockHeader             = errors.New("nil block header returned")
 )
-var (
-	uncleHash = types.CalcUncleHash(nil) // Always Keccak256(RLP([])) as uncles are meaningless outside of PoW.
-)
+
+// TODO(Corbin) [deprecated the uncle block logic]
+// var (
+// 	uncleHash = types.CalcUncleHash(nil) // Always Keccak256(RLP([])) as uncles are meaningless outside of PoW.
+// )
+// END [deprecated the uncle block logic]
 
 type Dpos struct {
 	config *params.DposConfig // Consensus engine configuration parameters
@@ -109,7 +112,9 @@ func sigHash(header *types.Header) (hash common.Hash) {
 
 	rlp.Encode(hasher, []interface{}{
 		header.ParentHash,
-		header.UncleHash,
+		// TODO(Corbin) [deprecated the uncle block logic]
+		// header.UncleHash,
+		// END [deprecated the uncle block logic]
 		header.Validator,
 		header.Coinbase,
 		header.Root,
@@ -176,10 +181,13 @@ func (d *Dpos) verifyHeader(chain consensus.ChainReader, header *types.Header, p
 	//	return errInvalidDifficulty
 	//}
 	// end change by Shara
-	// Ensure that the block doesn't contain any uncles which are meaningless in DPoS
-	if header.UncleHash != uncleHash {
-		return errInvalidUncleHash
-	}
+	// TODO(Corbin) [deprecated the uncle block logic]
+	// // Ensure that the block doesn't contain any uncles which are meaningless in DPoS
+	// if header.UncleHash != uncleHash {
+	// 	return errInvalidUncleHash
+	// }
+	// END [deprecated the uncle block logic]
+
 	// If all checks passed, validate any special fields for hard forks
 	if err := misc.VerifyForkHashes(chain.Config(), header, false); err != nil {
 		return err
@@ -218,14 +226,16 @@ func (d *Dpos) VerifyHeaders(chain consensus.ChainReader, headers []*types.Heade
 	return abort, results
 }
 
-// VerifyUncles implements consensus.Engine, always returning an error for any
-// uncles as this consensus mechanism doesn't permit uncles.
-func (d *Dpos) VerifyUncles(chain consensus.ChainReader, block *types.Block) error {
-	if len(block.Uncles()) > 0 {
-		return errors.New("uncles not allowed")
-	}
-	return nil
-}
+// TODO(Corbin) [deprecated the uncle block logic]
+// // VerifyUncles implements consensus.Engine, always returning an error for any
+// // uncles as this consensus mechanism doesn't permit uncles.
+// func (d *Dpos) VerifyUncles(chain consensus.ChainReader, block *types.Block) error {
+// 	if len(block.Uncles()) > 0 {
+// 		return errors.New("uncles not allowed")
+// 	}
+// 	return nil
+// }
+// END [deprecated the uncle block logic]
 
 // VerifySeal implements consensus.Engine, checking whether the signature contained
 // in the header satisfies the consensus protocol requirements.
@@ -360,7 +370,19 @@ func (d *Dpos) Prepare(chain consensus.ChainReader, header *types.Header) error 
 	return nil
 }
 
-func AccumulateRewards(config *params.ChainConfig, state *state.StateDB, header *types.Header, uncles []*types.Header) {
+// TODO(Corbin) [deprecated the uncle block logic]
+// func AccumulateRewards(config *params.ChainConfig, state *state.StateDB, header *types.Header, uncles []*types.Header) {
+// 	// Select the correct block reward based on chain progression
+// 	blockReward := frontierBlockReward
+// 	if config.IsByzantium(header.Number) {
+// 		blockReward = byzantiumBlockReward
+// 	}
+// 	// Accumulate the rewards for the miner and any included uncles
+// 	reward := new(big.Int).Set(blockReward)
+// 	state.AddBalance(header.Coinbase, reward)
+// }
+
+func AccumulateRewards(config *params.ChainConfig, state *state.StateDB, header *types.Header) {
 	// Select the correct block reward based on chain progression
 	blockReward := frontierBlockReward
 	if config.IsByzantium(header.Number) {
@@ -371,10 +393,40 @@ func AccumulateRewards(config *params.ChainConfig, state *state.StateDB, header 
 	state.AddBalance(header.Coinbase, reward)
 }
 
+// func (d *Dpos) Finalize(chain consensus.ChainReader, header *types.Header, state *state.StateDB, txs []*types.Transaction,
+// 	uncles []*types.Header, receipts []*types.Receipt, dposContext *types.DposContext) (*types.Block, error) {
+// 	// Accumulate block rewards and commit the final state root
+// 	AccumulateRewards(chain.Config(), state, header, uncles)
+// 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
+
+// 	parent := chain.GetHeaderByHash(header.ParentHash)
+// 	epochContext := &EpochContext{
+// 		statedb:     state,
+// 		DposContext: dposContext,
+// 		TimeStamp:   header.Time.Int64(),
+// 	}
+// 	//TODO: use a genesis config for this timestamp
+// 	if timeOfFirstBlock == 0 {
+// 		if firstBlockHeader := chain.GetHeaderByNumber(1); firstBlockHeader != nil {
+// 			timeOfFirstBlock = firstBlockHeader.Time.Int64()
+// 		}
+// 	}
+// 	genesis := chain.GetHeaderByNumber(0)
+// 	err := epochContext.tryElect(genesis, parent)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("got error when elect next epoch, err: %s", err)
+// 	}
+
+// 	//update mint count trie
+// 	updateMintCnt(parent.Time.Int64(), header.Time.Int64(), header.Validator, dposContext)
+// 	header.DposContext = dposContext.ToProto()
+// 	return types.NewBlock(header, txs, uncles, receipts), nil
+// }
+
 func (d *Dpos) Finalize(chain consensus.ChainReader, header *types.Header, state *state.StateDB, txs []*types.Transaction,
-	uncles []*types.Header, receipts []*types.Receipt, dposContext *types.DposContext) (*types.Block, error) {
+	receipts []*types.Receipt, dposContext *types.DposContext) (*types.Block, error) {
 	// Accumulate block rewards and commit the final state root
-	AccumulateRewards(chain.Config(), state, header, uncles)
+	AccumulateRewards(chain.Config(), state, header)
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
 
 	parent := chain.GetHeaderByHash(header.ParentHash)
@@ -398,8 +450,14 @@ func (d *Dpos) Finalize(chain consensus.ChainReader, header *types.Header, state
 	//update mint count trie
 	updateMintCnt(parent.Time.Int64(), header.Time.Int64(), header.Validator, dposContext)
 	header.DposContext = dposContext.ToProto()
-	return types.NewBlock(header, txs, uncles, receipts), nil
+	// TODO(Corbin) [deprecated the uncle block logic]
+	// return types.NewBlock(header, txs, uncles, receipts), nil
+	return types.NewBlock(header, txs, receipts), nil
+	// END [deprecated the uncle block logic]
+
 }
+
+// END [deprecated the uncle block logic]
 
 func (d *Dpos) checkDeadline(lastBlock *types.Block, now int64) error {
 	prevSlot := PrevSlot(now)

@@ -119,22 +119,38 @@ func (p *FakePeer) RequestHeadersByNumber(number uint64, amount int, skip int, r
 	return nil
 }
 
-// RequestBodies implements downloader.Peer, returning a batch of block bodies
-// corresponding to the specified block hashes.
+// TODO(Corbin) [deprecated the uncle block logic]
+// // RequestBodies implements downloader.Peer, returning a batch of block bodies
+// // corresponding to the specified block hashes.
+// func (p *FakePeer) RequestBodies(hashes []common.Hash) error {
+// 	var (
+// 		txs    [][]*types.Transaction
+// 		uncles [][]*types.Header
+// 	)
+// 	for _, hash := range hashes {
+// 		block := rawdb.ReadBlock(p.db, hash, *p.hc.GetBlockNumber(hash))
+
+// 		txs = append(txs, block.Transactions())
+// 		uncles = append(uncles, block.Uncles())
+// 	}
+// 	p.dl.DeliverBodies(p.id, txs, uncles)
+// 	return nil
+// }
+
 func (p *FakePeer) RequestBodies(hashes []common.Hash) error {
 	var (
-		txs    [][]*types.Transaction
-		uncles [][]*types.Header
+		txs [][]*types.Transaction
 	)
 	for _, hash := range hashes {
 		block := rawdb.ReadBlock(p.db, hash, *p.hc.GetBlockNumber(hash))
 
 		txs = append(txs, block.Transactions())
-		uncles = append(uncles, block.Uncles())
 	}
-	p.dl.DeliverBodies(p.id, txs, uncles)
+	p.dl.DeliverBodies(p.id, txs)
 	return nil
 }
+
+// END [deprecated the uncle block logic]
 
 // RequestReceipts implements downloader.Peer, returning a batch of transaction
 // receipts corresponding to the specified block hashes.

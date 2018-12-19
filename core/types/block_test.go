@@ -18,7 +18,6 @@ package types
 
 import (
 	"bytes"
-	"fmt"
 	"math/big"
 	"reflect"
 	"testing"
@@ -35,9 +34,14 @@ func TestBlockEncoding(t *testing.T) {
 	dposCtx, _ := NewDposContext(db)
 	inputBlock := Block{
 		header: &Header{
-			Difficulty:  big.NewInt(131072),
-			GasLimit:    big.NewInt(3141592),
-			GasUsed:     big.NewInt(21000),
+			// TODO(Corbin) [deprecated the uncle block logic]
+			// Difficulty:  big.NewInt(131072),
+			// GasLimit:    big.NewInt(3141592),
+			// GasUsed:     big.NewInt(21000),
+
+			GasLimit: 3141592,
+			GasUsed:  21000,
+			// TODO(Corbin) [deprecated the uncle block logic]
 			Validator:   common.HexToAddress("8888f1f195afa192cfee860698584c030f4c9db1"),
 			Coinbase:    common.HexToAddress("8888f1f195afa192cfee860698584c030f4c9db1"),
 			MixDigest:   common.HexToHash("bd4472abb6659ebe3ee06ee4d7b72a00a9f4d001caca51342001075469aff498"),
@@ -47,14 +51,19 @@ func TestBlockEncoding(t *testing.T) {
 			DposContext: dposCtx.ToProto(),
 		},
 	}
-	tx1 := NewTransaction(Binary, 0, common.HexToAddress("095e7baea6a6c7c4c2dfeb977efac326af552d87"), big.NewInt(10), big.NewInt(50000), big.NewInt(10), nil)
+	// TODO(Corbin) [deprecated the uncle block logic]
+	// tx1 := NewTransaction(Binary, 0, common.HexToAddress("095e7baea6a6c7c4c2dfeb977efac326af552d87"), big.NewInt(10), big.NewInt(50000), big.NewInt(10), nil)
+	tx1 := NewTransaction(Binary, 0, common.HexToAddress("095e7baea6a6c7c4c2dfeb977efac326af552d87"), big.NewInt(10), 5000, big.NewInt(10), nil)
+	// END [deprecated the uncle block logic]
 	tx1, _ = tx1.WithSignature(HomesteadSigner{}, common.Hex2Bytes("9bea4c4daac7c7c52e093e6a4c35dbbcf8856f1af7b059ba20253e70848d094f8a8fae537ce25ed8cb5af9adac3f141af69bd515bd2ba031522df09b97dd72b100"))
 	inputBlock.transactions = []*Transaction{tx1}
 	inputHash := inputBlock.Hash()
 	blockEnc, _ := rlp.EncodeToBytes(extblock{
 		Header: inputBlock.header,
 		Txs:    inputBlock.transactions,
-		Uncles: inputBlock.uncles,
+		// TODO(Corbin) [deprecated the uncle block logic]
+		// Uncles: inputBlock.uncles,
+		// END [deprecated the uncle block logic]
 	})
 	var block Block
 	if err := rlp.DecodeBytes(blockEnc, &block); err != nil {
@@ -66,7 +75,9 @@ func TestBlockEncoding(t *testing.T) {
 			t.Errorf("%s mismatch: got %v, want %v", f, got, want)
 		}
 	}
-	check("Difficulty", block.Difficulty(), big.NewInt(131072))
+	// TODO(Corbin) [deprecated the uncle block logic]
+	// check("Difficulty", block.Difficulty(), big.NewInt(131072))
+	// END [deprecated the uncle block logic]
 	check("GasLimit", block.GasLimit(), uint64(3141592))
 	check("GasUsed", block.GasUsed(), uint64(21000))
 	check("Validator", block.Validator(), common.HexToAddress("8888f1f195afa192cfee860698584c030f4c9db1"))

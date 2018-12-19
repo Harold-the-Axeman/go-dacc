@@ -528,7 +528,9 @@ func (s *Service) assembleBlockStats(block *types.Block) *blockStats {
 		header *types.Header
 		td     *big.Int
 		txs    []txStats
-		uncles []*types.Header
+		// TODO(Corbin) [deprecated the uncle block logic]
+		// uncles []*types.Header
+		// END [deprecated the uncle block logic]
 	)
 	if s.eth != nil {
 		// Full nodes have all needed information available
@@ -544,7 +546,9 @@ func (s *Service) assembleBlockStats(block *types.Block) *blockStats {
 		for i, tx := range block.Transactions() {
 			txs[i].Hash = tx.Hash()
 		}
-		uncles = block.Uncles()
+		// TODO(Corbin) [deprecated the uncle block logic]
+		// uncles = block.Uncles()
+		// END [deprecated the uncle block logic]
 	} else {
 		// Light nodes would need on-demand lookups for transactions/uncles, skip
 		if block != nil {
@@ -574,7 +578,9 @@ func (s *Service) assembleBlockStats(block *types.Block) *blockStats {
 		Txs:       txs,
 		TxHash:    header.TxHash,
 		Root:      header.Root,
-		Uncles:    uncles,
+		// TODO(Corbin) [deprecated the uncle block logic]
+		// Uncles:    uncles,
+		// END [deprecated the uncle block logic]
 	}
 	// end change by Shara
 }

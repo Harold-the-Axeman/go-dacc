@@ -277,7 +277,10 @@ func (g *Genesis) ToBlock(db ethdb.Database) *types.Block {
 	statedb.Database().TrieDB().Commit(root, true)
 
 	//return types.NewBlock(head, nil, nil, nil)
-	block := types.NewBlock(head, nil, nil, nil)
+	// TODO(Corbin) [deprecated the uncle block logic]
+	// block := types.NewBlock(head, nil, nil, nil)
+	block := types.NewBlock(head, nil, nil)
+	// TODO(Corbin) [deprecated the uncle block logic]
 	block.DposContext = dposContext
 
 	return block
