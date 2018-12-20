@@ -34,12 +34,11 @@ const (
 	blockInterval = 5 //TODO: config from dpos
 )
 
-
 // environment is the worker's current environment and holds all of the current state information.
 type environment struct {
 	signer types.Signer
 
-	state *state.StateDB // apply state changes here
+	state       *state.StateDB // apply state changes here
 	dposContext *types.DposContext
 
 	tcount  int           // tx count in cycle
@@ -53,20 +52,20 @@ type environment struct {
 }
 
 type metric struct {
-	ts time.Time // start
-	tp time.Time // consensus Prepare
-	tmc time.Time // make current
-	tat time.Time  // apply transactions
-	tf time.Time // consensus Finalize
-	tsl time.Time // sonsensus Seal
+	ts   time.Time // start
+	tp   time.Time // consensus Prepare
+	tmc  time.Time // make current
+	tat  time.Time // apply transactions
+	tf   time.Time // consensus Finalize
+	tsl  time.Time // sonsensus Seal
 	twbs time.Time // chain's Write BlockWithState
 }
 
 // task contains all information for consensus engine sealing and result submitting.
 type task struct {
-	receipts  []*types.Receipt
-	state     *state.StateDB
-	block     *types.Block
+	receipts []*types.Receipt
+	state    *state.StateDB
+	block    *types.Block
 	//createdAt time.Time
 }
 
@@ -82,8 +81,8 @@ type worker struct {
 	gasCeil  uint64
 
 	// Subscriptions
-	mux          *event.TypeMux
-	exitCh    chan struct{}
+	mux    *event.TypeMux
+	exitCh chan struct{}
 
 	current *environment // An environment for current running cycle.
 
@@ -102,14 +101,14 @@ type worker struct {
 
 func newWorker(config *params.ChainConfig, engine consensus.Engine, eth Backend, mux *event.TypeMux, recommit time.Duration, gasFloor, gasCeil uint64) *worker {
 	worker := &worker{
-		config:       config,
-		engine:       engine,
-		eth:          eth,
-		chain:        eth.BlockChain(),
-		gasFloor:     gasFloor,
-		gasCeil:      gasCeil,
-		mux:          mux,
-		exitCh:       make(chan struct{}),
+		config:   config,
+		engine:   engine,
+		eth:      eth,
+		chain:    eth.BlockChain(),
+		gasFloor: gasFloor,
+		gasCeil:  gasCeil,
+		mux:      mux,
+		exitCh:   make(chan struct{}),
 	}
 
 	go worker.mainLoop()
@@ -129,7 +128,7 @@ func (w *worker) mainLoop() {
 		case now := <-ticker.C:
 			timestamp = now.Unix()
 			if w.isRunning() {
-				if timestamp % blockInterval == 0 {  // check it is time to mint block
+				if timestamp%blockInterval == 0 { // check it is time to mint block
 					w.mintBlock(timestamp) // TODO: go routine, stopChan in the future
 				}
 			}

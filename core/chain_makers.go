@@ -43,7 +43,9 @@ type BlockGen struct {
 	gasPool  *GasPool
 	txs      []*types.Transaction
 	receipts []*types.Receipt
-	uncles   []*types.Header
+	// TODO(Corbin) [deprecated the uncle block logic]
+	// uncles   []*types.Header
+	// END [deprecated the uncle block logic]
 
 	config *params.ChainConfig
 	engine consensus.Engine
@@ -124,10 +126,12 @@ func (b *BlockGen) TxNonce(addr common.Address) uint64 {
 	return b.statedb.GetNonce(addr)
 }
 
+// TODO(Corbin) [deprecated the uncle block logic]
 // AddUncle adds an uncle header to the generated block.
-func (b *BlockGen) AddUncle(h *types.Header) {
-	b.uncles = append(b.uncles, h)
-}
+// func (b *BlockGen) AddUncle(h *types.Header) {
+// 	b.uncles = append(b.uncles, h)
+// }
+// TODO(Corbin) [deprecated the uncle block logic]
 
 // PrevBlock returns a previously generated block by number. It panics if
 // num is greater or equal to the number of the block being generated.
@@ -200,9 +204,13 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 		}
 
 		if b.engine != nil {
+			// TODO(Corbin) [deprecated the uncle block logic]
 			// TODO(bytejedi): dpos.AccumulateRewards -> Finalize()
-			dpos.AccumulateRewards(config, statedb, b.header, b.uncles)
-			block, _ := b.engine.Finalize(b.chainReader, b.header, statedb, b.txs, b.uncles, b.receipts, parent.DposContext)
+			// dpos.AccumulateRewards(config, statedb, b.header, b.uncles)
+			// block, _ := b.engine.Finalize(b.chainReader, b.header, statedb, b.txs, b.uncles, b.receipts, parent.DposContext)
+			dpos.AccumulateRewards(config, statedb, b.header)
+			block, _ := b.engine.Finalize(b.chainReader, b.header, statedb, b.txs, b.receipts, parent.DposContext)
+			// END [deprecated the uncle block logic]
 			// Write state changes to db
 			root, err := statedb.Commit(config.IsEIP158(b.header.Number))
 			if err != nil {
