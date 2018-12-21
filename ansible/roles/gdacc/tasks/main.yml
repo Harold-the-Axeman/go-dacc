@@ -1,0 +1,9 @@
+---
+
+- include: init_gdacc.yml
+
+- include: start_gdacc.yml
+
+- include: start_miner.yml
+
+- include: check_ismining.yml

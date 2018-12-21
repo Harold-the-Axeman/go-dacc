@@ -1,0 +1,9 @@
+---
+
+- name: Delete old chain data
+  file:
+    state: absent
+    path: "{{ datadir }}/gdacc"
+
+- name: Init chain data
+  command: gdacc --datadir "{{ datadir }}" init "{{ genesis_path }}"

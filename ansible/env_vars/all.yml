@@ -1,0 +1,22 @@
+---
+
+# ssh config
+ssh_user: root
+ssh_port: 22
+
+# gdacc config
+rpc_port: 8787
+genesis_path: /mnt/genesis.json
+datadir: /data
+
+# git config
+git_repo: https://github.com/daccproject/go-dacc.git
+git_branch: Shara-NewBlockMsg
+git_dest: /mnt/sourcecode/go-dacc
+
+# app config
+project_name: go-dacc
+application_name: gdacc
+
+# validator config
+validator_pwd: 111

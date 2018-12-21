@@ -1,0 +1,7 @@
+---
+
+- name: Restart dacc-netstats service
+  systemd:
+    name: dacc-stats
+    state: restarted
+    daemon_reload: yes

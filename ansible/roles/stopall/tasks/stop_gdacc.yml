@@ -1,0 +1,6 @@
+---
+
+- name: Stop gdacc service
+  systemd:
+    name: gdacc
+    state: stopped

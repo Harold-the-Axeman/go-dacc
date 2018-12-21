@@ -1,0 +1,11 @@
+---
+
+- name: Check miner status
+  command: gdacc attach http://127.0.0.1:8787 --exec "eth.mining"
+  register: isMining
+
+- block:
+    - name: "End play if start miner failed"
+      debug: msg="Start miner failed, ending play"
+    - meta: end_play
+  when: isMining.stdout != "true"

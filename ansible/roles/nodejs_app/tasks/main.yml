@@ -1,0 +1,3 @@
+---
+
+- include: restart_nodejs_app.yml

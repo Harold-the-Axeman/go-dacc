@@ -1,0 +1,6 @@
+---
+
+- name: Build gdacc
+  make:
+    chdir: "{{ git_dest }}"
+    target: gdacc

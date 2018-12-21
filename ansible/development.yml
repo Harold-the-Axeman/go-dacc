@@ -1,0 +1,65 @@
+---
+
+- name: Stop all gdacc service before build
+  hosts: nodes
+  remote_user: root
+  vars:
+    - setup_git_repo: yes
+    - update_apt_cache: yes
+  vars_files:
+    - env_vars/all.yml
+
+  roles:
+    - stopall
+
+- name: Build gdacc
+  hosts: buildserver
+  # IMPORTANT!: environment ensure the shell style module work good, such as shell,command,make
+  environment:
+    PATH: /mnt/usr/local/go/bin:/mnt/sourcecode/go-dacc/build/bin:{{ ansible_env.PATH }}
+  remote_user: root
+  vars:
+    - setup_git_repo: yes
+    - update_apt_cache: yes
+  vars_files:
+    - env_vars/all.yml
+
+  roles:
+    - build
+
+
+- name: Launch gdacc
+  hosts: nodes
+  # IMPORTANT!: environment ensure the shell style module work good, such as shell,command,make
+  environment:
+    PATH: /mnt/usr/local/go/bin:/mnt/sourcecode/go-dacc/build/bin:{{ ansible_env.PATH }}
+  remote_user: root
+  vars:
+    - setup_git_repo: yes
+    - update_apt_cache: yes
+  vars_files:
+    - env_vars/all.yml
+
+  roles:
+    - gdacc
+
+- name: Restart dacc-net-intelligence-api
+  hosts: nodes
+  # IMPORTANT!: environment ensure the shell style module work good, such as shell,command,make
+  environment:
+    PATH: /mnt/usr/local/go/bin:/mnt/sourcecode/go-dacc/build/bin:{{ ansible_env.PATH }}
+  remote_user: root
+  vars_files:
+    - env_vars/all.yml
+
+  roles:
+    - nodejs_app
+
+- name: Restart dacc-netstats service
+  hosts: dacc-netstats
+  remote_user: root
+  vars_files:
+    - env_vars/all.yml
+
+  roles:
+    - dacc-netstats

@@ -1,0 +1,8 @@
+[buildserver]
+2.2.2.2 ansible_connection=ssh ansible_ssh_port=22 ansible_ssh_user=root
+
+[nodes]
+3.3.3.3 ansible_connection=ssh ansible_ssh_port=22 ansible_ssh_user=root
+
+[dacc-netstats]
+4.4.4.4

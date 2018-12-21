@@ -1,0 +1,6 @@
+---
+
+- name: Restart dacc-net-intelligence-api
+  command: pm2 restart app.json
+  args:
+    chdir: ~
