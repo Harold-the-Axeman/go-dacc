@@ -697,9 +697,21 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 			currentBlock := pm.blockchain.CurrentBlock()
 			// change by Shara - remove TD
 			//if trueTD.Cmp(pm.blockchain.GetTd(currentBlock.Hash(), currentBlock.NumberU64())) > 0 {
-			if trueNumber.Cmp(currentBlock.Number()) > 0 {
+			// change by Shara - add insertChain within handle newBlockMsg
+			log.Debug("NewBlockMsg", "trueNumber", trueNumber, "currentBlock Number", currentBlock.Number())
+			if trueNumber.Cmp(new(big.Int).Add(currentBlock.Number(), new(big.Int).SetUint64(1))) == 0 {
+				blocks := make([]*types.Block, 1)
+				blocks[0] = request.Block
+				// TODO: add pm.downloader.synchronising lock here ......
+				// Make sure only one goroutine is ever allowed past this point at once
+				//if !atomic.CompareAndSwapInt32(&pm.downloader.synchronising, 0, 1) {
+				//	return errBusy
+				//}
+				pm.blockchain.InsertChain(blocks)
+			} else if trueNumber.Cmp(currentBlock.Number()) > 0 {
 				go pm.synchronise(p)
 			}
+			// end change by Shara - add insertChain within handle newBlockMsg
 		}
 
 	case msg.Code == TxMsg:
