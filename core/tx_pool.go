@@ -210,6 +210,9 @@ type TxPool struct {
 	wg sync.WaitGroup // for shutdown sync
 
 	homestead bool
+
+	metrics map[string]*metric
+	mlock	sync.Mutex
 }
 
 // NewTxPool creates a new transaction pool to gather, sort and filter inbound
@@ -230,6 +233,7 @@ func NewTxPool(config TxPoolConfig, chainconfig *params.ChainConfig, chain block
 		all:         newTxLookup(),
 		chainHeadCh: make(chan ChainHeadEvent, chainHeadChanSize),
 		gasPrice:    new(big.Int).SetUint64(config.PriceLimit),
+		metrics:     make(map[string]*metric),
 	}
 	pool.locals = newAccountSet(pool.signer)
 	for _, addr := range config.Locals {
@@ -287,14 +291,15 @@ func (pool *TxPool) loop() {
 		// Handle ChainHeadEvent
 		case ev := <-pool.chainHeadCh:
 			if ev.Block != nil {
-				pool.mu.Lock()
+				tag := makeTagWithTime("chainHeadCh")
+				pool.requireLock(false,tag)
 				if pool.chainconfig.IsHomestead(ev.Block.Number()) {
 					pool.homestead = true
 				}
 				pool.reset(head.Header(), ev.Block.Header())
 				head = ev.Block
 
-				pool.mu.Unlock()
+				pool.freeLock(false,tag)
 			}
 		// Be unsubscribed due to system stopped
 		case <-pool.chainHeadSub.Err():
@@ -302,10 +307,11 @@ func (pool *TxPool) loop() {
 
 		// Handle stats reporting ticks
 		case <-report.C:
-			pool.mu.RLock()
+			tag := makeTagWithTime("report.C")
+			pool.requireLock(true,tag)
 			pending, queued := pool.stats()
 			stales := pool.priced.stales
-			pool.mu.RUnlock()
+			pool.freeLock(true,tag)
 
 			if pending != prevPending || queued != prevQueued || stales != prevStales {
 				log.Debug("Transaction pool status report", "executable", pending, "queued", queued, "stales", stales)
@@ -314,7 +320,8 @@ func (pool *TxPool) loop() {
 
 		// Handle inactive account transaction eviction
 		case <-evict.C:
-			pool.mu.Lock()
+			tag := makeTagWithTime("evict.C")
+			pool.requireLock(false,tag)
 			for addr := range pool.queue {
 				// Skip local transactions from the eviction mechanism
 				if pool.locals.contains(addr) {
@@ -327,16 +334,17 @@ func (pool *TxPool) loop() {
 					}
 				}
 			}
-			pool.mu.Unlock()
+			pool.freeLock(false,tag)
 
 		// Handle local transaction journal rotation
 		case <-journal.C:
 			if pool.journal != nil {
-				pool.mu.Lock()
+				tag := makeTagWithTime("journal.C")
+				pool.requireLock(false,tag)
 				if err := pool.journal.rotate(pool.local()); err != nil {
 					log.Warn("Failed to rotate local tx journal", "err", err)
 				}
-				pool.mu.Unlock()
+				pool.freeLock(false,tag)
 			}
 		}
 	}
@@ -345,8 +353,9 @@ func (pool *TxPool) loop() {
 // lockedReset is a wrapper around reset to allow calling it in a thread safe
 // manner. This method is only ever used in the tester!
 func (pool *TxPool) lockedReset(oldHead, newHead *types.Header) {
-	pool.mu.Lock()
-	defer pool.mu.Unlock()
+	tag := makeTagWithTime("lockedReset")
+	pool.requireLock(false,tag)
+	defer pool.freeLock(false,tag)
 
 	pool.reset(oldHead, newHead)
 }
@@ -356,7 +365,7 @@ func (pool *TxPool) lockedReset(oldHead, newHead *types.Header) {
 func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 	// If we're reorging an old state, reinject all dropped transactions
 	var reinject types.Transactions
-
+	t1 := time.Now()
 	if oldHead != nil && oldHead.Hash() != newHead.ParentHash {
 		// If the reorg is too deep, avoid doing it (will happen during fast sync)
 		oldNum := oldHead.Number.Uint64()
@@ -401,11 +410,13 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 			reinject = types.TxDifference(discarded, included)
 		}
 	}
+	t2 := time.Now()
 	// Initialize the internal state to the current head
 	if newHead == nil {
 		newHead = pool.chain.CurrentBlock().Header() // Special case during testing
 	}
 	statedb, err := pool.chain.StateAt(newHead.Root)
+	t3 := time.Now()
 	if err != nil {
 		log.Error("Failed to reset txpool state", "err", err)
 		return
@@ -418,13 +429,13 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 	log.Debug("Reinjecting stale transactions", "count", len(reinject))
 	senderCacher.recover(pool.signer, reinject)
 	pool.addTxsLocked(reinject, false)
-
+	t4 := time.Now()
 	// validate the pool of pending transactions, this will remove
 	// any transactions that have been included in the block or
 	// have been invalidated because of another transaction (e.g.
 	// higher gas price)
 	pool.demoteUnexecutables()
-
+	t5 := time.Now()
 	// Update all accounts to the latest known pending nonce
 	for addr, list := range pool.pending {
 		txs := list.Flatten() // Heavy but will be cached and is needed by the miner anyway
@@ -433,6 +444,11 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 	// Check the queue and move transactions over to the pending if possible
 	// or remove those that have become invalid
 	pool.promoteExecutables(nil)
+	t6 := time.Now()
+
+	if t5.Sub(t1).Seconds() > 1 {
+		log.Info("🐌 reset too slow","Number",newHead.Number,"t1-2",t2.Sub(t1),"t2-3",t3.Sub(t2),"t3-4",t4.Sub(t3),"t4-5",t5.Sub(t4),"t5-6",t6.Sub(t5))
+	}
 }
 
 // Stop terminates the transaction pool.
@@ -458,8 +474,9 @@ func (pool *TxPool) SubscribeNewTxsEvent(ch chan<- NewTxsEvent) event.Subscripti
 
 // GasPrice returns the current gas price enforced by the transaction pool.
 func (pool *TxPool) GasPrice() *big.Int {
-	pool.mu.RLock()
-	defer pool.mu.RUnlock()
+	tag := makeTagWithTime("GasPrice")
+	pool.requireLock(true,tag)
+	defer pool.freeLock(true,tag)
 
 	return new(big.Int).Set(pool.gasPrice)
 }
@@ -467,8 +484,9 @@ func (pool *TxPool) GasPrice() *big.Int {
 // SetGasPrice updates the minimum price required by the transaction pool for a
 // new transaction, and drops all transactions below this threshold.
 func (pool *TxPool) SetGasPrice(price *big.Int) {
-	pool.mu.Lock()
-	defer pool.mu.Unlock()
+	tag := makeTagWithTime("SetGasPrice")
+	pool.requireLock(false,tag)
+	defer pool.freeLock(false,tag)
 
 	pool.gasPrice = price
 	for _, tx := range pool.priced.Cap(price, pool.locals) {
@@ -479,8 +497,9 @@ func (pool *TxPool) SetGasPrice(price *big.Int) {
 
 // State returns the virtual managed state of the transaction pool.
 func (pool *TxPool) State() *state.ManagedState {
-	pool.mu.RLock()
-	defer pool.mu.RUnlock()
+	tag := makeTagWithTime("State")
+	pool.requireLock(true,tag)
+	defer pool.freeLock(true,tag)
 
 	return pool.pendingState
 }
@@ -488,8 +507,9 @@ func (pool *TxPool) State() *state.ManagedState {
 // Stats retrieves the current pool stats, namely the number of pending and the
 // number of queued (non-executable) transactions.
 func (pool *TxPool) Stats() (int, int) {
-	pool.mu.RLock()
-	defer pool.mu.RUnlock()
+	tag := makeTagWithTime("Stats")
+	pool.requireLock(true,tag)
+	defer pool.freeLock(true,tag)
 
 	return pool.stats()
 }
@@ -511,8 +531,9 @@ func (pool *TxPool) stats() (int, int) {
 // Content retrieves the data content of the transaction pool, returning all the
 // pending as well as queued transactions, grouped by account and sorted by nonce.
 func (pool *TxPool) Content() (map[common.Address]types.Transactions, map[common.Address]types.Transactions) {
-	pool.mu.Lock()
-	defer pool.mu.Unlock()
+	tag := makeTagWithTime("Content")
+	pool.requireLock(false,tag)
+	defer pool.freeLock(false,tag)
 
 	pending := make(map[common.Address]types.Transactions)
 	for addr, list := range pool.pending {
@@ -529,8 +550,9 @@ func (pool *TxPool) Content() (map[common.Address]types.Transactions, map[common
 // account and sorted by nonce. The returned transaction set is a copy and can be
 // freely modified by calling code.
 func (pool *TxPool) Pending() (map[common.Address]types.Transactions, error) {
-	pool.mu.Lock()
-	defer pool.mu.Unlock()
+	tag := makeTagWithTime("Pending")
+	pool.requireLock(false,tag)
+	defer pool.freeLock(false,tag)
 
 	pending := make(map[common.Address]types.Transactions)
 	for addr, list := range pool.pending {
@@ -541,8 +563,9 @@ func (pool *TxPool) Pending() (map[common.Address]types.Transactions, error) {
 
 // Locals retrieves the accounts currently considered local by the pool.
 func (pool *TxPool) Locals() []common.Address {
-	pool.mu.Lock()
-	defer pool.mu.Unlock()
+	tag := makeTagWithTime("Locals")
+	pool.requireLock(false,tag)
+	defer pool.freeLock(false,tag)
 
 	return pool.locals.flatten()
 }
@@ -632,17 +655,24 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (bool, error) {
 	// If the transaction pool is full, discard underpriced transactions
 	if uint64(pool.all.Count()) >= pool.config.GlobalSlots+pool.config.GlobalQueue {
 		// If the new transaction is underpriced, don't accept it
+		t1 := time.Now()
 		if !local && pool.priced.Underpriced(tx, pool.locals) {
 			log.Trace("Discarding underpriced transaction", "hash", hash, "price", tx.GasPrice())
 			underpricedTxCounter.Inc(1)
 			return false, ErrUnderpriced
 		}
+		t2 := time.Now()
 		// New transaction is better than our worse ones, make room for it
 		drop := pool.priced.Discard(pool.all.Count()-int(pool.config.GlobalSlots+pool.config.GlobalQueue-1), pool.locals)
+		t3 := time.Now()
 		for _, tx := range drop {
 			log.Trace("Discarding freshly underpriced transaction", "hash", tx.Hash(), "price", tx.GasPrice())
 			underpricedTxCounter.Inc(1)
 			pool.removeTx(tx.Hash(), false)
+		}
+		t4 := time.Now()
+		if t4.Sub(t1).Seconds() > 0.05 {
+			log.Info("🐌 add too slow","t1-2",t2.Sub(t1),"t2-3",t3.Sub(t2),"t3-4",t4.Sub(t3))
 		}
 	}
 	// If the transaction is replacing an already pending one, do directly
@@ -798,8 +828,9 @@ func (pool *TxPool) AddRemotes(txs []*types.Transaction) []error {
 
 // addTx enqueues a single transaction into the pool if it is valid.
 func (pool *TxPool) addTx(tx *types.Transaction, local bool) error {
-	pool.mu.Lock()
-	defer pool.mu.Unlock()
+	tag := makeTagWithTime("addTx")
+	pool.requireLock(false,tag)
+	defer pool.freeLock(false,tag)
 
 	// Try to inject the transaction and update any state
 	replace, err := pool.add(tx, local)
@@ -816,8 +847,9 @@ func (pool *TxPool) addTx(tx *types.Transaction, local bool) error {
 
 // addTxs attempts to queue a batch of transactions if they are valid.
 func (pool *TxPool) addTxs(txs []*types.Transaction, local bool) []error {
-	pool.mu.Lock()
-	defer pool.mu.Unlock()
+	tag := makeTagWithTime(fmt.Sprintf("%s-%t","addTxs",local))
+	pool.requireLock(false,tag)
+	defer pool.freeLock(false,tag)
 
 	return pool.addTxsLocked(txs, local)
 }
@@ -828,7 +860,7 @@ func (pool *TxPool) addTxsLocked(txs []*types.Transaction, local bool) []error {
 	// Add the batch of transaction, tracking the accepted ones
 	dirty := make(map[common.Address]struct{})
 	errs := make([]error, len(txs))
-
+	t1 := time.Now()
 	for i, tx := range txs {
 		var replace bool
 		if replace, errs[i] = pool.add(tx, local); errs[i] == nil && !replace {
@@ -836,6 +868,8 @@ func (pool *TxPool) addTxsLocked(txs []*types.Transaction, local bool) []error {
 			dirty[from] = struct{}{}
 		}
 	}
+	t2 := time.Now()
+
 	// Only reprocess the internal state if something was actually added
 	if len(dirty) > 0 {
 		addrs := make([]common.Address, 0, len(dirty))
@@ -844,14 +878,19 @@ func (pool *TxPool) addTxsLocked(txs []*types.Transaction, local bool) []error {
 		}
 		pool.promoteExecutables(addrs)
 	}
+	t3 := time.Now()
+	if t3.Sub(t1).Seconds() > 1 {
+		log.Info("🐌 addTxsLocked too slow","txs",len(txs),"t1-2",t2.Sub(t1),"t2-3",t3.Sub(t2))
+	}
 	return errs
 }
 
 // Status returns the status (unknown/pending/queued) of a batch of transactions
 // identified by their hashes.
 func (pool *TxPool) Status(hashes []common.Hash) []TxStatus {
-	pool.mu.RLock()
-	defer pool.mu.RUnlock()
+	tag := makeTagWithTime("Status")
+	pool.requireLock(true,tag)
+	defer pool.freeLock(true,tag)
 
 	status := make([]TxStatus, len(hashes))
 	for i, hash := range hashes {
@@ -922,7 +961,7 @@ func (pool *TxPool) removeTx(hash common.Hash, outofbound bool) {
 func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 	// Track the promoted transactions to broadcast them at once
 	var promoted []*types.Transaction
-
+	t1 := time.Now()
 	// Gather all the accounts potentially needing updates
 	if accounts == nil {
 		accounts = make([]common.Address, 0, len(pool.queue))
@@ -975,6 +1014,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 			delete(pool.queue, addr)
 		}
 	}
+	t2 := time.Now()
 	// Notify subsystem for new promoted transactions.
 	if len(promoted) > 0 {
 		go pool.txFeed.Send(NewTxsEvent{promoted})
@@ -1027,6 +1067,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 				}
 			}
 		}
+
 		// If still above threshold, reduce to limit or min allowance
 		if pending > pool.config.GlobalSlots && len(offenders) > 0 {
 			for pending > pool.config.GlobalSlots && uint64(pool.pending[offenders[len(offenders)-1]].Len()) > pool.config.AccountSlots {
@@ -1050,6 +1091,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 		}
 		pendingRateLimitCounter.Inc(int64(pendingBeforeCap - pending))
 	}
+	t3 := time.Now()
 	// If we've queued more transactions than the hard limit, drop oldest ones
 	queued := uint64(0)
 	for _, list := range pool.queue {
@@ -1089,6 +1131,10 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 				queuedRateLimitCounter.Inc(1)
 			}
 		}
+	}
+	t4 := time.Now()
+	if t4.Sub(t1).Seconds() > 1 {
+		log.Info("🐌 promoteExecutables too slow","t1-2",t2.Sub(t1),"t2-3",t3.Sub(t2),"t3-4",t4.Sub(t3))
 	}
 }
 
@@ -1263,4 +1309,45 @@ func (t *txLookup) Remove(hash common.Hash) {
 	defer t.lock.Unlock()
 
 	delete(t.all, hash)
+}
+
+type metric struct {
+	reqLockBefore time.Time // start
+	reqLockAfter time.Time // consensus Prepare
+}
+
+func makeTagWithTime(tag string)string  {
+	return fmt.Sprintf("%s-%v",tag,time.Now().UnixNano())
+}
+
+func (pool *TxPool)requireLock(onlyR bool,tag string)  {
+	mtag := tag
+	before := time.Now()
+	if onlyR {
+		pool.mu.RLock()
+	}else{
+		pool.mu.Lock()
+	}
+	pool.mlock.Lock()
+	pool.metrics[mtag] = &metric{reqLockBefore:before,reqLockAfter : time.Now()}
+	pool.mlock.Unlock()
+}
+
+func (pool *TxPool)freeLock(onlyR bool,tag string)  {
+	freeTime := time.Now()
+	pool.mlock.Lock()
+	metric := pool.metrics[tag]
+	delete(pool.metrics,tag)
+	pool.mlock.Unlock()
+	waitTime := metric.reqLockAfter.Sub(metric.reqLockBefore)
+	handleTime := freeTime.Sub(metric.reqLockAfter)
+	if waitTime.Seconds() > 1 || handleTime.Seconds() > 1 {
+		log.Info("🐌 txpool slow lock","tag",tag,"waitTime",waitTime,"handleTime",handleTime)
+	}
+	if onlyR {
+		pool.mu.RUnlock()
+	}else{
+		pool.mu.Unlock()
+	}
+
 }
