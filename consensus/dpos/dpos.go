@@ -502,15 +502,16 @@ func (d *Dpos) Seal(chain consensus.ChainReader, block *types.Block, stop <-chan
 	if number == 0 {
 		return nil, errUnknownBlock
 	}
-	now := time.Now().Unix()
-	delay := NextSlot(now) - now
-	if delay > 0 {
-		select {
-		case <-stop:
-			return nil, nil
-		case <-time.After(time.Duration(delay) * time.Second):
-		}
-	}
+	//TODO: seal delay is normal,how long delay is acceptable
+	//now := time.Now().Unix()
+	//delay := NextSlot(now) - now
+	//if delay > 0 {
+		//select {
+		//case <-stop:
+		//	return nil, nil
+		//case <-time.After(time.Duration(delay) * time.Second):
+		//}
+	//}
 
 	// time's up, sign the block
 	sighash, err := d.signFn(accounts.Account{Address: d.signer}, sigHash(header).Bytes())
