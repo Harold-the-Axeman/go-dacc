@@ -502,7 +502,7 @@ func (d *Dpos) Seal(chain consensus.ChainReader, block *types.Block, stop <-chan
 	if number == 0 {
 		return nil, errUnknownBlock
 	}
-	//TODO: seal delay is normal,how long delay is acceptable
+	//TODO: seal late is normal,how long left is acceptable
 	//now := time.Now().Unix()
 	//delay := NextSlot(now) - now
 	//if delay > 0 {
