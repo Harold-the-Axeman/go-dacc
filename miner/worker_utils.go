@@ -200,7 +200,7 @@ func (w *worker) printMetric(block *types.Block, receipts types.Receipts) {
 	m := w.current.metric
 	log.Info("⚡️ New mining work metric: ", "Prepare", m.tp.Sub(m.ts), "makeCurrent", m.tmc.Sub(m.tp),
 		"applyTransactions", m.tat.Sub(m.tmc), "Finalize", m.tf.Sub(m.tat), "Seal", m.tsl.Sub(m.tf),
-		"WriteBlockWithState", m.twbs.Sub(m.tsl),"ts",m.ts.UnixNano(),"tp",m.tp.UnixNano(),"tmc",m.tmc.UnixNano(),"tat",m.tat.UnixNano(),"tf",m.tf.UnixNano(),"tsl",m.tsl.UnixNano(),"twbs",m.twbs.UnixNano())
+		"WriteBlockWithState", m.twbs.Sub(m.tsl),"ts",m.ts.UnixNano(),"tp",m.tp.UnixNano())
 }
 
 // makeCurrent creates a new environment for the current cycle.
