@@ -1,0 +1,12 @@
+---
+
+- name: Stop gdacc
+  hosts: nodes
+  # IMPORTANT!: environment ensure the shell style module work good, such as shell,command,make
+  environment:
+    PATH: /mnt/usr/local/go/bin:/mnt/sourcecode/go-dacc/build/bin:{{ ansible_env.PATH }}
+  remote_user: root
+  vars_files:
+    - env_vars/all.yml
+  roles:
+    - stop_gdacc

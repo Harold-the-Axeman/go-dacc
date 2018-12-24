@@ -3,14 +3,10 @@
 - name: Stop all gdacc service before build
   hosts: nodes
   remote_user: root
-  vars:
-    - setup_git_repo: yes
-    - update_apt_cache: yes
   vars_files:
     - env_vars/all.yml
-
   roles:
-    - stopall
+    - stop_gdacc
 
 - name: Build gdacc
   hosts: buildserver
@@ -18,12 +14,8 @@
   environment:
     PATH: /mnt/usr/local/go/bin:/mnt/sourcecode/go-dacc/build/bin:{{ ansible_env.PATH }}
   remote_user: root
-  vars:
-    - setup_git_repo: yes
-    - update_apt_cache: yes
   vars_files:
     - env_vars/all.yml
-
   roles:
     - build
 
@@ -34,12 +26,8 @@
   environment:
     PATH: /mnt/usr/local/go/bin:/mnt/sourcecode/go-dacc/build/bin:{{ ansible_env.PATH }}
   remote_user: root
-  vars:
-    - setup_git_repo: yes
-    - update_apt_cache: yes
   vars_files:
     - env_vars/all.yml
-
   roles:
     - gdacc
 
@@ -51,7 +39,6 @@
   remote_user: root
   vars_files:
     - env_vars/all.yml
-
   roles:
     - nodejs_app
 
@@ -60,6 +47,5 @@
   remote_user: root
   vars_files:
     - env_vars/all.yml
-
   roles:
     - dacc-netstats

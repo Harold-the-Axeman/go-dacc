@@ -1,0 +1,10 @@
+---
+
+- name: Set validator
+  command: gdacc attach http://127.0.0.1:"{{ rpc_port }}" --exec "miner.setValidator(eth.accounts[0])"
+
+- name: Unlock validator account
+  command: gdacc attach http://127.0.0.1:"{{ rpc_port }}" --exec "personal.unlockAccount(eth.accounts[0], \"{{ validator_pwd }}\", 0)"
+
+- name: Start miner
+  command: gdacc attach http://127.0.0.1:"{{ rpc_port }}" --exec "miner.start(1)"

@@ -1,0 +1,4 @@
+---
+
+- name: Stop miner
+  command: gdacc attach http://127.0.0.1:"{{ rpc_port }}" --exec "miner.stop()"
