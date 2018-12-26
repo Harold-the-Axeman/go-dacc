@@ -50,4 +50,5 @@ profile.cov
 **/yarn-error.log
 
 hosts_production
+hosts_9
 *.retry
