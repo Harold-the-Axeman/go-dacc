@@ -33,7 +33,7 @@ const (
 
 	blockInterval    = int64(5)
 	epochInterval    = int64(86400)
-	maxValidatorSize = 5
+	maxValidatorSize = 9
 	safeSize         = maxValidatorSize*2/3 + 1
 	consensusSize    = maxValidatorSize*2/3 + 1
 )
@@ -506,11 +506,11 @@ func (d *Dpos) Seal(chain consensus.ChainReader, block *types.Block, stop <-chan
 	//now := time.Now().Unix()
 	//delay := NextSlot(now) - now
 	//if delay > 0 {
-		//select {
-		//case <-stop:
-		//	return nil, nil
-		//case <-time.After(time.Duration(delay) * time.Second):
-		//}
+	//select {
+	//case <-stop:
+	//	return nil, nil
+	//case <-time.After(time.Duration(delay) * time.Second):
+	//}
 	//}
 
 	// time's up, sign the block
