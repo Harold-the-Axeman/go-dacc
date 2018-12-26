@@ -1,6 +1,9 @@
 package metrics
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 func BenchmarkCounter(b *testing.B) {
 	c := NewCounter()
@@ -38,6 +41,7 @@ func TestCounterDec2(t *testing.T) {
 func TestCounterInc1(t *testing.T) {
 	c := NewCounter()
 	c.Inc(1)
+	fmt.Println(c.Count())
 	if count := c.Count(); 1 != count {
 		t.Errorf("c.Count(): 1 != %v\n", count)
 	}

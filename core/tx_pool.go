@@ -99,6 +99,14 @@ var (
 	// General tx metrics
 	invalidTxCounter     = metrics.NewRegisteredCounter("txpool/invalid", nil)
 	underpricedTxCounter = metrics.NewRegisteredCounter("txpool/underpriced", nil)
+
+	localTxsCounter = metrics.NewRegisteredCounter("txpool/localTxs", nil)
+
+	remoteMsgCounter = metrics.NewRegisteredCounter("txpool/remoteMsg", nil)
+	remoteTxsCounter = metrics.NewRegisteredCounter("txpool/remoteTxs", nil)
+
+	sendEventCounter = metrics.NewRegisteredCounter("txpool/sendEvent", nil)
+	sendEventTxsCounter = metrics.NewRegisteredCounter("txpool/sendEventTxs", nil)
 )
 
 // TxStatus is the current status of a transaction as seen by the pool.
@@ -464,12 +472,19 @@ func (pool *TxPool) Stop() {
 		pool.journal.close()
 	}
 	log.Info("Transaction pool stopped")
+	log.Info("TxPool tx counter","localTxs",localTxsCounter.Count(),"remoteMsg",remoteMsgCounter.Count(),"remoteTxs",remoteTxsCounter.Count(),"sendEvent",sendEventCounter.Count(),"sendTxs",sendEventTxsCounter.Count())
 }
 
 // SubscribeNewTxsEvent registers a subscription of NewTxsEvent and
 // starts sending event to the given channel.
 func (pool *TxPool) SubscribeNewTxsEvent(ch chan<- NewTxsEvent) event.Subscription {
 	return pool.scope.Track(pool.txFeed.Subscribe(ch))
+}
+
+func (pool *TxPool)SendTxEvent(event NewTxsEvent)  {
+	sendEventCounter.Inc(1)
+	sendEventTxsCounter.Inc(int64(len(event.Txs)))
+	pool.txFeed.Send(event)
 }
 
 // GasPrice returns the current gas price enforced by the transaction pool.
@@ -691,7 +706,8 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (bool, error) {
 		log.Trace("Pooled new executable transaction", "hash", hash, "from", from, "to", tx.To())
 
 		// We've directly injected a replacement transaction, notify subsystems
-		go pool.txFeed.Send(NewTxsEvent{types.Transactions{tx}})
+		//go pool.txFeed.Send(NewTxsEvent{types.Transactions{tx}})
+		go pool.SendTxEvent(NewTxsEvent{types.Transactions{tx}})
 
 		return old != nil, nil
 	}
@@ -796,6 +812,7 @@ func (pool *TxPool) promoteTx(addr common.Address, hash common.Hash, tx *types.T
 // the sender as a local one in the mean time, ensuring it goes around the local
 // pricing constraints.
 func (pool *TxPool) AddLocal(tx *types.Transaction) error {
+	localTxsCounter.Inc(1)
 	return pool.addTx(tx, !pool.config.NoLocals)
 }
 
@@ -817,6 +834,8 @@ func (pool *TxPool) AddLocals(txs []*types.Transaction) []error {
 // If the senders are not among the locally tracked ones, full pricing constraints
 // will apply.
 func (pool *TxPool) AddRemotes(txs []*types.Transaction) []error {
+	remoteMsgCounter.Inc(1)
+	remoteTxsCounter.Inc(int64(len(txs)))
 	return pool.addTxs(txs, false)
 }
 
@@ -1003,7 +1022,8 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 	}
 	// Notify subsystem for new promoted transactions.
 	if len(promoted) > 0 {
-		go pool.txFeed.Send(NewTxsEvent{promoted})
+		//go pool.txFeed.Send(NewTxsEvent{promoted})
+		go pool.SendTxEvent(NewTxsEvent{promoted})
 	}
 	// If the pending limit is overflown, start equalizing allowances
 	pending := uint64(0)

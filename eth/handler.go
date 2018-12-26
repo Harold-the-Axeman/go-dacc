@@ -38,6 +38,7 @@ import (
 	"github.com/daccproject/go-dacc/p2p/discover"
 	"github.com/daccproject/go-dacc/params"
 	"github.com/daccproject/go-dacc/rlp"
+	"github.com/daccproject/go-dacc/metrics"
 )
 
 const (
@@ -60,6 +61,20 @@ var errIncompatibleConfig = errors.New("incompatible configuration")
 func errResp(code errCode, format string, v ...interface{}) error {
 	return fmt.Errorf("%v - %v", code, fmt.Sprintf(format, v...))
 }
+
+var (
+	NewBlockHashesMsgCounter = metrics.NewRegisteredCounter("handler/NewBlockHashesMsg", nil)
+	GetBlockHeadersMsgCounter = metrics.NewRegisteredCounter("handler/GetBlockHeadersMsg", nil)
+	BlockHeadersMsgCounter = metrics.NewRegisteredCounter("handler/BlockHeadersMsg", nil)
+	GetBlockBodiesMsgCounter = metrics.NewRegisteredCounter("handler/GetBlockBodiesMsg", nil)
+	BlockBodiesMsgCounter = metrics.NewRegisteredCounter("handler/BlockBodiesMsg", nil)
+	NewBlockMsgCounter = metrics.NewRegisteredCounter("handler/NewBlockMsg", nil)
+	GetNodeDataMsgCounter = metrics.NewRegisteredCounter("handler/GetNodeDataMsg", nil)
+	NodeDataMsgCounter = metrics.NewRegisteredCounter("handler/NodeDataMsg", nil)
+	GetReceiptsMsgCounter = metrics.NewRegisteredCounter("handler/GetReceiptsMsg", nil)
+	ReceiptsMsgCounter = metrics.NewRegisteredCounter("handler/ReceiptsMsg", nil)
+	TxMsgCounter = metrics.NewRegisteredCounter("handler/TxMsg", nil)
+)
 
 type ProtocolManager struct {
 	networkID uint64
@@ -92,6 +107,7 @@ type ProtocolManager struct {
 	// wait group is used for graceful shutdowns during downloading
 	// and processing
 	wg sync.WaitGroup
+
 }
 
 // NewProtocolManager returns a new Ethereum sub protocol manager. The Ethereum sub protocol manages peers capable
@@ -239,6 +255,22 @@ func (pm *ProtocolManager) Stop() {
 	pm.wg.Wait()
 
 	log.Info("Ethereum protocol stopped")
+	NewBlockHashesMsgCount := NewBlockHashesMsgCounter.Count()
+	GetBlockHeadersMsgCount := GetBlockHeadersMsgCounter.Count()
+	BlockHeadersMsgCount := BlockHeadersMsgCounter.Count()
+	GetBlockBodiesMsgCount := GetBlockBodiesMsgCounter.Count()
+	BlockBodiesMsgCount := BlockBodiesMsgCounter.Count()
+	NewBlockMsgCount := NewBlockMsgCounter.Count()
+	GetNodeDataMsgCount := GetNodeDataMsgCounter.Count()
+	NodeDataMsgCount := NodeDataMsgCounter.Count()
+	GetReceiptsMsgCount := GetReceiptsMsgCounter.Count()
+	ReceiptsMsgCount := ReceiptsMsgCounter.Count()
+	TxMsgCount := TxMsgCounter.Count()
+	total := NewBlockHashesMsgCount + GetBlockHeadersMsgCount + BlockHeadersMsgCount + GetBlockBodiesMsgCount + BlockBodiesMsgCount + NewBlockMsgCount + GetNodeDataMsgCount + NodeDataMsgCount + GetReceiptsMsgCount + ReceiptsMsgCount + TxMsgCount
+	log.Info("Handler counter","NewBlockHashesMsg",NewBlockHashesMsgCount,"GetBlockHeadersMsg",GetBlockHeadersMsgCount,
+		"BlockHeadersMsg",BlockHeadersMsgCount,"GetBlockBodiesMsg",GetBlockBodiesMsgCount,"BlockBodiesMsg",BlockBodiesMsgCount,
+		"NewBlockMsg",NewBlockMsgCount,"GetNodeDataMsg",GetNodeDataMsgCount,"NodeDataMsg",NodeDataMsgCount,
+		"GetReceiptsMsg",GetReceiptsMsgCount,"ReceiptsMsg",ReceiptsMsgCount,"TxMsg",TxMsgCount,"total",total,"txp",TxMsgCount / total)
 }
 
 func (pm *ProtocolManager) newPeer(pv int, p *p2p.Peer, rw p2p.MsgReadWriter) *peer {
@@ -338,6 +370,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 	// Block header query, collect the requested headers and reply
 	case msg.Code == GetBlockHeadersMsg:
 		// Decode the complex header query
+		GetBlockHeadersMsgCounter.Inc(1)
 		var query getBlockHeadersData
 		if err := msg.Decode(&query); err != nil {
 			return errResp(ErrDecode, "%v: %v", msg, err)
@@ -424,6 +457,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		return p.SendBlockHeaders(headers)
 
 	case msg.Code == BlockHeadersMsg:
+		BlockHeadersMsgCounter.Inc(1)
 		// A batch of headers arrived to one of our previous requests
 		var headers []*types.Header
 		if err := msg.Decode(&headers); err != nil {
@@ -481,6 +515,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		}
 
 	case msg.Code == GetBlockBodiesMsg:
+		GetBlockBodiesMsgCounter.Inc(1)
 		// Decode the retrieval message
 		msgStream := rlp.NewStream(msg.Payload, uint64(msg.Size))
 		if _, err := msgStream.List(); err != nil {
@@ -508,6 +543,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		return p.SendBlockBodiesRLP(bodies)
 
 	case msg.Code == BlockBodiesMsg:
+		BlockBodiesMsgCounter.Inc(1)
 		// A batch of block bodies arrived to one of our previous requests
 		var request blockBodiesData
 		if err := msg.Decode(&request); err != nil {
@@ -558,6 +594,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		// END [deprecated the uncle block logic]
 
 	case p.version >= eth63 && msg.Code == GetNodeDataMsg:
+		GetNodeDataMsgCounter.Inc(1)
 		// Decode the retrieval message
 		msgStream := rlp.NewStream(msg.Payload, uint64(msg.Size))
 		if _, err := msgStream.List(); err != nil {
@@ -585,6 +622,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		return p.SendNodeData(data)
 
 	case p.version >= eth63 && msg.Code == NodeDataMsg:
+		NodeDataMsgCounter.Inc(1)
 		// A batch of node state data arrived to one of our previous requests
 		var data [][]byte
 		if err := msg.Decode(&data); err != nil {
@@ -596,6 +634,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		}
 
 	case p.version >= eth63 && msg.Code == GetReceiptsMsg:
+		GetReceiptsMsgCounter.Inc(1)
 		// Decode the retrieval message
 		msgStream := rlp.NewStream(msg.Payload, uint64(msg.Size))
 		if _, err := msgStream.List(); err != nil {
@@ -632,6 +671,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		return p.SendReceiptsRLP(receipts)
 
 	case p.version >= eth63 && msg.Code == ReceiptsMsg:
+		ReceiptsMsgCounter.Inc(1)
 		// A batch of receipts arrived to one of our previous requests
 		var receipts [][]*types.Receipt
 		if err := msg.Decode(&receipts); err != nil {
@@ -643,6 +683,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		}
 
 	case msg.Code == NewBlockHashesMsg:
+		NewBlockHashesMsgCounter.Inc(1)
 		var announces newBlockHashesData
 		if err := msg.Decode(&announces); err != nil {
 			return errResp(ErrDecode, "%v: %v", msg, err)
@@ -663,6 +704,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		}
 
 	case msg.Code == NewBlockMsg:
+		NewBlockMsgCounter.Inc(1)
 		// Retrieve and decode the propagated block
 		var request newBlockData
 		if err := msg.Decode(&request); err != nil {
@@ -703,6 +745,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		}
 
 	case msg.Code == TxMsg:
+		TxMsgCounter.Inc(1)
 		// Transactions arrived, make sure we have a valid and fresh chain to handle them
 		if atomic.LoadUint32(&pm.acceptTxs) == 0 {
 			break
