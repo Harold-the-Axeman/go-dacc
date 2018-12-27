@@ -120,21 +120,19 @@ func newWorker(config *params.ChainConfig, engine consensus.Engine, eth Backend,
 // newWorkLoop is a standalone goroutine to submit new mining work upon received events.
 func (w *worker) mainLoop() {
 	var timestamp int64
-	//var oneSecondCounter = time.Now().Unix()
-	ticker := time.NewTicker(time.Second * blockInterval)
+	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 
 	for {
 		select {
 		//case <- w.startCH: //TODO, use this to start the mining process
 		case now := <-ticker.C:
-			//oneSecondCounter++
 			timestamp = now.Unix()
 			if w.isRunning() {
 				start := time.Now()
 				if timestamp%blockInterval == 0 { // check it is time to mint block
 					log.Warn("Miner work blockInterval","now",start.Unix(),"ticker",timestamp)
-					w.mintBlock(timestamp) // TODO: go routine, stopChan in the future
+					go w.mintBlock(timestamp) // TODO: go routine, stopChan in the future
 					end := time.Now()
 					if end.Sub(start).Seconds() > 2 {
 						log.Info("🐌 Miner work too slow","mint",end.Sub(start),"start",start.Unix(),"ticker",timestamp)
