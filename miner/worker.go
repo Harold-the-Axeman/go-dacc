@@ -129,14 +129,16 @@ func (w *worker) mainLoop() {
 		case now := <-ticker.C:
 			timestamp = now.Unix()
 			if w.isRunning() {
+				start := time.Now()
 				if timestamp%blockInterval == 0 { // check it is time to mint block
-					start := time.Now()
 					log.Warn("Miner work blockInterval","now",start.Unix(),"ticker",now.Unix())
 					w.mintBlock(timestamp) // TODO: go routine, stopChan in the future
 					end := time.Now()
 					if end.Sub(start).Seconds() > 2 {
 						log.Info("🐌 Miner work too slow","mint",end.Sub(start),"start",start.Unix(),"ticker",now.Unix())
 					}
+				}else{
+					log.Warn("Miner work false","now",start.Unix(),"ticker",now.Unix())
 				}
 			}
 			// for the next block
