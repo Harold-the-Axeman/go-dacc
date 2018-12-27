@@ -451,7 +451,7 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 	}
 	// Check the queue and move transactions over to the pending if possible
 	// or remove those that have become invalid
-	pool.promoteExecutables(nil)
+	pool.promoteExecutables(nil,true)
 	t6 := time.Now()
 
 	if t5.Sub(t1).Seconds() > 1 {
@@ -707,7 +707,7 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (bool, error) {
 
 		// We've directly injected a replacement transaction, notify subsystems
 		//go pool.txFeed.Send(NewTxsEvent{types.Transactions{tx}})
-		go pool.SendTxEvent(NewTxsEvent{types.Transactions{tx}})
+		go pool.SendTxEvent(NewTxsEvent{types.Transactions{tx},local})
 
 		return old != nil, nil
 	}
@@ -853,7 +853,7 @@ func (pool *TxPool) addTx(tx *types.Transaction, local bool) error {
 	// If we added a new transaction, run promotion checks and return
 	if !replace {
 		from, _ := types.Sender(pool.signer, tx) // already validated
-		pool.promoteExecutables([]common.Address{from})
+		pool.promoteExecutables([]common.Address{from},local)
 	}
 	return nil
 }
@@ -887,7 +887,7 @@ func (pool *TxPool) addTxsLocked(txs []*types.Transaction, local bool) []error {
 		for addr := range dirty {
 			addrs = append(addrs, addr)
 		}
-		pool.promoteExecutables(addrs)
+		pool.promoteExecutables(addrs,local)
 	}
 	return errs
 }
@@ -965,7 +965,7 @@ func (pool *TxPool) removeTx(hash common.Hash, outofbound bool) {
 // promoteExecutables moves transactions that have become processable from the
 // future queue to the set of pending transactions. During this process, all
 // invalidated transactions (low nonce, low balance) are deleted.
-func (pool *TxPool) promoteExecutables(accounts []common.Address) {
+func (pool *TxPool) promoteExecutables(accounts []common.Address,local bool) {
 	// Track the promoted transactions to broadcast them at once
 	var promoted []*types.Transaction
 	// Gather all the accounts potentially needing updates
@@ -1023,7 +1023,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 	// Notify subsystem for new promoted transactions.
 	if len(promoted) > 0 {
 		//go pool.txFeed.Send(NewTxsEvent{promoted})
-		go pool.SendTxEvent(NewTxsEvent{promoted})
+		go pool.SendTxEvent(NewTxsEvent{promoted,local})
 	}
 	// If the pending limit is overflown, start equalizing allowances
 	pending := uint64(0)

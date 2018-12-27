@@ -414,7 +414,7 @@ func (self *TxPool) add(ctx context.Context, tx *types.Transaction) error {
 		// Notify the subscribers. This event is posted in a goroutine
 		// because it's possible that somewhere during the post "Remove transaction"
 		// gets called which will then wait for the global tx pool lock and deadlock.
-		go self.txFeed.Send(core.NewTxsEvent{Txs: types.Transactions{tx}})
+		go self.txFeed.Send(core.NewTxsEvent{Txs: types.Transactions{tx},IsLocal:true})
 	}
 
 	// Print a log message if low enough level is set

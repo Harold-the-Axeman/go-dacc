@@ -240,7 +240,7 @@ func TestPendingTxFilter(t *testing.T) {
 	fid0 := api.NewPendingTransactionFilter()
 
 	time.Sleep(1 * time.Second)
-	txFeed.Send(core.NewTxsEvent{Txs: transactions})
+	txFeed.Send(core.NewTxsEvent{Txs: transactions,IsLocal:true})
 
 	timeout := time.Now().Add(1 * time.Second)
 	for {
