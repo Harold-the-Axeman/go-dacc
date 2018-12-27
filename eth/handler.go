@@ -270,7 +270,7 @@ func (pm *ProtocolManager) Stop() {
 	log.Info("Handler counter","NewBlockHashesMsg",NewBlockHashesMsgCount,"GetBlockHeadersMsg",GetBlockHeadersMsgCount,
 		"BlockHeadersMsg",BlockHeadersMsgCount,"GetBlockBodiesMsg",GetBlockBodiesMsgCount,"BlockBodiesMsg",BlockBodiesMsgCount,
 		"NewBlockMsg",NewBlockMsgCount,"GetNodeDataMsg",GetNodeDataMsgCount,"NodeDataMsg",NodeDataMsgCount,
-		"GetReceiptsMsg",GetReceiptsMsgCount,"ReceiptsMsg",ReceiptsMsgCount,"TxMsg",TxMsgCount,"total",total,"txp",TxMsgCount / total)
+		"GetReceiptsMsg",GetReceiptsMsgCount,"ReceiptsMsg",ReceiptsMsgCount,"TxMsg",TxMsgCount,"total",total)
 }
 
 func (pm *ProtocolManager) newPeer(pv int, p *p2p.Peer, rw p2p.MsgReadWriter) *peer {
