@@ -383,6 +383,7 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 			log.Debug("Skipping deep transaction reorg", "depth", depth)
 		} else {
 			// Reorg seems shallow enough to pull in all transactions into memory
+			log.Info("TxPool reset reinject","old",oldNum,"new",newNum)
 			var discarded, included types.Transactions
 
 			var (
@@ -455,7 +456,7 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 	t6 := time.Now()
 
 	if t5.Sub(t1).Seconds() > 1 {
-		log.Info("🐌 reset too slow","Number",newHead.Number,"t1-2",t2.Sub(t1),"t2-3",t3.Sub(t2),"t3-4",t4.Sub(t3),"t4-5",t5.Sub(t4),"t5-6",t6.Sub(t5))
+		log.Info("🐌 reset too slow","Number",newHead.Number,"t1-2",t2.Sub(t1),"t2-3",t3.Sub(t2),"t3-4",t4.Sub(t3),"t4-5",t5.Sub(t4),"t5-6",t6.Sub(t5),"reinject",len(reinject))
 	}
 }
 

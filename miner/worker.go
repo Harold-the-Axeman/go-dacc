@@ -17,6 +17,7 @@
 package miner
 
 import (
+	"github.com/daccproject/go-dacc/log"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -129,7 +130,12 @@ func (w *worker) mainLoop() {
 			timestamp = now.Unix()
 			if w.isRunning() {
 				if timestamp%blockInterval == 0 { // check it is time to mint block
+					start := time.Now()
 					w.mintBlock(timestamp) // TODO: go routine, stopChan in the future
+					end := time.Now()
+					if end.Sub(start).Seconds() > 2 {
+						log.Info("🐌 Miner work too slow","mint",end.Sub(start),"start",start.UnixNano(),"ticker",now.UnixNano())
+					}
 				}
 			}
 			// for the next block
