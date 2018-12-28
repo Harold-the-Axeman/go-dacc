@@ -33,7 +33,7 @@ const (
 
 	blockInterval    = int64(5)
 	epochInterval    = int64(86400)
-	maxValidatorSize = 9
+	maxValidatorSize = 5
 	safeSize         = maxValidatorSize*2/3 + 1
 	consensusSize    = maxValidatorSize*2/3 + 1
 )
@@ -490,6 +490,15 @@ func (d *Dpos) CheckValidator(lastBlock *types.Block, now int64) bool {
 		return false
 	}
 	return true
+}
+
+func (d *Dpos)NextTime(lastBlock *types.Block) (wait bool,nextTime int64,err error) {
+	dposContext, err := types.NewDposContextFromProto(d.db, lastBlock.Header().DposContext)
+	if err != nil {
+		return false,0,err
+	}
+	epochContext := &EpochContext{DposContext: dposContext}
+	return epochContext.nextTime(d.signer)
 }
 
 // Seal generates a new block for the given input block with the local miner's

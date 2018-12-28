@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"math/rand"
 	"sort"
+	"time"
 
 	"github.com/daccproject/go-dacc/common"
 	"github.com/daccproject/go-dacc/core/state"
@@ -144,6 +145,44 @@ func (ec *EpochContext) lookupValidator(now int64) (validator common.Address, er
 	}
 	offset %= int64(validatorSize)
 	return validators[offset], nil
+}
+
+func (ec *EpochContext)nextTime(address common.Address) (wait bool,nextTime int64,err error) {
+	nowTime := time.Now().Unix()
+	curEpoch := nowTime / epochInterval
+	nextEpochTime := (curEpoch + 1) * epochInterval
+	//time.Now().Truncate( 5 * time.Second)
+	offset := nowTime % epochInterval
+
+	validators, err := ec.DposContext.GetValidators()
+	if err != nil {
+		return false,0,err
+	}
+	validatorSize := len(validators)
+	if validatorSize == 0 {
+		return false,0, errors.New("failed to lookup validator")
+	}
+	one := blockInterval * int64(validatorSize)
+	offset = int64(offset/one) * one
+	var index int64 = 0
+	for i, account := range validators {
+		if account == address {
+			index = int64(i)
+			break
+		}
+	}
+
+	offset += curEpoch * epochInterval + index * blockInterval
+
+	if offset >  nowTime{
+		if offset >= nextEpochTime {
+			return true,nextEpochTime,nil
+		}
+		return true,offset,nil
+	}else{
+		return true,offset + one,nil
+	}
+
 }
 
 func (ec *EpochContext) tryElect(genesis, parent *types.Header) error {

@@ -17,22 +17,23 @@
 package miner
 
 import (
-	"github.com/daccproject/go-dacc/log"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/daccproject/go-dacc/common"
 	"github.com/daccproject/go-dacc/consensus"
+	"github.com/daccproject/go-dacc/consensus/dpos"
 	"github.com/daccproject/go-dacc/core"
 	"github.com/daccproject/go-dacc/core/state"
 	"github.com/daccproject/go-dacc/core/types"
 	"github.com/daccproject/go-dacc/event"
 	"github.com/daccproject/go-dacc/params"
+	"github.com/daccproject/go-dacc/log"
 )
 
 const (
-	blockInterval = 5 //TODO: config from dpos
+	blockInterval = int64(5) //TODO: config from dpos
 )
 
 // environment is the worker's current environment and holds all of the current state information.
@@ -119,33 +120,56 @@ func newWorker(config *params.ChainConfig, engine consensus.Engine, eth Backend,
 
 // newWorkLoop is a standalone goroutine to submit new mining work upon received events.
 func (w *worker) mainLoop() {
-	var timestamp int64
-	ticker := time.NewTicker(time.Second)
-	defer ticker.Stop()
+	//var timestamp int64
+	//ticker := time.NewTicker(time.Second)
+	//defer ticker.Stop()
+	//
+	//for {
+	//	select {
+	//	//case <- w.startCH: //TODO, use this to start the mining process
+	//	case now := <-ticker.C:
+	//		timestamp = now.Unix()
+	//		if w.isRunning() {
+	//			start := time.Now()
+	//			if timestamp%blockInterval == 0 { // check it is time to mint block
+	//				log.Warn("Miner work blockInterval","now",start.Unix(),"ticker",timestamp)
+	//				go w.mintBlock(timestamp) // TODO: go routine, stopChan in the future
+	//				//end := time.Now()
+	//				//if end.Sub(start).Seconds() > 2 {
+	//				//	log.Info("🐌 Miner work too slow","mint",end.Sub(start),"start",start.Unix(),"ticker",timestamp)
+	//				//}
+	//			}else{
+	//				log.Warn("Miner work false","now",start.Unix(),"ticker",timestamp)
+	//			}
+	//		}
+	//		// for the next block
+	//	case <-w.exitCh:
+	//		return
+	//	}
+	//}
 
-	for {
+	engine, _ := w.engine.(*dpos.Dpos)
+	for{
+		wait,nextTime,err := engine.NextTime(w.chain.CurrentBlock())
+		wtime := blockInterval
+		if !wait || err != nil {
+			wtime = ((time.Now().Unix()/blockInterval)+1)*blockInterval - time.Now().Unix()
+		}else{
+			wtime = nextTime - time.Now().Unix()
+		}
+		log.Info("timer wait for next","time",wtime,"nextTime",nextTime)
+		timer := time.NewTimer(time.Duration(wtime * int64(time.Second)))
 		select {
-		//case <- w.startCH: //TODO, use this to start the mining process
-		case now := <-ticker.C:
-			timestamp = now.Unix()
-			if w.isRunning() {
-				start := time.Now()
-				if timestamp%blockInterval == 0 { // check it is time to mint block
-					log.Warn("Miner work blockInterval","now",start.Unix(),"ticker",timestamp)
-					go w.mintBlock(timestamp) // TODO: go routine, stopChan in the future
-					//end := time.Now()
-					//if end.Sub(start).Seconds() > 2 {
-					//	log.Info("🐌 Miner work too slow","mint",end.Sub(start),"start",start.Unix(),"ticker",timestamp)
-					//}
-				}else{
-					log.Warn("Miner work false","now",start.Unix(),"ticker",timestamp)
+			case <- timer.C:
+				if w.isRunning() {
+					log.Info("⚡️ try mint block with", "time", nextTime)
+					w.mintBlock(nextTime)
 				}
-			}
-			// for the next block
-		case <-w.exitCh:
-			return
+			case <-w.exitCh:
+				return
 		}
 	}
+
 }
 
 // start sets the running status as 1 and triggers new work submitting.
