@@ -492,10 +492,10 @@ func (d *Dpos) CheckValidator(lastBlock *types.Block, now int64) bool {
 	return true
 }
 
-func (d *Dpos)NextTime(lastBlock *types.Block) (wait bool,nextTime int64,err error) {
+func (d *Dpos)NextTime(lastBlock *types.Block) (diff int64,nextTime int64,err error) {
 	dposContext, err := types.NewDposContextFromProto(d.db, lastBlock.Header().DposContext)
 	if err != nil {
-		return false,0,err
+		return 0,0,err
 	}
 	epochContext := &EpochContext{DposContext: dposContext}
 	return epochContext.nextTime(d.signer)

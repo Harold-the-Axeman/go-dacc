@@ -150,15 +150,12 @@ func (w *worker) mainLoop() {
 
 	engine, _ := w.engine.(*dpos.Dpos)
 	for{
-		wait,nextTime,err := engine.NextTime(w.chain.CurrentBlock())
-		wtime := blockInterval
-		if !wait || err != nil {
-			wtime = ((time.Now().Unix()/blockInterval)+1)*blockInterval - time.Now().Unix()
-		}else{
-			wtime = nextTime - time.Now().Unix()
+		diff,nextTime,err := engine.NextTime(w.chain.CurrentBlock())
+		if err != nil {
+			diff = ((time.Now().Unix()/blockInterval)+1)*blockInterval - time.Now().Unix()
 		}
-		log.Info("timer wait for next","time",wtime,"nextTime",nextTime)
-		timer := time.NewTimer(time.Duration(wtime * int64(time.Second)))
+		log.Info("timer wait for next","time",diff,"nextTime",nextTime)
+		timer := time.NewTimer(time.Duration(diff * int64(time.Second)))
 		select {
 			case <- timer.C:
 				if w.isRunning() {
