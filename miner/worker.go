@@ -28,8 +28,8 @@ import (
 	"github.com/daccproject/go-dacc/core/state"
 	"github.com/daccproject/go-dacc/core/types"
 	"github.com/daccproject/go-dacc/event"
-	"github.com/daccproject/go-dacc/params"
 	"github.com/daccproject/go-dacc/log"
+	"github.com/daccproject/go-dacc/params"
 )
 
 const (
@@ -149,22 +149,22 @@ func (w *worker) mainLoop() {
 	//}
 
 	engine, _ := w.engine.(*dpos.Dpos)
-	for{
-		diff,nextTime,err := engine.NextTime(w.chain.CurrentBlock())
+	for {
+		diff, nextTime, err := engine.NextTime(w.chain.CurrentBlock())
 		if err != nil {
 			diff = ((time.Now().Unix()/blockInterval)+1)*blockInterval - time.Now().Unix()
 			nextTime = time.Now().Unix() + diff
 		}
-		log.Info("timer wait for next","time",diff,"nextTime",nextTime)
+		log.Info("timer wait for next", "time", diff, "nextTime", nextTime)
 		timer := time.NewTimer(time.Duration(diff * int64(time.Second)))
 		select {
-			case <- timer.C:
-				if w.isRunning(){
-					log.Info("⚡️ try mint block with", "time", nextTime)
-					w.mintBlock(nextTime)
-				}
-			case <-w.exitCh:
-				return
+		case <-timer.C:
+			if w.isRunning() {
+				log.Info("⚡️ try mint block with", "time", nextTime)
+				w.mintBlock(nextTime)
+			}
+		case <-w.exitCh:
+			return
 		}
 	}
 

@@ -147,7 +147,7 @@ func (ec *EpochContext) lookupValidator(now int64) (validator common.Address, er
 	return validators[offset], nil
 }
 
-func (ec *EpochContext)nextTime(address common.Address) (diff int64,nextTime int64,err error) {
+func (ec *EpochContext) nextTime(address common.Address) (diff int64, nextTime int64, err error) {
 	nowTime := time.Now().Unix()
 	curEpoch := nowTime / epochInterval
 	nextEpochTime := (curEpoch + 1) * epochInterval
@@ -156,11 +156,11 @@ func (ec *EpochContext)nextTime(address common.Address) (diff int64,nextTime int
 
 	validators, err := ec.DposContext.GetValidators()
 	if err != nil {
-		return 0,0,err
+		return 0, 0, err
 	}
 	validatorSize := len(validators)
 	if validatorSize == 0 {
-		return 0,0, errors.New("failed to lookup validator")
+		return 0, 0, errors.New("failed to lookup validator")
 	}
 	one := blockInterval * int64(validatorSize)
 	offset = int64(offset/one) * one
@@ -172,15 +172,15 @@ func (ec *EpochContext)nextTime(address common.Address) (diff int64,nextTime int
 		}
 	}
 
-	offset += curEpoch * epochInterval + index * blockInterval
+	offset += curEpoch*epochInterval + index*blockInterval
 
-	if offset >  nowTime{
+	if offset > nowTime {
 		if offset >= nextEpochTime {
-			return nextEpochTime - nowTime,nextEpochTime,nil
+			return nextEpochTime - nowTime, nextEpochTime, nil
 		}
-		return offset - nowTime,offset,nil
-	}else{
-		return offset + one - nowTime,offset + one,nil
+		return offset - nowTime, offset, nil
+	} else {
+		return offset + one - nowTime, offset + one, nil
 	}
 
 }
