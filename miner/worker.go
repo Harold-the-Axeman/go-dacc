@@ -153,12 +153,13 @@ func (w *worker) mainLoop() {
 		diff,nextTime,err := engine.NextTime(w.chain.CurrentBlock())
 		if err != nil {
 			diff = ((time.Now().Unix()/blockInterval)+1)*blockInterval - time.Now().Unix()
+			nextTime = time.Now().Unix() + diff
 		}
 		log.Info("timer wait for next","time",diff,"nextTime",nextTime)
 		timer := time.NewTimer(time.Duration(diff * int64(time.Second)))
 		select {
 			case <- timer.C:
-				if w.isRunning() {
+				if w.isRunning(){
 					log.Info("⚡️ try mint block with", "time", nextTime)
 					w.mintBlock(nextTime)
 				}
