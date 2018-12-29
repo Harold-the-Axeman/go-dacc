@@ -1094,6 +1094,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 			log.Debug("Premature abort during blocks processing")
 			break
 		}
+		t1 := time.Now()
 		// If the header is a banned one, straight out abort
 		if BadHashes[block.Hash()] {
 			bc.reportBlock(block, nil, ErrBlacklistedHash)
@@ -1106,6 +1107,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 		if err == nil {
 			err = bc.Validator().ValidateBody(block)
 		}
+		t2 := time.Now()
 		// remvoe log
 		if err != nil {
 			log.Warn("Verify body err", "err", err)
@@ -1194,7 +1196,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 			return i, events, coalescedLogs, err
 		}
 		state, err := state.New(parent.Root(), bc.stateCache)
-
+		t3 := time.Now()
 		if err != nil {
 			// remove log
 			log.Warn("Err state new:", "err", err)
@@ -1208,6 +1210,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 			bc.reportBlock(block, receipts, err)
 			return i, events, coalescedLogs, err
 		}
+		t4 := time.Now()
 		// Validate the state using the default validator
 		err = bc.Validator().ValidateState(block, parent, state, receipts, usedGas)
 		if err != nil {
@@ -1216,6 +1219,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 			bc.reportBlock(block, receipts, err)
 			return i, events, coalescedLogs, err
 		}
+		t5 := time.Now()
 		// Validate the dpos state using the default validator
 		err = bc.Validator().ValidateDposState(block)
 		if err != nil {
@@ -1224,6 +1228,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 			bc.reportBlock(block, receipts, err)
 			return i, events, coalescedLogs, err
 		}
+		t6 := time.Now()
 		// Validate validator
 		dposEngine, isDpos := bc.engine.(*dpos.Dpos)
 		if isDpos {
@@ -1233,6 +1238,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 				return i, events, coalescedLogs, err
 			}
 		}
+		t7 := time.Now()
 		proctime := time.Since(bstart)
 
 		// Write the block to the chain and get the status.
@@ -1240,6 +1246,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 		if err != nil {
 			return i, events, coalescedLogs, err
 		}
+		t8 := time.Now()
 		switch status {
 		case CanonStatTy:
 			// TODO(Corbin) [deprecated the uncle block logic]
@@ -1274,6 +1281,8 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 			blockInsertTimer.UpdateSince(bstart)
 			//events = append(events, ChainSideEvent{block})
 		}
+		t9 := time.Now()
+		log.Info("insert block time","t1-2",t2.Sub(t1),"t2-3",t3.Sub(t2),"t3-4",t4.Sub(t3),"t4-5",t5.Sub(t4),"t5-6",t6.Sub(t5),"t6-7",t7.Sub(t6),"t7-8",t8.Sub(t7),"t8-9",t9.Sub(t8))
 		stats.processed++
 		stats.usedGas += usedGas
 
