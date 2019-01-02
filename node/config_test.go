@@ -79,9 +79,9 @@ func TestIPCPathResolution(t *testing.T) {
 		{"data", "/gdacc.ipc", false, "/gdacc.ipc"},
 		{"", "", true, ``},
 		{"data", "", true, ``},
-		{"", "gdacc.ipc", true, `\\.\pipe\geth.ipc`},
-		{"data", "gdacc.ipc", true, `\\.\pipe\geth.ipc`},
-		{"data", `\\.\pipe\geth.ipc`, true, `\\.\pipe\geth.ipc`},
+		{"", "gdacc.ipc", true, `\\.\pipe\gdacc.ipc`},
+		{"data", "gdacc.ipc", true, `\\.\pipe\gdacc.ipc`},
+		{"data", `\\.\pipe\gdacc.ipc`, true, `\\.\pipe\gdacc.ipc`},
 	}
 	for i, test := range tests {
 		// Only run when platform/test match
