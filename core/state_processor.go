@@ -23,7 +23,9 @@ import (
 	"github.com/daccproject/go-dacc/core/types"
 	"github.com/daccproject/go-dacc/core/vm"
 	"github.com/daccproject/go-dacc/crypto"
+	"github.com/daccproject/go-dacc/log"
 	"github.com/daccproject/go-dacc/params"
+	"time"
 )
 
 // StateProcessor is a basic Processor, which takes care of transitioning
@@ -53,6 +55,7 @@ func NewStateProcessor(config *params.ChainConfig, bc *BlockChain, engine consen
 // returns the amount of gas that was used in the process. If any of the
 // transactions failed to execute due to insufficient gas it will return an error.
 func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg vm.Config) (types.Receipts, []*types.Log, uint64, error) {
+	t1 := time.Now()
 	var (
 		receipts types.Receipts
 		usedGas  = new(uint64)
@@ -66,23 +69,34 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 	//}
 	// Set block dpos context
 	// Iterate over and process the individual transactions
+	t2 := time.Now()
+	var ft int64 = 0
+	var at int64 = 0
+	var bt int64 = 0
 	for i, tx := range block.Transactions() {
+
 		statedb.Prepare(tx.Hash(), block.Hash(), i)
+
 		//receipt, _, err := ApplyTransaction(p.config, p.bc, nil, gp, statedb, header, tx, usedGas, cfg)
-		receipt, _, err := ApplyTransaction(p.config, block.DposCtx(), p.bc, nil, gp, statedb, header, tx, usedGas, cfg)
+		receipt, _, err,tf,ta,tb := ApplyTransaction(p.config, block.DposCtx(), p.bc, nil, gp, statedb, header, tx, usedGas, cfg)
+		ft += tf
+		at += ta
+		bt += tb
 		if err != nil {
 			return nil, nil, 0, err
 		}
 		receipts = append(receipts, receipt)
 		allLogs = append(allLogs, receipt.Logs...)
 	}
+	t3 := time.Now()
 	// Finalize the block, applying any consensus engine specific extras (e.g. block rewards)
 	//p.engine.Finalize(p.bc, header, statedb, block.Transactions(), block.Uncles(), receipts)
 	// TODO(Corbin) [deprecated the uncle block logic]
 	// p.engine.Finalize(p.bc, header, statedb, block.Transactions(), block.Uncles(), receipts, block.DposCtx())
 	p.engine.Finalize(p.bc, header, statedb, block.Transactions(), receipts, block.DposCtx())
 	// TODO(Corbin) [deprecated the uncle block logic]
-
+	t4 := time.Now()
+	log.Info("Process","t1-2",t2.Sub(t1),"t2-3",t3.Sub(t2),"ft",ft,"at",at,"bt",bt,"t3-4",t4.Sub(t3))
 	return receipts, allLogs, *usedGas, nil
 }
 
@@ -91,14 +105,15 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 // for the transaction, gas used and an error if the transaction failed,
 // indicating the block was invalid.
 //func ApplyTransaction(config *params.ChainConfig, bc ChainContext, author *common.Address, gp *GasPool, statedb *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config) (*types.Receipt, uint64, error) {
-func ApplyTransaction(config *params.ChainConfig, dposContext *types.DposContext, bc *BlockChain, author *common.Address, gp *GasPool, statedb *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config) (*types.Receipt, uint64, error) {
+func ApplyTransaction(config *params.ChainConfig, dposContext *types.DposContext, bc *BlockChain, author *common.Address, gp *GasPool, statedb *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config) (*types.Receipt, uint64, error,int64,int64,int64) {
+	t1 := time.Now()
 	msg, err := tx.AsMessage(types.MakeSigner(config, header.Number))
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, err,0,0,0
 	}
-
+	t2 := time.Now()
 	if msg.To() == nil && msg.Type() != types.Binary {
-		return nil, 0, types.ErrInvalidType
+		return nil, 0, types.ErrInvalidType,0,0,0
 	}
 
 	// Create a new context to be used in the EVM environment
@@ -109,13 +124,14 @@ func ApplyTransaction(config *params.ChainConfig, dposContext *types.DposContext
 	// Apply the transaction to the current state (included in the env)
 	_, gas, failed, err := ApplyMessage(vmenv, msg, gp)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, err,0,0,0
 	}
 	if msg.Type() != types.Binary {
 		if err = applyDposMessage(dposContext, msg); err != nil {
-			return nil, 0, err
+			return nil, 0, err,0,0,0
 		}
 	}
+	t3 := time.Now()
 
 	// Update the state with pending changes
 	var root []byte
@@ -138,8 +154,8 @@ func ApplyTransaction(config *params.ChainConfig, dposContext *types.DposContext
 	// Set the receipt logs and create a bloom for filtering
 	receipt.Logs = statedb.GetLogs(tx.Hash())
 	receipt.Bloom = types.CreateBloom(types.Receipts{receipt})
-
-	return receipt, gas, err
+	t4 := time.Now()
+	return receipt, gas, err,int64(t2.Sub(t1)),int64(t3.Sub(t2)),int64(t4.Sub(t3))
 }
 
 func applyDposMessage(dposContext *types.DposContext, msg types.Message) error {

@@ -155,15 +155,18 @@ func (w *worker) mainLoop() {
 			diff = ((time.Now().Unix()/blockInterval)+1)*blockInterval - time.Now().Unix()
 			nextTime = time.Now().Unix() + diff
 		}
-		log.Info("timer wait for next", "time", diff, "nextTime", nextTime)
+		log.Info("Timer wait for next", "time", diff, "nextTime", nextTime)
 		timer := time.NewTimer(time.Duration(diff * int64(time.Second)))
 		select {
 		case <-timer.C:
 			if w.isRunning() {
-				log.Info("⚡️ try mint block with", "time", nextTime)
+				log.Info("⚡️ Try mint block with", "time", nextTime)
 				w.mintBlock(nextTime)
+			}else{
+				log.Info("Try mint but isRunning false")
 			}
 		case <-w.exitCh:
+			log.Info("Mint loop return")
 			return
 		}
 	}

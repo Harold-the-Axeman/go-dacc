@@ -474,19 +474,23 @@ func (d *Dpos) checkDeadline(lastBlock *types.Block, now int64) error {
 
 func (d *Dpos) CheckValidator(lastBlock *types.Block, now int64) bool {
 	if err := d.checkDeadline(lastBlock, now); err != nil {
+		log.Error("CheckValidator","err1",err)
 		return false
 	}
 	dposContext, err := types.NewDposContextFromProto(d.db, lastBlock.Header().DposContext)
 	if err != nil {
+		log.Error("CheckValidator","err2",err)
 		return false
 	}
 	epochContext := &EpochContext{DposContext: dposContext}
 	validator, err := epochContext.lookupValidator(now)
 	if err != nil {
+		log.Error("CheckValidator","err3",err)
 		return false
 	}
 	if (validator == common.Address{}) || bytes.Compare(validator.Bytes(), d.signer.Bytes()) != 0 {
 		//ErrInvalidBlockValidator
+		log.Error("CheckValidator","err4","validator error")
 		return false
 	}
 	return true

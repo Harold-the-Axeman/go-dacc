@@ -124,6 +124,8 @@ func (w *worker) commit() {
 
 		//TODO: async execution
 		w.updateSnapshot()
+	}else{
+		log.Error("worker.commit but running false")
 	}
 }
 
@@ -144,6 +146,7 @@ func (w *worker) commitTask(task *task) {
 // processResult the result of the
 func (w *worker) processResult(block *types.Block, task *task) {
 	if block == nil {
+		log.Error("worker.processResult but block is nil")
 		return
 	}
 	// Different block could share same sealhash, deep copy here to prevent write-write conflict.
@@ -243,21 +246,21 @@ func (w *worker) updateSnapshot() {
 	w.snapshotState = w.current.state.Copy()
 }
 
-func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Address) ([]*types.Log, error) {
+func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Address) ([]*types.Log, error,int64,int64,int64) {
 	snap := w.current.state.Snapshot()
 	dposSnap := w.current.dposContext.Snapshot()
 
-	receipt, _, err := core.ApplyTransaction(w.config, w.current.dposContext, w.chain, &coinbase, w.current.gasPool, w.current.state, w.current.header, tx, &w.current.header.GasUsed, vm.Config{})
+	receipt, _, err,tf,ta,tb := core.ApplyTransaction(w.config, w.current.dposContext, w.chain, &coinbase, w.current.gasPool, w.current.state, w.current.header, tx, &w.current.header.GasUsed, vm.Config{})
 
 	if err != nil {
 		w.current.state.RevertToSnapshot(snap)
 		w.current.dposContext.RevertToSnapShot(dposSnap)
-		return nil, err
+		return nil, err,0,0,0
 	}
 	w.current.txs = append(w.current.txs, tx)
 	w.current.receipts = append(w.current.receipts, receipt)
 
-	return receipt.Logs, nil
+	return receipt.Logs, nil,tf,ta,tb
 }
 
 // interrupt: nil in txsCh, commitInterruptNone in ticker ?
@@ -269,7 +272,9 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 	}
 
 	var coalescedLogs []*types.Log
-
+	var ft int64 = 0
+	var at int64 = 0
+	var bt int64 = 0
 	for {
 		// If we don't have enough gas for any further transactions then we're done
 		if w.current.gasPool.Gas() < params.TxGas {
@@ -293,7 +298,10 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 		// Start executing the transaction
 		w.current.state.Prepare(tx.Hash(), common.Hash{}, w.current.tcount)
 
-		logs, err := w.commitTransaction(tx, coinbase)
+		logs, err,tf,ta,tb := w.commitTransaction(tx, coinbase)
+		ft += tf
+		at += ta
+		bt += tb
 		switch err {
 		case core.ErrGasLimitReached:
 			// Pop the current out-of-gas transaction without shifting in the next from the account
@@ -323,6 +331,7 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 			txs.Shift()
 		}
 	}
+	log.Info("Worker commitTxs","ft",ft,"at",at,"bt",bt)
 
 	//TODO: is not running, when to post?
 	if !w.isRunning() && len(coalescedLogs) > 0 {
