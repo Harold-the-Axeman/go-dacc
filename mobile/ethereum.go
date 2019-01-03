@@ -16,7 +16,7 @@
 
 // Contains all the wrappers from the go-dacc root package.
 
-package geth
+package gdacc
 
 import (
 	"errors"

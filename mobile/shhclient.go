@@ -16,7 +16,7 @@
 
 // Contains a wrapper for the Whisper client.
 
-package geth
+package gdacc
 
 import (
 	"github.com/daccproject/go-dacc/whisper/shhclient"

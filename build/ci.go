@@ -406,14 +406,14 @@ func doArchive(cmdline []string) {
 		env = build.Env()
 
 		basegeth = archiveBasename(*arch, params.ArchiveVersion(env.Commit))
-		geth     = "gdacc-" + basegeth + ext
+		gdacc     = "gdacc-" + basegeth + ext
 		alltools = "gdacc-alltools-" + basegeth + ext
 
 		baseswarm = archiveBasename(*arch, sv.ArchiveVersion(env.Commit))
 		swarm     = "swarm-" + baseswarm + ext
 	)
 	maybeSkipArchive(env)
-	if err := build.WriteArchive(geth, gethArchiveFiles); err != nil {
+	if err := build.WriteArchive(gdacc, gethArchiveFiles); err != nil {
 		log.Fatal(err)
 	}
 	if err := build.WriteArchive(alltools, allToolsArchiveFiles); err != nil {
@@ -422,7 +422,7 @@ func doArchive(cmdline []string) {
 	if err := build.WriteArchive(swarm, swarmArchiveFiles); err != nil {
 		log.Fatal(err)
 	}
-	for _, archive := range []string{geth, alltools, swarm} {
+	for _, archive := range []string{gdacc, alltools, swarm} {
 		if err := archiveUpload(archive, *upload, *signer); err != nil {
 			log.Fatal(err)
 		}
@@ -725,7 +725,7 @@ func doWindowsInstaller(cmdline []string) {
 	// first section contains the gdacc binary, second section holds the dev tools.
 	templateData := map[string]interface{}{
 		"License":  "COPYING",
-		"Geth":     gethTool,
+		"Gdacc":     gethTool,
 		"DevTools": devTools,
 	}
 	build.Render("build/nsis.gdacc.nsi", filepath.Join(*workdir, "gdacc.nsi"), 0644, nil)
@@ -933,8 +933,8 @@ func doXCodeFramework(cmdline []string) {
 	// Prepare and upload a PodSpec to CocoaPods
 	if *deploy != "" {
 		meta := newPodMetadata(env, archive)
-		build.Render("build/pod.podspec", "Geth.podspec", 0755, meta)
-		build.MustRunCommand("pod", *deploy, "push", "Geth.podspec", "--allow-warnings", "--verbose")
+		build.Render("build/pod.podspec", "Gdacc.podspec", 0755, meta)
+		build.MustRunCommand("pod", *deploy, "push", "Gdacc.podspec", "--allow-warnings", "--verbose")
 	}
 }
 

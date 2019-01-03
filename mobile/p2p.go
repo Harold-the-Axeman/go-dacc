@@ -16,7 +16,7 @@
 
 // Contains wrappers for the p2p package.
 
-package geth
+package gdacc
 
 import (
 	"errors"

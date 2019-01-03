@@ -23,7 +23,7 @@ dependencies:
 
 test:
   override:
-    # Build Geth and move into a known folder
+    # Build Gdacc and move into a known folder
     - make gdacc
     - cp ./build/bin/gdacc $HOME/gdacc
 
