@@ -112,7 +112,7 @@ func (w *worker) commit() {
 
 	block, err := w.engine.Finalize(w.chain, w.current.header, s, w.current.txs, w.current.receipts, dc)
 	if err != nil {
-		log.Error("worker.commit.finalize", err.Error())
+		log.Error("worker.commit.finalize", "err",err)
 		return
 	}
 	w.current.metric.tf = time.Now()

@@ -508,6 +508,7 @@ func (s *PublicBlockChainAPI) GetBalance(ctx context.Context, address common.Add
 func (s *PublicBlockChainAPI) GetBlockByNumber(ctx context.Context, blockNr rpc.BlockNumber, fullTx bool) (map[string]interface{}, error) {
 	block, err := s.b.BlockByNumber(ctx, blockNr)
 	if block != nil {
+		//TODO: online should use inclTx:true
 		response, err := s.rpcOutputBlock(block, false, fullTx)
 		if err == nil && blockNr == rpc.PendingBlockNumber {
 			// Pending blocks need to nil out a few fields
