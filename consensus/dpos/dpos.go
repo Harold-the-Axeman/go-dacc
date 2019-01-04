@@ -43,8 +43,8 @@ var (
 	big8  = big.NewInt(8)
 	big32 = big.NewInt(32)
 
-	frontierBlockReward  *big.Int = big.NewInt(5e+18) // Block reward in wei for successfully mining a block
-	byzantiumBlockReward *big.Int = big.NewInt(3e+18) // Block reward in wei for successfully mining a block upward from Byzantium
+	frontierBlockReward  *big.Int = big.NewInt(25e+18) // Block reward in wei for successfully mining a block
+	byzantiumBlockReward *big.Int = big.NewInt(15e+18) // Block reward in wei for successfully mining a block upward from Byzantium
 
 	timeOfFirstBlock = int64(0)
 
@@ -474,23 +474,23 @@ func (d *Dpos) checkDeadline(lastBlock *types.Block, now int64) error {
 
 func (d *Dpos) CheckValidator(lastBlock *types.Block, now int64) bool {
 	if err := d.checkDeadline(lastBlock, now); err != nil {
-		log.Error("CheckValidator","err1",err)
+		log.Error("CheckValidator", "err1", err)
 		return false
 	}
 	dposContext, err := types.NewDposContextFromProto(d.db, lastBlock.Header().DposContext)
 	if err != nil {
-		log.Error("CheckValidator","err2",err)
+		log.Error("CheckValidator", "err2", err)
 		return false
 	}
 	epochContext := &EpochContext{DposContext: dposContext}
 	validator, err := epochContext.lookupValidator(now)
 	if err != nil {
-		log.Error("CheckValidator","err3",err)
+		log.Error("CheckValidator", "err3", err)
 		return false
 	}
 	if (validator == common.Address{}) || bytes.Compare(validator.Bytes(), d.signer.Bytes()) != 0 {
 		//ErrInvalidBlockValidator
-		log.Error("CheckValidator","err4","validator error","validator",validator.Hex(),"signer",d.signer.Hex())
+		log.Error("CheckValidator", "err4", "validator error", "validator", validator.Hex(), "signer", d.signer.Hex())
 		return false
 	}
 	return true
