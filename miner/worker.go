@@ -23,7 +23,6 @@ import (
 
 	"github.com/daccproject/go-dacc/common"
 	"github.com/daccproject/go-dacc/consensus"
-	"github.com/daccproject/go-dacc/consensus/dpos"
 	"github.com/daccproject/go-dacc/core"
 	"github.com/daccproject/go-dacc/core/state"
 	"github.com/daccproject/go-dacc/core/types"
@@ -148,15 +147,20 @@ func (w *worker) mainLoop() {
 	//	}
 	//}
 
-	engine, _ := w.engine.(*dpos.Dpos)
+	//engine, _ := w.engine.(*dpos.Dpos)
 	for {
-		diff, nextTime, err := engine.NextTime(w.chain.CurrentBlock())
-		if err != nil {
-			diff = ((time.Now().Unix()/blockInterval)+1)*blockInterval - time.Now().Unix()
-			nextTime = time.Now().Unix() + diff
-		}
-		log.Info("Timer wait for next", "time", diff, "nextTime", nextTime)
+		//diff, nextTime, err := engine.NextTime(w.chain.CurrentBlock())
+		//if err != nil {
+		//	diff = ((time.Now().Unix()/blockInterval)+1)*blockInterval - time.Now().Unix()
+		//	nextTime = time.Now().Unix() + diff
+		//}
+		//log.Info("Timer wait for next", "time", diff, "nextTime", nextTime)
+		//timer := time.NewTimer(time.Duration(diff * int64(time.Second)))
+		nowTime := time.Now().Unix()
+		nextTime := ((nowTime + blockInterval)/blockInterval) * blockInterval
+		diff := nextTime - nowTime
 		timer := time.NewTimer(time.Duration(diff * int64(time.Second)))
+		log.Info("Timer wait for next", "nowTime",nowTime,"time", diff, "nextTime", nextTime)
 		select {
 		case <-timer.C:
 			if w.isRunning() {
