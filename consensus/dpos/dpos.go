@@ -490,7 +490,7 @@ func (d *Dpos) CheckValidator(lastBlock *types.Block, now int64) bool {
 	}
 	if (validator == common.Address{}) || bytes.Compare(validator.Bytes(), d.signer.Bytes()) != 0 {
 		//ErrInvalidBlockValidator
-		log.Error("CheckValidator","err4","validator error")
+		log.Error("CheckValidator","err4","validator error","validator",validator.Hex(),"signer",d.signer.Hex())
 		return false
 	}
 	return true
