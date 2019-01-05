@@ -43,8 +43,8 @@ var (
 	big8  = big.NewInt(8)
 	big32 = big.NewInt(32)
 
-	frontierBlockReward  *big.Int = big.NewInt(25e+18) // Block reward in wei for successfully mining a block
-	byzantiumBlockReward *big.Int = big.NewInt(15e+18) // Block reward in wei for successfully mining a block upward from Byzantium
+	frontierBlockReward  *big.Int = big.NewInt(5e+18) // Block reward in wei for successfully mining a block
+	byzantiumBlockReward *big.Int = big.NewInt(3e+18) // Block reward in wei for successfully mining a block upward from Byzantium
 
 	timeOfFirstBlock = int64(0)
 
