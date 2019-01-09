@@ -134,9 +134,9 @@ func (p *peer) broadcast() {
 			//	return
 			//}
 			// end change by Shara
-			p.Log().Info("broadcast block")
+			p.Log().Info("broadcast block","number", prop.block.Number(), "hash", prop.block.Hash())
 			if err := p.SendNewBlock(prop.block); err != nil {
-				p.Log().Error("broadcast block","err",err)
+				p.Log().Error("broadcast block","number", prop.block.Number(), "hash", prop.block.Hash(),"err",err)
 				return
 			}
 			// change by Shara - remove TD
