@@ -705,6 +705,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 
 	case msg.Code == NewBlockMsg:
 		NewBlockMsgCounter.Inc(1)
+		start := time.Now()
 		// Retrieve and decode the propagated block
 		var request newBlockData
 		if err := msg.Decode(&request); err != nil {
@@ -743,6 +744,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 				go pm.synchronise(p)
 			}
 		}
+		log.Info("handler NewBlockMsg end","number", request.Block.NumberU64(), "hash", request.Block.Hash(),"duration",time.Now().Sub(start))
 
 	case msg.Code == TxMsg:
 		TxMsgCounter.Inc(1)
