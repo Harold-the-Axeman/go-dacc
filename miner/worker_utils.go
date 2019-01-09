@@ -182,7 +182,7 @@ func (w *worker) processResult(block *types.Block, task *task) {
 		events = append(events, core.ChainHeadEvent{Block: block})
 	case core.SideStatTy:
 		//events = append(events, core.ChainSideEvent{Block: block})
-		log.Warn("miner.work.processResult: side chain event")
+		log.Error("miner.work.processResult: side chain event")
 	}
 	w.chain.PostChainEvents(events, logs)
 
@@ -203,7 +203,7 @@ func (w *worker) printMetric(block *types.Block, receipts types.Receipts) {
 	m := w.current.metric
 	log.Info("⚡️ New mining work metric: ", "Prepare", m.tp.Sub(m.ts), "makeCurrent", m.tmc.Sub(m.tp),
 		"applyTransactions", m.tat.Sub(m.tmc), "Finalize", m.tf.Sub(m.tat), "Seal", m.tsl.Sub(m.tf),
-		"WriteBlockWithState", m.twbs.Sub(m.tsl),"ts",m.ts.UnixNano(),"tp",m.tp.UnixNano())
+		"WriteBlockWithState", m.twbs.Sub(m.tsl),"ts",m.ts.Unix(),"end",time.Now().Unix())
 }
 
 // makeCurrent creates a new environment for the current cycle.

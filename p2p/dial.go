@@ -376,6 +376,7 @@ func (t *discoverTask) String() string {
 	s := "discovery lookup"
 	if len(t.results) > 0 {
 		s += fmt.Sprintf(" (%d results)", len(t.results))
+
 	}
 	return s
 }

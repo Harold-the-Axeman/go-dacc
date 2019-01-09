@@ -236,7 +236,7 @@ func (ec *EpochContext) tryElect(genesis, parent *types.Header) error {
 		epochTrie, _ := types.NewEpochTrie(common.Hash{}, ec.DposContext.DB())
 		ec.DposContext.SetEpoch(epochTrie)
 		ec.DposContext.SetValidators(sortedValidators)
-		log.Info("Come to new epoch", "prevEpoch", i, "nextEpoch", i+1,"newValidators",sortedValidators)
+		log.Info("Come to new epoch", "prevEpoch", i, "nextEpoch", i+1)
 	}
 	return nil
 }

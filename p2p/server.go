@@ -429,7 +429,7 @@ func (srv *Server) Start() (err error) {
 	if srv.log == nil {
 		srv.log = log.New()
 	}
-	srv.log.Info("Starting P2P networking")
+	srv.log.Trace("Starting P2P networking")
 
 	// static fields
 	if srv.PrivateKey == nil {
@@ -604,7 +604,7 @@ func (srv *Server) run(dialstate dialer) {
 		i := 0
 		for ; len(runningTasks) < maxActiveDialTasks && i < len(ts); i++ {
 			t := ts[i]
-			srv.log.Info("New dial task", "task", t)
+			srv.log.Trace("New dial task", "task", t)
 			go func() { t.Do(srv); taskdone <- t }()
 			runningTasks = append(runningTasks, t)
 		}
@@ -632,13 +632,13 @@ running:
 			// This channel is used by AddPeer to add to the
 			// ephemeral static peer list. Add it to the dialer,
 			// it will keep the node connected.
-			srv.log.Info("Adding static node", "node", n)
+			srv.log.Trace("Adding static node", "node", n)
 			dialstate.addStatic(n)
 		case n := <-srv.removestatic:
 			// This channel is used by RemovePeer to send a
 			// disconnect request to a peer and begin the
 			// stop keeping the node connected.
-			srv.log.Info("Removing static node", "node", n)
+			srv.log.Trace("Removing static node", "node", n)
 			dialstate.removeStatic(n)
 			if p, ok := peers[n.ID]; ok {
 				p.Disconnect(DiscRequested)
@@ -646,7 +646,7 @@ running:
 		case n := <-srv.addtrusted:
 			// This channel is used by AddTrustedPeer to add an enode
 			// to the trusted node set.
-			srv.log.Info("Adding trusted node", "node", n)
+			srv.log.Trace("Adding trusted node", "node", n)
 			trusted[n.ID] = true
 			// Mark any already-connected peer as trusted
 			if p, ok := peers[n.ID]; ok {
@@ -655,7 +655,7 @@ running:
 		case n := <-srv.removetrusted:
 			// This channel is used by RemoveTrustedPeer to remove an enode
 			// from the trusted node set.
-			srv.log.Info("Removing trusted node", "node", n)
+			srv.log.Trace("Removing trusted node", "node", n)
 			if _, ok := trusted[n.ID]; ok {
 				delete(trusted, n.ID)
 			}
@@ -671,7 +671,7 @@ running:
 			// A task got done. Tell dialstate about it so it
 			// can update its state and remove it from the active
 			// tasks list.
-			srv.log.Info("Dial task done", "task", t)
+			srv.log.Trace("Dial task done", "task", t)
 			dialstate.taskDone(t, time.Now())
 			delTask(t)
 		case c := <-srv.posthandshake:
@@ -681,7 +681,7 @@ running:
 				// Ensure that the trusted flag is set before checking against MaxPeers.
 				c.flags |= trustedConn
 			}
-			srv.log.Info("<- posthandshake","addr", c.fd.RemoteAddr())
+			srv.log.Trace("<- posthandshake","addr", c.fd.RemoteAddr())
 			// TODO: track in-progress inbound node IDs (pre-Peer) to avoid dialing them.
 			select {
 			case c.cont <- srv.encHandshakeChecks(peers, inboundCount, c):
@@ -691,7 +691,7 @@ running:
 		case c := <-srv.addpeer:
 			// At this point the connection is past the protocol handshake.
 			// Its capabilities are known and the remote identity is verified.
-			srv.log.Info("<- addpeer","addr", c.fd.RemoteAddr())
+			srv.log.Trace("<- addpeer","addr", c.fd.RemoteAddr())
 			err := srv.protoHandshakeChecks(peers, inboundCount, c)
 			if err == nil {
 				// The handshakes are done and it passed all checks.
@@ -702,7 +702,7 @@ running:
 					p.events = &srv.peerFeed
 				}
 				name := truncateName(c.name)
-				srv.log.Info("Adding p2p peer", "name", name, "addr", c.fd.RemoteAddr(), "peers", len(peers)+1)
+				srv.log.Trace("Adding p2p peer", "name", name, "addr", c.fd.RemoteAddr(), "peers", len(peers)+1)
 				go srv.runPeer(p)
 				peers[c.id] = p
 				if p.Inbound() {
@@ -720,7 +720,7 @@ running:
 		case pd := <-srv.delpeer:
 			// A peer disconnected.
 			d := common.PrettyDuration(mclock.Now() - pd.created)
-			pd.log.Info("Removing p2p peer", "duration", d, "peers", len(peers)-1, "req", pd.requested, "err", pd.err)
+			pd.log.Trace("Removing p2p peer", "duration", d, "peers", len(peers)-1, "req", pd.requested, "err", pd.err)
 			delete(peers, pd.ID())
 			if pd.Inbound() {
 				inboundCount--
@@ -728,7 +728,7 @@ running:
 		}
 	}
 
-	srv.log.Info("P2P networking is spinning down")
+	srv.log.Trace("P2P networking is spinning down")
 
 	// Terminate discovery. If there is a running lookup it will terminate soon.
 	if srv.ntab != nil {
@@ -746,7 +746,7 @@ running:
 	// is closed.
 	for len(peers) > 0 {
 		p := <-srv.delpeer
-		p.log.Info("<-delpeer (spindown)", "remainingTasks", len(runningTasks))
+		p.log.Trace("<-delpeer (spindown)", "remainingTasks", len(runningTasks))
 		delete(peers, p.ID())
 	}
 }
@@ -799,7 +799,7 @@ type tempError interface {
 // inbound connections.
 func (srv *Server) listenLoop() {
 	defer srv.loopWG.Done()
-	srv.log.Info("RLPx listener up", "self", srv.makeSelf(srv.listener, srv.ntab))
+	srv.log.Trace("RLPx listener up", "self", srv.makeSelf(srv.listener, srv.ntab))
 
 	tokens := defaultMaxPendingPeers
 	if srv.MaxPendingPeers > 0 {
@@ -821,10 +821,10 @@ func (srv *Server) listenLoop() {
 		for {
 			fd, err = srv.listener.Accept()
 			if tempErr, ok := err.(tempError); ok && tempErr.Temporary() {
-				srv.log.Info("Temporary read error", "err", err)
+				srv.log.Trace("Temporary read error", "err", err)
 				continue
 			} else if err != nil {
-				srv.log.Info("Read error", "err", err)
+				srv.log.Trace("Read error", "err", err)
 				return
 			}
 			break
@@ -833,7 +833,7 @@ func (srv *Server) listenLoop() {
 		// Reject connections that do not match NetRestrict.
 		if srv.NetRestrict != nil {
 			if tcp, ok := fd.RemoteAddr().(*net.TCPAddr); ok && !srv.NetRestrict.Contains(tcp.IP) {
-				srv.log.Info("Rejected conn (not whitelisted in NetRestrict)", "addr", fd.RemoteAddr())
+				srv.log.Trace("Rejected conn (not whitelisted in NetRestrict)", "addr", fd.RemoteAddr())
 				fd.Close()
 				slots <- struct{}{}
 				continue
@@ -841,7 +841,7 @@ func (srv *Server) listenLoop() {
 		}
 
 		fd = newMeteredConn(fd, true)
-		srv.log.Info("Accepted connection", "addr", fd.RemoteAddr())
+		srv.log.Trace("Accepted connection", "addr", fd.RemoteAddr())
 		go func() {
 			srv.SetupConn(fd, inboundConn, nil)
 			slots <- struct{}{}
@@ -861,7 +861,7 @@ func (srv *Server) SetupConn(fd net.Conn, flags connFlag, dialDest *discover.Nod
 	err := srv.setupConn(c, flags, dialDest)
 	if err != nil {
 		c.close(err)
-		srv.log.Info("Setting up connection failed", "id", c.id, "err", err)
+		srv.log.Trace("Setting up connection failed", "id", c.id, "err", err)
 	}
 	return err
 }
@@ -877,39 +877,39 @@ func (srv *Server) setupConn(c *conn, flags connFlag, dialDest *discover.Node) e
 	// Run the encryption handshake.
 	var err error
 	if c.id, err = c.doEncHandshake(srv.PrivateKey, dialDest); err != nil {
-		srv.log.Info("Failed RLPx handshake", "addr", c.fd.RemoteAddr(), "conn", c.flags, "err", err)
+		srv.log.Trace("Failed RLPx handshake", "addr", c.fd.RemoteAddr(), "conn", c.flags, "err", err)
 		return err
 	}
 	clog := srv.log.New("id", c.id, "addr", c.fd.RemoteAddr(), "conn", c.flags)
 	// For dialed connections, check that the remote public key matches.
 	if dialDest != nil && c.id != dialDest.ID {
-		clog.Info("Dialed identity mismatch", "want", c, dialDest.ID)
+		clog.Trace("Dialed identity mismatch", "want", c, dialDest.ID)
 		return DiscUnexpectedIdentity
 	}
 	err = srv.checkpoint(c, srv.posthandshake)
 	if err != nil {
-		clog.Info("Rejected peer before protocol handshake", "err", err)
+		clog.Trace("Rejected peer before protocol handshake", "err", err)
 		return err
 	}
 	// Run the protocol handshake
 	phs, err := c.doProtoHandshake(srv.ourHandshake)
 	if err != nil {
-		clog.Info("Failed proto handshake", "err", err)
+		clog.Trace("Failed proto handshake", "err", err)
 		return err
 	}
 	if phs.ID != c.id {
-		clog.Info("Wrong devp2p handshake identity", "err", phs.ID)
+		clog.Trace("Wrong devp2p handshake identity", "err", phs.ID)
 		return DiscUnexpectedIdentity
 	}
 	c.caps, c.name = phs.Caps, phs.Name
 	err = srv.checkpoint(c, srv.addpeer)
 	if err != nil {
-		clog.Info("Rejected peer", "err", err)
+		clog.Trace("Rejected peer", "err", err)
 		return err
 	}
 	// If the checks completed successfully, runPeer has now been
 	// launched by run.
-	clog.Info("connection set up", "inbound", dialDest == nil)
+	clog.Trace("connection set up", "inbound", dialDest == nil)
 	return nil
 }
 
