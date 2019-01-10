@@ -201,9 +201,10 @@ func (ec *EpochContext) tryElect(genesis, parent *types.Header) error {
 	for i := prevEpoch; i < currentEpoch; i++ {
 		// if prevEpoch is not genesis, kickout not active candidate
 		if !prevEpochIsGenesis && iter.Next() {
-			if err := ec.kickoutValidator(prevEpoch); err != nil {
-				return err
-			}
+			//TODO:JUST FOR TEST
+			//if err := ec.kickoutValidator(prevEpoch); err != nil {
+			//	return err
+			//}
 		}
 		votes, err := ec.countVotes()
 		if err != nil {
