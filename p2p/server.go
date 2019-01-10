@@ -691,7 +691,7 @@ running:
 		case c := <-srv.addpeer:
 			// At this point the connection is past the protocol handshake.
 			// Its capabilities are known and the remote identity is verified.
-			srv.log.Trace("<- addpeer","addr", c.fd.RemoteAddr())
+			srv.log.Debug("<- addpeer","addr", c.fd.RemoteAddr())
 			err := srv.protoHandshakeChecks(peers, inboundCount, c)
 			if err == nil {
 				// The handshakes are done and it passed all checks.
@@ -720,7 +720,7 @@ running:
 		case pd := <-srv.delpeer:
 			// A peer disconnected.
 			d := common.PrettyDuration(mclock.Now() - pd.created)
-			pd.log.Trace("Removing p2p peer", "duration", d, "peers", len(peers)-1, "req", pd.requested, "err", pd.err)
+			pd.log.Debug("Removing p2p peer", "duration", d, "peers", len(peers)-1, "req", pd.requested, "err", pd.err)
 			delete(peers, pd.ID())
 			if pd.Inbound() {
 				inboundCount--
