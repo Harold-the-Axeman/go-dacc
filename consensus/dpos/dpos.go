@@ -32,7 +32,7 @@ const (
 	inmemorySignatures = 4096 // Number of recent block signatures to keep in memory
 
 	blockInterval    = int64(5)
-	epochInterval    = int64(600)
+	epochInterval    = int64(86400)
 	maxValidatorSize = 15
 	safeSize         = maxValidatorSize*2/3 + 1
 	consensusSize    = maxValidatorSize*2/3 + 1
